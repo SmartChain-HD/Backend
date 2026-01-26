@@ -36,6 +36,7 @@ public enum ErrorCode {
     // 404 Not Found
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U003", "사용자를 찾을 수 없습니다"),
     ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "R001", "역할을 찾을 수 없습니다"),
+    DOMAIN_NOT_FOUND(HttpStatus.NOT_FOUND, "DOM001", "도메인을 찾을 수 없습니다"),
     COMPANY_NOT_FOUND(HttpStatus.NOT_FOUND, "C001", "회사를 찾을 수 없습니다"),
     DIAGNOSTIC_NOT_FOUND(HttpStatus.NOT_FOUND, "D001", "진단을 찾을 수 없습니다"),
     CAMPAIGN_NOT_FOUND(HttpStatus.NOT_FOUND, "D002", "캠페인을 찾을 수 없습니다"),
@@ -58,6 +59,7 @@ public enum ErrorCode {
     // 409 Conflict
     DUPLICATE_BUSINESS_NUMBER(HttpStatus.CONFLICT, "C002", "이미 등록된 사업자등록번호입니다"),
     DUPLICATE_ROLE_REQUEST(HttpStatus.CONFLICT, "R003", "이미 대기중인 권한 요청이 있습니다"),
+    DUPLICATE_DOMAIN_ROLE(HttpStatus.CONFLICT, "R006", "해당 도메인에 이미 권한이 부여되어 있습니다"),
     INVALID_ROLE_REQUEST(HttpStatus.BAD_REQUEST, "R004", "유효하지 않은 권한입니다"),
     ALREADY_PROCESSED_REQUEST(HttpStatus.CONFLICT, "PERM_003", "이미 처리된 권한 요청입니다"),
     INVALID_DECISION(HttpStatus.BAD_REQUEST, "R005", "유효하지 않은 처리 결과입니다"),

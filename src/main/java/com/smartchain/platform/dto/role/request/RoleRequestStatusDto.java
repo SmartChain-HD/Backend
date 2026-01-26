@@ -1,6 +1,7 @@
 package com.smartchain.platform.dto.role.request;
 
 import com.smartchain.platform.dto.role.common.CompanySimpleDto;
+import com.smartchain.platform.dto.role.common.DomainSimpleDto;
 import com.smartchain.platform.dto.role.common.ProcessedByDto;
 import com.smartchain.platform.dto.role.common.RoleSimpleDto;
 import lombok.AllArgsConstructor;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 public class RoleRequestStatusDto {
     private Long accessRequestId;        // v3.0: requestId → accessRequestId
     private RoleSimpleDto requestedRole; // v3.0: 구조화
+    private DomainSimpleDto domain;      // v4.0: 도메인별 권한
     private CompanySimpleDto company;    // v3.0: 구조화
     private String status;               // PENDING, APPROVED, REJECTED
     private String statusLabel;          // "승인 대기중", "승인 완료", "승인 반려"
