@@ -2,6 +2,8 @@ package com.smartchain.platform.domain.review.repository;
 
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
+import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.global.enums.ReviewStatus;
 import com.smartchain.platform.global.enums.RiskLevel;
 import org.springframework.data.domain.Page;
@@ -51,4 +53,14 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // 최근 활동 조회 (상위 N개)
     @Query("SELECT r FROM Review r ORDER BY r.submittedAt DESC")
     List<Review> findTopNByOrderBySubmittedAtDesc(Pageable pageable);
+
+    // 도메인별 조회
+    List<Review> findByDomain(Domain domain);
+
+    Page<Review> findByDomainOrderByCreatedAtDesc(Domain domain, Pageable pageable);
+
+    // 담당 심사자 + 도메인별 조회
+    Page<Review> findByAssignedReviewerAndDomainOrderByCreatedAtDesc(User assignedReviewer, Domain domain, Pageable pageable);
+
+    List<Review> findByAssignedReviewerAndDomain(User assignedReviewer, Domain domain);
 }

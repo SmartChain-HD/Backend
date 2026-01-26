@@ -2,6 +2,7 @@ package com.smartchain.platform.domain.review.entity;
 
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.global.entity.BaseTimeEntity;
 import com.smartchain.platform.global.enums.ReviewStatus;
@@ -36,6 +37,10 @@ public class Review extends BaseTimeEntity {
     @JoinColumn(name = "assigned_reviewer_id")
     private User assignedReviewer;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id")
+    private Domain domain;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ReviewStatus status;
@@ -66,11 +71,12 @@ public class Review extends BaseTimeEntity {
     private String categoryCommentG;
 
     @Builder
-    public Review(Diagnostic diagnostic, Company company, User assignedReviewer,
+    public Review(Diagnostic diagnostic, Company company, User assignedReviewer, Domain domain,
                   Integer score, LocalDateTime submittedAt) {
         this.diagnostic = diagnostic;
         this.company = company;
         this.assignedReviewer = assignedReviewer;
+        this.domain = domain;
         this.score = score;
         this.riskLevel = RiskLevel.fromScore(score);
         this.submittedAt = submittedAt;
