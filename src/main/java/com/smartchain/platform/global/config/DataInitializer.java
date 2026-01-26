@@ -293,6 +293,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnostic(diagnosticForReview)
                 .company(partnerCompany1)
                 .assignedReviewer(reviewer)
+                .domain(esgDomain)
                 .score(72)
                 .submittedAt(LocalDateTime.now().minusDays(5))
                 .build());
