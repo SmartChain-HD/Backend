@@ -1,5 +1,6 @@
 package com.smartchain.platform.domain.diagnostic.entity;
 
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -21,6 +22,11 @@ public class Campaign extends BaseTimeEntity {
     private String campaignCode;
 
     private Long ownerCompanyId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id")
+    private Domain domain;
+
     private String title;
     private String content;
 
@@ -29,10 +35,11 @@ public class Campaign extends BaseTimeEntity {
     private LocalDate deadline;
 
     @Builder
-    public Campaign(String campaignCode, Long ownerCompanyId, String title, String content,
+    public Campaign(String campaignCode, Long ownerCompanyId, Domain domain, String title, String content,
                     LocalDate periodStartDate, LocalDate periodEndDate, LocalDate deadline) {
         this.campaignCode = campaignCode;
         this.ownerCompanyId = ownerCompanyId;
+        this.domain = domain;
         this.title = title;
         this.content = content;
         this.periodStartDate = periodStartDate;

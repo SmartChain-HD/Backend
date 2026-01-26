@@ -226,6 +226,7 @@ public class DataInitializer implements CommandLineRunner {
         Campaign campaign2026 = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-2026-001")
                 .ownerCompanyId(ownerCompany.getCompanyId())
+                .domain(esgDomain)
                 .title("2026년 ESG 공급망 진단")
                 .content("2026년도 협력사 ESG 경영 현황 진단 및 평가")
                 .periodStartDate(LocalDate.of(2026, 1, 1))
