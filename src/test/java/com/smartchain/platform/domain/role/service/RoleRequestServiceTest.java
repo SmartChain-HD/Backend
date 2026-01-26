@@ -2,11 +2,14 @@ package com.smartchain.platform.domain.role.service;
 
 import com.smartchain.platform.domain.role.repository.RoleRequestRepository;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.RoleRequest;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
+import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
+import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.role.approval.RoleApprovalDetailResponse;
 import com.smartchain.platform.dto.role.approval.RoleApprovalListResponse;
@@ -62,7 +65,16 @@ class RoleRequestServiceTest {
     private RoleRepository roleRepository;
 
     @Mock
+    private DomainRepository domainRepository;
+
+    @Mock
+    private UserDomainRoleRepository userDomainRoleRepository;
+
+    @Mock
     private User testUser;
+
+    @Mock
+    private Domain testDomain;
 
     @Mock
     private Company testCompany;
@@ -83,6 +95,11 @@ class RoleRequestServiceTest {
         lenient().when(testCompany.getCompanyId()).thenReturn(10L);
         lenient().when(testCompany.getName()).thenReturn("(주)테스트회사");
         lenient().when(testCompany.getScale()).thenReturn("TIER1");
+
+        lenient().when(testDomain.getDomainId()).thenReturn(1L);
+        lenient().when(testDomain.getCode()).thenReturn("ESG");
+        lenient().when(testDomain.getName()).thenReturn("ESG 실사");
+        lenient().when(testDomain.getDescription()).thenReturn("ESG 공급망 실사");
     }
 
     @Nested
@@ -95,6 +112,7 @@ class RoleRequestServiceTest {
             // given
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
             given(companyRepository.findAll()).willReturn(Collections.singletonList(testCompany));
+            given(domainRepository.findByIsActiveTrue()).willReturn(Collections.singletonList(testDomain));
             given(roleRequestRepository.findByUserAndStatus(testUser, RequestStatus.PENDING))
                     .willReturn(Optional.empty());
 
@@ -107,6 +125,7 @@ class RoleRequestServiceTest {
             assertThat(response.getCurrentRole().getName()).isEqualTo("게스트");
             assertThat(response.getAvailableRoles()).hasSize(3);
             assertThat(response.getAvailableCompanies()).hasSize(1);
+            assertThat(response.getAvailableDomains()).hasSize(1);
             assertThat(response.getPendingRequest()).isNull();
         }
 
@@ -136,6 +155,7 @@ class RoleRequestServiceTest {
             // given
             RoleRequestCreateDto createDto = RoleRequestCreateDto.builder()
                     .requestedRole("DRAFTER")
+                    .domainId(1L)
                     .companyId(10L)
                     .reason("ESG 담당자 지정")
                     .build();
@@ -147,7 +167,9 @@ class RoleRequestServiceTest {
             when(savedRequest.getCreatedAt()).thenReturn(null);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-            given(roleRequestRepository.existsByUserAndStatus(testUser, RequestStatus.PENDING)).willReturn(false);
+            given(domainRepository.findById(1L)).willReturn(Optional.of(testDomain));
+            given(userDomainRoleRepository.existsByUserUserIdAndDomainDomainId(1L, 1L)).willReturn(false);
+            given(roleRequestRepository.existsByUserAndDomainAndStatus(testUser, testDomain, RequestStatus.PENDING)).willReturn(false);
             given(companyRepository.findById(10L)).willReturn(Optional.of(testCompany));
             given(roleRequestRepository.save(any(RoleRequest.class))).willReturn(savedRequest);
 
@@ -170,12 +192,15 @@ class RoleRequestServiceTest {
             // given
             RoleRequestCreateDto createDto = RoleRequestCreateDto.builder()
                     .requestedRole("DRAFTER")
+                    .domainId(1L)
                     .companyId(10L)
                     .reason("ESG 담당자 지정")
                     .build();
 
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-            given(roleRequestRepository.existsByUserAndStatus(testUser, RequestStatus.PENDING)).willReturn(true);
+            given(domainRepository.findById(1L)).willReturn(Optional.of(testDomain));
+            given(userDomainRoleRepository.existsByUserUserIdAndDomainDomainId(1L, 1L)).willReturn(false);
+            given(roleRequestRepository.existsByUserAndDomainAndStatus(testUser, testDomain, RequestStatus.PENDING)).willReturn(true);
 
             // when & then
             assertThatThrownBy(() -> roleRequestService.createRoleRequest(1L, createDto))
@@ -213,12 +238,15 @@ class RoleRequestServiceTest {
             // given
             RoleRequestCreateDto createDto = RoleRequestCreateDto.builder()
                     .requestedRole("DRAFTER")
+                    .domainId(1L)
                     .companyId(999L)
                     .reason("테스트")
                     .build();
 
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
-            given(roleRequestRepository.existsByUserAndStatus(testUser, RequestStatus.PENDING)).willReturn(false);
+            given(domainRepository.findById(1L)).willReturn(Optional.of(testDomain));
+            given(userDomainRoleRepository.existsByUserUserIdAndDomainDomainId(1L, 1L)).willReturn(false);
+            given(roleRequestRepository.existsByUserAndDomainAndStatus(testUser, testDomain, RequestStatus.PENDING)).willReturn(false);
             given(companyRepository.findById(999L)).willReturn(Optional.empty());
 
             // when & then

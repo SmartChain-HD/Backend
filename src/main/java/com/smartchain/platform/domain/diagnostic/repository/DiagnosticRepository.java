@@ -2,6 +2,7 @@ package com.smartchain.platform.domain.diagnostic.repository;
 
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.global.enums.DiagnosticStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -47,4 +48,8 @@ public interface DiagnosticRepository extends JpaRepository<Diagnostic, Long> {
 
     @Query("SELECT MAX(d.diagnosticId) FROM Diagnostic d")
     Long findMaxDiagnosticId();
+
+    Page<Diagnostic> findByDomainOrderByCreatedAtDesc(Domain domain, Pageable pageable);
+
+    List<Diagnostic> findByDomain(Domain domain);
 }
