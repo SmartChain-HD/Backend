@@ -1,6 +1,7 @@
 package com.smartchain.platform.domain.role.repository;
 
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.RoleRequest;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.global.enums.RequestStatus;
@@ -23,6 +24,11 @@ public interface RoleRequestRepository extends JpaRepository<RoleRequest, Long> 
     Optional<RoleRequest> findByRequestId(Long requestId);
 
     boolean existsByUserAndStatus(User user, RequestStatus status);
+
+    // 도메인별 조회
+    boolean existsByUserAndDomainAndStatus(User user, Domain domain, RequestStatus status);
+
+    Optional<RoleRequest> findByUserAndDomainAndStatus(User user, Domain domain, RequestStatus status);
 
     // 전체 조회 (페이징)
     Page<RoleRequest> findAllByOrderByCreatedAtDesc(Pageable pageable);

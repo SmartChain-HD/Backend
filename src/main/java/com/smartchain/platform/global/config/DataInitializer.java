@@ -13,12 +13,16 @@ import com.smartchain.platform.domain.notification.repository.NotificationReposi
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Industry;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
+import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.IndustryRepository;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
+import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.global.enums.*;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +43,8 @@ import java.time.LocalDateTime;
 public class DataInitializer implements CommandLineRunner {
 
     private final RoleRepository roleRepository;
+    private final DomainRepository domainRepository;
+    private final UserDomainRoleRepository userDomainRoleRepository;
     private final IndustryRepository industryRepository;
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
@@ -68,6 +74,29 @@ public class DataInitializer implements CommandLineRunner {
         Role approverRole = roleRepository.findByCode("APPROVER").orElseThrow(() -> new RuntimeException("Role not found: APPROVER"));
         Role reviewerRole = roleRepository.findByCode("REVIEWER").orElseThrow(() -> new RuntimeException("Role not found: REVIEWER"));
         log.info("Roles loaded: GUEST, DRAFTER, APPROVER, REVIEWER");
+
+        // 1-1. Domain 생성
+        Domain esgDomain = domainRepository.save(Domain.builder()
+                .code("ESG")
+                .name("ESG 실사")
+                .description("ESG 공급망 실사 및 진단")
+                .isActive(true)
+                .build());
+
+        Domain safetyDomain = domainRepository.save(Domain.builder()
+                .code("SAFETY")
+                .name("안전보건")
+                .description("TBM 영상 분석 기반 안전보건 관리")
+                .isActive(true)
+                .build());
+
+        Domain complianceDomain = domainRepository.save(Domain.builder()
+                .code("COMPLIANCE")
+                .name("컴플라이언스")
+                .description("하도급 계약서 AI 검토")
+                .isActive(true)
+                .build());
+        log.info("Domains created: ESG, SAFETY, COMPLIANCE");
 
         // 2. Industry 생성
         Industry manufacturing = industryRepository.save(new Industry("제조업", "MANUFACTURING"));
@@ -167,6 +196,31 @@ public class DataInitializer implements CommandLineRunner {
                 .role(guestRole)
                 .build());
         log.info("Users created: reviewer, approver, drafter1, drafter2, guest");
+
+        // 4-1. UserDomainRole 생성 (도메인별 권한 부여)
+        // reviewer: ESG, SAFETY, COMPLIANCE 모든 도메인에서 REVIEWER
+        userDomainRoleRepository.save(UserDomainRole.builder()
+                .user(reviewer).domain(esgDomain).role(reviewerRole).build());
+        userDomainRoleRepository.save(UserDomainRole.builder()
+                .user(reviewer).domain(safetyDomain).role(reviewerRole).build());
+        userDomainRoleRepository.save(UserDomainRole.builder()
+                .user(reviewer).domain(complianceDomain).role(reviewerRole).build());
+
+        // approver: ESG 도메인에서 APPROVER
+        userDomainRoleRepository.save(UserDomainRole.builder()
+                .user(approver).domain(esgDomain).role(approverRole).build());
+
+        // drafter1: ESG 도메인에서 DRAFTER, SAFETY 도메인에서 APPROVER
+        userDomainRoleRepository.save(UserDomainRole.builder()
+                .user(drafter1).domain(esgDomain).role(drafterRole).build());
+        userDomainRoleRepository.save(UserDomainRole.builder()
+                .user(drafter1).domain(safetyDomain).role(approverRole).build());
+
+        // drafter2: ESG 도메인에서 DRAFTER
+        userDomainRoleRepository.save(UserDomainRole.builder()
+                .user(drafter2).domain(esgDomain).role(drafterRole).build());
+
+        log.info("UserDomainRoles created: domain-specific roles assigned");
 
         // 5. Campaign 생성
         Campaign campaign2026 = campaignRepository.save(Campaign.builder()

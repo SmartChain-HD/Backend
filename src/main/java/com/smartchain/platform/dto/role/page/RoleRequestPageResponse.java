@@ -16,6 +16,7 @@ import java.util.List;
 public class RoleRequestPageResponse {
     private RoleSimpleDto currentRole;           // v3.0: 구조화
     private List<RoleOptionDto> availableRoles;
+    private List<DomainOptionDto> availableDomains;  // v4.0: 도메인 목록
     private List<CompanyOptionDto> availableCompanies;
     private RoleRequestStatusDto pendingRequest; // 대기중인 요청 (있을 경우)
 }

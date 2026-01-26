@@ -29,6 +29,10 @@ public class RoleRequest {
     private Company company;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id")
+    private Domain domain;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "processed_by")
     private User processedBy;
 
@@ -45,9 +49,10 @@ public class RoleRequest {
     private LocalDateTime createdAt;
 
     @Builder
-    public RoleRequest(User user, Company company, String requestedRole, String reason, RequestStatus status) {
+    public RoleRequest(User user, Company company, Domain domain, String requestedRole, String reason, RequestStatus status) {
         this.user = user;
         this.company = company;
+        this.domain = domain;
         this.requestedRole = requestedRole;
         this.reason = reason;
         this.status = status;
