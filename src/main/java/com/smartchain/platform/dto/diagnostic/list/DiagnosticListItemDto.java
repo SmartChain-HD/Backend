@@ -1,6 +1,7 @@
 package com.smartchain.platform.dto.diagnostic.list;
 
 import com.smartchain.platform.dto.diagnostic.common.CampaignSimpleDto;
+import com.smartchain.platform.dto.diagnostic.common.DomainSimpleDto;
 import com.smartchain.platform.dto.diagnostic.common.PeriodDto;
 import com.smartchain.platform.dto.diagnostic.common.ProgressDto;
 import lombok.AllArgsConstructor;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 public class DiagnosticListItemDto {
     private Long diagnosticId;
     private String diagnosticCode;       // v3.0: "DG-2026-00001"
+    private DomainSimpleDto domain;      // v3.0: 도메인 정보
     private CampaignSimpleDto campaign;  // v3.0: 구조화
     private String summary;              // "○ 25년도 상반기 ESG 보고서 제..."
     private PeriodDto period;            // v3.0: 구조화
