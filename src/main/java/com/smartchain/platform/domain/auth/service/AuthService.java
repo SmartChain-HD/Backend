@@ -1,0 +1,320 @@
+package com.smartchain.platform.domain.auth.service;
+
+import com.smartchain.platform.domain.auth.entity.EmailVerificationCode;
+import com.smartchain.platform.domain.auth.repository.EmailVerificationCodeRepository;
+import com.smartchain.platform.domain.user.entity.Role;
+import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.repository.RoleRepository;
+import com.smartchain.platform.domain.user.repository.UserRepository;
+import com.smartchain.platform.dto.auth.common.CompanyInfoDto;
+import com.smartchain.platform.dto.auth.common.RoleInfoDto;
+import com.smartchain.platform.dto.auth.common.UserInfoDto;
+import com.smartchain.platform.dto.auth.email.*;
+import com.smartchain.platform.dto.auth.login.LoginRequest;
+import com.smartchain.platform.dto.auth.login.LoginResponse;
+import com.smartchain.platform.dto.auth.logout.LogoutRequest;
+import com.smartchain.platform.dto.auth.myinfo.MyInfoResponse;
+import com.smartchain.platform.dto.auth.register.RegisterRequest;
+import com.smartchain.platform.dto.auth.register.RegisterResponse;
+import com.smartchain.platform.dto.auth.token.TokenRefreshRequest;
+import com.smartchain.platform.dto.auth.token.TokenRefreshResponse;
+import com.smartchain.platform.global.error.CustomException;
+import com.smartchain.platform.global.error.ErrorCode;
+import com.smartchain.platform.global.security.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.security.SecureRandom;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.Optional;
+import java.util.regex.Pattern;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
+    private final EmailVerificationCodeRepository verificationCodeRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
+
+    private static final String GUEST_ROLE_CODE = "GUEST";
+    private static final int VERIFICATION_CODE_LENGTH = 6;
+    private static final int VERIFICATION_CODE_EXPIRY_MINUTES = 5;
+    private static final int RESEND_LIMIT_SECONDS = 60;
+
+    // 비밀번호 패턴: 8자 이상, 영문+숫자+특수문자
+    private static final Pattern PASSWORD_PATTERN = Pattern.compile(
+            "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{8,}$"
+    );
+
+    @Transactional
+    public RegisterResponse register(RegisterRequest request) {
+        // 1. 비밀번호 확인
+        if (!request.getPassword().equals(request.getPasswordConfirm())) {
+            throw new CustomException(ErrorCode.PASSWORD_MISMATCH);
+        }
+
+        // 2. 비밀번호 형식 검증
+        if (!PASSWORD_PATTERN.matcher(request.getPassword()).matches()) {
+            throw new CustomException(ErrorCode.INVALID_PASSWORD_FORMAT);
+        }
+
+        // 3. 필수 약관 동의 확인
+        if (request.getTerms() == null ||
+                !Boolean.TRUE.equals(request.getTerms().getPrivacyPolicyAgreed()) ||
+                !Boolean.TRUE.equals(request.getTerms().getServiceTermsAgreed())) {
+            throw new CustomException(ErrorCode.TERMS_NOT_AGREED);
+        }
+
+        // 4. 이메일 중복 확인
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
+        }
+
+        // 5. GUEST 역할 조회
+        Role guestRole = roleRepository.findByCode(GUEST_ROLE_CODE)
+                .orElseThrow(() -> new CustomException(ErrorCode.ROLE_NOT_FOUND));
+
+        // 6. 사용자 생성
+        User user = User.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .userPassword(passwordEncoder.encode(request.getPassword()))
+                .role(guestRole)
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+        log.info("User registered: userId={}, email={}", savedUser.getUserId(), savedUser.getEmail());
+
+        return RegisterResponse.builder()
+                .userId(savedUser.getUserId())
+                .email(savedUser.getEmail())
+                .name(savedUser.getName())
+                .role(GUEST_ROLE_CODE)
+                .message("회원가입이 완료되었습니다")
+                .nextStep("ROLE_REQUEST")
+                .build();
+    }
+
+    @Transactional
+    public LoginResponse login(LoginRequest request) {
+        // 1. 사용자 조회
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
+
+        // 2. 비밀번호 검증
+        if (!passwordEncoder.matches(request.getPassword(), user.getUserPassword())) {
+            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        // 3. 마지막 로그인 시간 업데이트
+        user.updateLastLoginAt();
+
+        // 4. 토큰 생성
+        String roleCode = user.getRole() != null ? user.getRole().getCode() : GUEST_ROLE_CODE;
+        String accessToken = jwtTokenProvider.createAccessToken(
+                user.getUserId(), user.getEmail(), roleCode);
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getUserId());
+
+        log.info("User logged in: userId={}, email={}", user.getUserId(), user.getEmail());
+
+        // 5. 응답 생성
+        return LoginResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .expiresIn(jwtTokenProvider.getAccessTokenValidityInSeconds())
+                .user(buildUserInfoDto(user))
+                .build();
+    }
+
+    public EmailCheckResponse checkEmail(EmailCheckRequest request) {
+        boolean exists = userRepository.existsByEmail(request.getEmail());
+
+        return EmailCheckResponse.builder()
+                .email(request.getEmail())
+                .available(!exists)
+                .message(exists ? "이미 사용중인 이메일입니다" : "사용 가능한 이메일입니다")
+                .build();
+    }
+
+    @Transactional
+    public SendVerificationResponse sendVerificationCode(SendVerificationRequest request) {
+        String email = request.getEmail();
+
+        // 1. 재발송 제한 확인 (1분 이내 재발송 방지)
+        Optional<EmailVerificationCode> lastCode = verificationCodeRepository
+                .findTopByEmailOrderByCreatedAtDesc(email);
+
+        if (lastCode.isPresent()) {
+            LocalDateTime lastSentAt = lastCode.get().getCreatedAt();
+            long secondsSinceLastSend = ChronoUnit.SECONDS.between(lastSentAt, LocalDateTime.now());
+            if (secondsSinceLastSend < RESEND_LIMIT_SECONDS) {
+                throw new CustomException(ErrorCode.VERIFICATION_RATE_LIMIT);
+            }
+        }
+
+        // 2. 인증 코드 생성
+        String code = generateVerificationCode();
+
+        // 3. 인증 코드 저장
+        EmailVerificationCode verificationCode = EmailVerificationCode.builder()
+                .email(email)
+                .code(code)
+                .expiresAt(LocalDateTime.now().plusMinutes(VERIFICATION_CODE_EXPIRY_MINUTES))
+                .build();
+
+        verificationCodeRepository.save(verificationCode);
+
+        // TODO: 실제 이메일 발송 로직 구현 (Spring Mail 또는 외부 서비스 연동)
+        // 개발 환경에서는 로그로 코드 출력
+        log.info("Verification code sent: email={}, code={}", email, code);
+
+        return SendVerificationResponse.builder()
+                .email(email)
+                .message("인증 코드가 발송되었습니다")
+                .expiresInSeconds(VERIFICATION_CODE_EXPIRY_MINUTES * 60)
+                .build();
+    }
+
+    @Transactional
+    public EmailVerificationResponse verifyEmail(EmailVerificationRequest request) {
+        // 1. 가장 최근 인증 코드 조회
+        EmailVerificationCode verificationCode = verificationCodeRepository
+                .findTopByEmailAndVerifiedFalseOrderByCreatedAtDesc(request.getEmail())
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_VERIFICATION_CODE));
+
+        // 2. 만료 확인
+        if (verificationCode.isExpired()) {
+            throw new CustomException(ErrorCode.VERIFICATION_CODE_EXPIRED);
+        }
+
+        // 3. 코드 검증
+        if (!verificationCode.isValid(request.getVerificationCode())) {
+            throw new CustomException(ErrorCode.INVALID_VERIFICATION_CODE);
+        }
+
+        // 4. 인증 완료 처리
+        verificationCode.markAsVerified();
+
+        log.info("Email verified: email={}", request.getEmail());
+
+        return EmailVerificationResponse.builder()
+                .verified(true)
+                .message("이메일 인증이 완료되었습니다")
+                .build();
+    }
+
+    public TokenRefreshResponse refreshToken(TokenRefreshRequest request) {
+        String refreshToken = request.getRefreshToken();
+
+        // 1. 리프레시 토큰 검증
+        JwtTokenProvider.TokenValidationResult validationResult =
+                jwtTokenProvider.validateTokenWithResult(refreshToken);
+
+        if (validationResult == JwtTokenProvider.TokenValidationResult.EXPIRED) {
+            throw new CustomException(ErrorCode.EXPIRED_TOKEN);
+        }
+
+        if (validationResult == JwtTokenProvider.TokenValidationResult.INVALID) {
+            throw new CustomException(ErrorCode.INVALID_TOKEN);
+        }
+
+        // 2. 리프레시 토큰에서 사용자 ID 추출
+        Long userId = jwtTokenProvider.getUserIdFromToken(refreshToken);
+
+        // 3. 사용자 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        // 4. 새로운 토큰 발급
+        String roleCode = user.getRole() != null ? user.getRole().getCode() : GUEST_ROLE_CODE;
+        String newAccessToken = jwtTokenProvider.createAccessToken(
+                user.getUserId(), user.getEmail(), roleCode);
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(user.getUserId());
+
+        log.info("Token refreshed: userId={}", userId);
+
+        return TokenRefreshResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .tokenType("Bearer")
+                .expiresIn(jwtTokenProvider.getAccessTokenValidityInSeconds())
+                .build();
+    }
+
+    public void logout(LogoutRequest request) {
+        // 현재 구현에서는 클라이언트에서 토큰을 삭제하는 방식으로 로그아웃 처리
+        // 추후 Redis 등을 이용한 토큰 블랙리스트 방식으로 확장 가능
+        log.info("User logged out");
+    }
+
+    public MyInfoResponse getMyInfo(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        MyInfoResponse.MyInfoResponseBuilder builder = MyInfoResponse.builder()
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .lastLoginAt(user.getLastLoginAt())
+                .createdAt(user.getCreatedAt());
+
+        if (user.getRole() != null) {
+            builder.role(RoleInfoDto.builder()
+                    .code(user.getRole().getCode())
+                    .name(user.getRole().getName())
+                    .build());
+        }
+
+        if (user.getCompany() != null) {
+            builder.company(CompanyInfoDto.builder()
+                    .companyId(user.getCompany().getCompanyId())
+                    .companyName(user.getCompany().getName())
+                    .build());
+        }
+
+        return builder.build();
+    }
+
+    private String generateVerificationCode() {
+        SecureRandom random = new SecureRandom();
+        StringBuilder code = new StringBuilder();
+        for (int i = 0; i < VERIFICATION_CODE_LENGTH; i++) {
+            code.append(random.nextInt(10));
+        }
+        return code.toString();
+    }
+
+    private UserInfoDto buildUserInfoDto(User user) {
+        UserInfoDto.UserInfoDtoBuilder builder = UserInfoDto.builder()
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .name(user.getName());
+
+        if (user.getRole() != null) {
+            builder.role(RoleInfoDto.builder()
+                    .code(user.getRole().getCode())
+                    .name(user.getRole().getName())
+                    .build());
+        }
+
+        if (user.getCompany() != null) {
+            builder.company(CompanyInfoDto.builder()
+                    .companyId(user.getCompany().getCompanyId())
+                    .companyName(user.getCompany().getName())
+                    .build());
+        }
+
+        return builder.build();
+    }
+}

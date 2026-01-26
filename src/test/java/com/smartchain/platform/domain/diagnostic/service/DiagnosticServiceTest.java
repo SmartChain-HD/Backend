@@ -1,0 +1,576 @@
+package com.smartchain.platform.domain.diagnostic.service;
+
+import com.smartchain.platform.domain.approval.entity.Approval;
+import com.smartchain.platform.domain.approval.repository.ApprovalRepository;
+import com.smartchain.platform.domain.diagnostic.entity.Campaign;
+import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
+import com.smartchain.platform.domain.diagnostic.entity.DiagnosticHistory;
+import com.smartchain.platform.domain.diagnostic.repository.CampaignRepository;
+import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
+import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
+import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Role;
+import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.repository.UserRepository;
+import com.smartchain.platform.dto.diagnostic.ai.AiAnalysisResponse;
+import com.smartchain.platform.dto.diagnostic.create.DiagnosticCreateRequest;
+import com.smartchain.platform.dto.diagnostic.create.DiagnosticCreateResponse;
+import com.smartchain.platform.dto.diagnostic.detail.DiagnosticDetailResponse;
+import com.smartchain.platform.dto.diagnostic.history.DiagnosticHistoryResponse;
+import com.smartchain.platform.dto.diagnostic.list.DiagnosticListResponse;
+import com.smartchain.platform.dto.diagnostic.submit.DiagnosticSubmitRequest;
+import com.smartchain.platform.dto.diagnostic.submit.DiagnosticSubmitResponse;
+import com.smartchain.platform.global.enums.DiagnosticStatus;
+import com.smartchain.platform.global.error.CustomException;
+import com.smartchain.platform.global.error.ErrorCode;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class DiagnosticServiceTest {
+
+    @InjectMocks
+    private DiagnosticService diagnosticService;
+
+    @Mock
+    private DiagnosticRepository diagnosticRepository;
+
+    @Mock
+    private DiagnosticHistoryRepository diagnosticHistoryRepository;
+
+    @Mock
+    private CampaignRepository campaignRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
+    private ApprovalRepository approvalRepository;
+
+    @Mock
+    private User drafterUser;
+
+    @Mock
+    private User approverUser;
+
+    @Mock
+    private Company testCompany;
+
+    @Mock
+    private Role drafterRole;
+
+    @Mock
+    private Role approverRole;
+
+    @Mock
+    private Role guestRole;
+
+    @Mock
+    private Campaign testCampaign;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(drafterRole.getCode()).thenReturn("DRAFTER");
+        lenient().when(approverRole.getCode()).thenReturn("APPROVER");
+        lenient().when(guestRole.getCode()).thenReturn("GUEST");
+
+        lenient().when(drafterUser.getUserId()).thenReturn(1L);
+        lenient().when(drafterUser.getName()).thenReturn("기안자");
+        lenient().when(drafterUser.getRole()).thenReturn(drafterRole);
+        lenient().when(drafterUser.getCompany()).thenReturn(testCompany);
+
+        lenient().when(approverUser.getUserId()).thenReturn(2L);
+        lenient().when(approverUser.getName()).thenReturn("결재자");
+        lenient().when(approverUser.getRole()).thenReturn(approverRole);
+        lenient().when(approverUser.getCompany()).thenReturn(testCompany);
+
+        lenient().when(testCompany.getCompanyId()).thenReturn(10L);
+        lenient().when(testCompany.getName()).thenReturn("(주)테스트회사");
+
+        lenient().when(testCampaign.getCampaignId()).thenReturn(100L);
+        lenient().when(testCampaign.getCampaignCode()).thenReturn("CP-2026-00001");
+        lenient().when(testCampaign.getTitle()).thenReturn("2026년 ESG 자가진단");
+        lenient().when(testCampaign.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+        lenient().when(testCampaign.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+        lenient().when(testCampaign.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+    }
+
+    @Nested
+    @DisplayName("기안 목록 조회 테스트")
+    class GetDiagnosticListTest {
+
+        @Test
+        @DisplayName("DRAFTER가 자신의 기안 목록 조회 성공")
+        void getDiagnosticList_AsDrafter_Success() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            lenient().when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnostic.getTitle()).thenReturn("2026년 ESG 자가진단");
+            lenient().when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            lenient().when(diagnostic.getCompany()).thenReturn(testCompany);
+            lenient().when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            lenient().when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            lenient().when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            lenient().when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            lenient().when(diagnostic.getQualitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getQuantitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getOverallProgress()).thenReturn(0);
+            lenient().when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findByCompanyOrderByCreatedAtDesc(eq(testCompany), any()))
+                    .willReturn(diagnosticPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, null, 0, 10);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getContent()).hasSize(1);
+            assertThat(response.getContent().get(0).getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getContent().get(0).getStatus()).isEqualTo("WRITING");
+            assertThat(response.getPage().getTotalElements()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("APPROVER가 회사 전체 기안 목록 조회 성공")
+        void getDiagnosticList_AsApprover_Success() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            lenient().when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnostic.getTitle()).thenReturn("2026년 ESG 자가진단");
+            lenient().when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            lenient().when(diagnostic.getCompany()).thenReturn(testCompany);
+            lenient().when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.SUBMITTED);
+            lenient().when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            lenient().when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            lenient().when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            lenient().when(diagnostic.getQualitativeProgress()).thenReturn(100);
+            lenient().when(diagnostic.getQuantitativeProgress()).thenReturn(100);
+            lenient().when(diagnostic.getOverallProgress()).thenReturn(100);
+            lenient().when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(2L)).willReturn(Optional.of(approverUser));
+            given(diagnosticRepository.findByCompanyOrderByCreatedAtDesc(eq(testCompany), any()))
+                    .willReturn(diagnosticPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(2L, null, null, null, 0, 10);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getContent()).hasSize(1);
+            assertThat(response.getContent().get(0).getStatus()).isEqualTo("SUBMITTED");
+        }
+
+        @Test
+        @DisplayName("권한 없는 사용자가 기안 목록 조회 시 실패")
+        void getDiagnosticList_AsGuest_ThrowsException() {
+            // given
+            User guestUser = mock(User.class);
+            when(guestUser.getRole()).thenReturn(guestRole);
+
+            given(userRepository.findById(99L)).willReturn(Optional.of(guestUser));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.getDiagnosticList(99L, null, null, null, 0, 10))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("기안 상세 조회 테스트")
+    class GetDiagnosticDetailTest {
+
+        @Test
+        @DisplayName("DRAFTER가 자신의 기안 상세 조회 성공")
+        void getDiagnosticDetail_AsDrafter_Success() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            when(diagnostic.getCompany()).thenReturn(testCompany);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            when(diagnostic.getQualitativeProgress()).thenReturn(50);
+            when(diagnostic.getQuantitativeProgress()).thenReturn(30);
+            when(diagnostic.getOverallProgress()).thenReturn(40);
+            when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when
+            DiagnosticDetailResponse response = diagnosticService.getDiagnosticDetail(1L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getDiagnosticCode()).isEqualTo("DG-2026-00001");
+            assertThat(response.getStatus()).isEqualTo("WRITING");
+            assertThat(response.getStatusLabel()).isEqualTo("작성중");
+            assertThat(response.getQualitativeProgress()).isEqualTo(50);
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 기안 조회 시 실패")
+        void getDiagnosticDetail_NotFound_ThrowsException() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.getDiagnosticDetail(1L, 999L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("다른 사용자의 기안 조회 시 실패 (DRAFTER)")
+        void getDiagnosticDetail_OtherUserDiagnostic_ThrowsException() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(999L); // 다른 사용자의 기안
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.getDiagnosticDetail(1L, 1L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_RESOURCE);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("기안 생성 테스트")
+    class CreateDiagnosticTest {
+
+        @Test
+        @DisplayName("DRAFTER가 기안 생성 성공")
+        void createDiagnostic_Success() {
+            // given
+            DiagnosticCreateRequest request = DiagnosticCreateRequest.builder()
+                    .campaignId(100L)
+                    .build();
+
+            Diagnostic savedDiagnostic = mock(Diagnostic.class);
+            when(savedDiagnostic.getDiagnosticId()).thenReturn(1L);
+            when(savedDiagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            when(savedDiagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            when(savedDiagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(campaignRepository.findById(100L)).willReturn(Optional.of(testCampaign));
+            given(diagnosticRepository.findMaxDiagnosticId()).willReturn(0L);
+            given(diagnosticRepository.save(any(Diagnostic.class))).willReturn(savedDiagnostic);
+            given(diagnosticHistoryRepository.save(any(DiagnosticHistory.class))).willReturn(null);
+
+            // when
+            DiagnosticCreateResponse response = diagnosticService.createDiagnostic(1L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getDiagnosticCode()).isEqualTo("DG-2026-00001");
+            assertThat(response.getStatus()).isEqualTo("WRITING");
+
+            verify(diagnosticRepository).save(any(Diagnostic.class));
+            verify(diagnosticHistoryRepository).save(any(DiagnosticHistory.class));
+        }
+
+        @Test
+        @DisplayName("DRAFTER 권한이 없는 사용자가 기안 생성 시 실패")
+        void createDiagnostic_NotDrafter_ThrowsException() {
+            // given
+            DiagnosticCreateRequest request = DiagnosticCreateRequest.builder()
+                    .campaignId(100L)
+                    .build();
+
+            given(userRepository.findById(2L)).willReturn(Optional.of(approverUser));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.createDiagnostic(2L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 캠페인으로 기안 생성 시 실패")
+        void createDiagnostic_CampaignNotFound_ThrowsException() {
+            // given
+            DiagnosticCreateRequest request = DiagnosticCreateRequest.builder()
+                    .campaignId(999L)
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(campaignRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.createDiagnostic(1L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.CAMPAIGN_NOT_FOUND);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("기안 제출 테스트")
+    class SubmitDiagnosticTest {
+
+        @Test
+        @DisplayName("DRAFTER가 기안 제출 성공 및 Approval 자동 생성")
+        void submitDiagnostic_Success_CreatesApproval() {
+            // given
+            DiagnosticSubmitRequest request = DiagnosticSubmitRequest.builder()
+                    .submitComment("검토 부탁드립니다.")
+                    .build();
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.canSubmit()).thenReturn(true);
+            // getStatus()는 BIZ_002 체크(1회)와 previousStatus 조회(1회)에서 호출됨
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            when(diagnostic.getSubmittedAt()).thenReturn(LocalDateTime.now());
+            when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+
+            Approval savedApproval = mock(Approval.class);
+            when(savedApproval.getApprovalId()).thenReturn(100L);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+            given(diagnosticHistoryRepository.save(any(DiagnosticHistory.class))).willReturn(null);
+            given(approvalRepository.save(any(Approval.class))).willReturn(savedApproval);
+
+            // when
+            DiagnosticSubmitResponse response = diagnosticService.submitDiagnostic(1L, 1L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getPreviousStatus()).isEqualTo("WRITING");
+            assertThat(response.getNewStatus()).isEqualTo("SUBMITTED");
+            assertThat(response.getApprovalId()).isEqualTo(100L);
+            assertThat(response.getMessage()).isEqualTo("기안이 제출되었습니다");
+
+            verify(diagnostic).submit();
+            verify(diagnosticHistoryRepository).save(any(DiagnosticHistory.class));
+            verify(approvalRepository).save(any(Approval.class));
+        }
+
+        @Test
+        @DisplayName("이미 제출된 기안 재제출 시 실패 (BIZ_002)")
+        void submitDiagnostic_AlreadySubmitted_ThrowsException() {
+            // given
+            DiagnosticSubmitRequest request = DiagnosticSubmitRequest.builder()
+                    .submitComment("제출합니다.")
+                    .build();
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.SUBMITTED);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.submitDiagnostic(1L, 1L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_ALREADY_SUBMITTED);
+                    });
+        }
+
+        @Test
+        @DisplayName("제출할 수 없는 상태의 기안 제출 시 실패 (BIZ_001)")
+        void submitDiagnostic_InvalidStateTransition_ThrowsException() {
+            // given
+            DiagnosticSubmitRequest request = DiagnosticSubmitRequest.builder()
+                    .submitComment("제출합니다.")
+                    .build();
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.APPROVED);
+            when(diagnostic.canSubmit()).thenReturn(false);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.submitDiagnostic(1L, 1L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_INVALID_STATE_TRANSITION);
+                    });
+        }
+
+        @Test
+        @DisplayName("다른 사용자의 기안 제출 시 실패")
+        void submitDiagnostic_NotOwner_ThrowsException() {
+            // given
+            DiagnosticSubmitRequest request = DiagnosticSubmitRequest.builder()
+                    .submitComment("제출합니다.")
+                    .build();
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(999L); // 다른 사용자의 기안
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.submitDiagnostic(1L, 1L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_RESOURCE);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("AI 분석 결과 조회 테스트")
+    class GetAiAnalysisTest {
+
+        @Test
+        @DisplayName("DRAFTER가 자신의 기안 AI 분석 결과 조회 성공")
+        void getAiAnalysis_AsDrafter_Success() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when
+            AiAnalysisResponse response = diagnosticService.getAiAnalysis(1L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getAnalysisStatus()).isEqualTo("PENDING");
+        }
+
+        @Test
+        @DisplayName("APPROVER가 회사 기안 AI 분석 결과 조회 성공")
+        void getAiAnalysis_AsApprover_Success() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getCompany()).thenReturn(testCompany);
+
+            given(userRepository.findById(2L)).willReturn(Optional.of(approverUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when
+            AiAnalysisResponse response = diagnosticService.getAiAnalysis(2L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getAnalysisStatus()).isEqualTo("PENDING");
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 기안 AI 분석 결과 조회 시 실패")
+        void getAiAnalysis_DiagnosticNotFound_ThrowsException() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.getAiAnalysis(1L, 999L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_NOT_FOUND);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("기안 이력 조회 테스트")
+    class GetDiagnosticHistoryTest {
+
+        @Test
+        @DisplayName("기안 이력 조회 성공")
+        void getDiagnosticHistory_Success() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+
+            DiagnosticHistory history = mock(DiagnosticHistory.class);
+            when(history.getHistoryId()).thenReturn(1L);
+            when(history.getAction()).thenReturn("CREATED");
+            when(history.getPreviousStatus()).thenReturn(null);
+            when(history.getNewStatus()).thenReturn("WRITING");
+            when(history.getActor()).thenReturn(drafterUser);
+            when(history.getComment()).thenReturn(null);
+            when(history.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+            given(diagnosticHistoryRepository.findByDiagnosticOrderByCreatedAtDesc(diagnostic))
+                    .willReturn(List.of(history));
+
+            // when
+            DiagnosticHistoryResponse response = diagnosticService.getDiagnosticHistory(1L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getHistory()).hasSize(1);
+            assertThat(response.getHistory().get(0).getAction()).isEqualTo("CREATED");
+            assertThat(response.getHistory().get(0).getNewStatus()).isEqualTo("WRITING");
+        }
+    }
+}
