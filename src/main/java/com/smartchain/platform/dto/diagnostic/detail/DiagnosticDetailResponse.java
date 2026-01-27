@@ -1,6 +1,7 @@
 package com.smartchain.platform.dto.diagnostic.detail;
 
 import com.smartchain.platform.dto.diagnostic.common.CompanySimpleDto;
+import com.smartchain.platform.dto.diagnostic.common.DomainSimpleDto;
 import com.smartchain.platform.dto.diagnostic.common.PeriodDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 public class DiagnosticDetailResponse {
     private Long diagnosticId;
     private String diagnosticCode;
+    private DomainSimpleDto domain;          // v3.0: 도메인 정보
     private CampaignDetailDto campaign;      // v3.0: 구조화
     private CompanySimpleDto company;        // v3.0: 구조화
     private PeriodDto period;

@@ -11,6 +11,8 @@ import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
+import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.diagnostic.ai.AiAnalysisResponse;
 import com.smartchain.platform.dto.diagnostic.create.DiagnosticCreateRequest;
@@ -37,6 +39,7 @@ import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -69,6 +72,9 @@ class DiagnosticServiceTest {
     private ApprovalRepository approvalRepository;
 
     @Mock
+    private DomainRepository domainRepository;
+
+    @Mock
     private User drafterUser;
 
     @Mock
@@ -99,11 +105,13 @@ class DiagnosticServiceTest {
         lenient().when(drafterUser.getName()).thenReturn("기안자");
         lenient().when(drafterUser.getRole()).thenReturn(drafterRole);
         lenient().when(drafterUser.getCompany()).thenReturn(testCompany);
+        lenient().when(drafterUser.getDomainRoles()).thenReturn(new ArrayList<>());
 
         lenient().when(approverUser.getUserId()).thenReturn(2L);
         lenient().when(approverUser.getName()).thenReturn("결재자");
         lenient().when(approverUser.getRole()).thenReturn(approverRole);
         lenient().when(approverUser.getCompany()).thenReturn(testCompany);
+        lenient().when(approverUser.getDomainRoles()).thenReturn(new ArrayList<>());
 
         lenient().when(testCompany.getCompanyId()).thenReturn(10L);
         lenient().when(testCompany.getName()).thenReturn("(주)테스트회사");
@@ -329,6 +337,7 @@ class DiagnosticServiceTest {
                     .build();
 
             given(userRepository.findById(2L)).willReturn(Optional.of(approverUser));
+            given(campaignRepository.findById(100L)).willReturn(Optional.of(testCampaign));
 
             // when & then
             assertThatThrownBy(() -> diagnosticService.createDiagnostic(2L, request))
