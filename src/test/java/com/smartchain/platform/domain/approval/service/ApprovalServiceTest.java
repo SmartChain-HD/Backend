@@ -4,8 +4,10 @@ import com.smartchain.platform.domain.approval.entity.Approval;
 import com.smartchain.platform.domain.approval.repository.ApprovalRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.approval.decision.ApprovalDecisionRequest;
 import com.smartchain.platform.dto.approval.decision.ApprovalDecisionResponse;
@@ -31,6 +33,7 @@ import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -84,6 +87,8 @@ class ApprovalServiceTest {
         lenient().when(approverUser.getEmail()).thenReturn("approver@test.com");
         lenient().when(approverUser.getRole()).thenReturn(approverRole);
         lenient().when(approverUser.getCompany()).thenReturn(testCompany);
+        lenient().when(approverUser.getDomainRoles()).thenReturn(new ArrayList<>());
+        lenient().when(approverUser.getDomainsWithRole("APPROVER")).thenReturn(new ArrayList<>());
 
         lenient().when(requesterUser.getUserId()).thenReturn(2L);
         lenient().when(requesterUser.getName()).thenReturn("기안자");
@@ -143,6 +148,8 @@ class ApprovalServiceTest {
             // given
             User guestUser = mock(User.class);
             when(guestUser.getRole()).thenReturn(guestRole);
+            when(guestUser.getCompany()).thenReturn(testCompany);
+            when(guestUser.getDomainsWithRole("APPROVER")).thenReturn(new ArrayList<>());
 
             given(userRepository.findById(3L)).willReturn(Optional.of(guestUser));
 
@@ -160,7 +167,7 @@ class ApprovalServiceTest {
         void getApprovalList_NoCompany_ThrowsException() {
             // given
             User noCompanyApprover = mock(User.class);
-            when(noCompanyApprover.getRole()).thenReturn(approverRole);
+            lenient().when(noCompanyApprover.getRole()).thenReturn(approverRole);
             when(noCompanyApprover.getCompany()).thenReturn(null);
 
             given(userRepository.findById(4L)).willReturn(Optional.of(noCompanyApprover));
@@ -456,6 +463,123 @@ class ApprovalServiceTest {
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_NOT_APPROVED);
+                    });
+        }
+    }
+
+    @Nested
+    @DisplayName("도메인 기반 권한 검증 테스트")
+    class DomainBasedAuthorizationTest {
+
+        @Test
+        @DisplayName("도메인 APPROVER 권한이 있는 사용자가 결재 처리 성공")
+        void processApproval_WithDomainApproverRole_Success() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+
+            User domainApprover = mock(User.class);
+            when(domainApprover.getUserId()).thenReturn(10L);
+            when(domainApprover.getName()).thenReturn("도메인 결재자");
+            when(domainApprover.getCompany()).thenReturn(testCompany);
+            when(domainApprover.hasRoleInDomain("ESG", "APPROVER")).thenReturn(true);
+
+            Diagnostic diagnosticWithDomain = mock(Diagnostic.class);
+            when(diagnosticWithDomain.getDomain()).thenReturn(esgDomain);
+            when(diagnosticWithDomain.getCompany()).thenReturn(testCompany);
+
+            Approval approvalWithDomain = mock(Approval.class);
+            lenient().when(approvalWithDomain.getApprovalId()).thenReturn(5L);
+            when(approvalWithDomain.getDiagnostic()).thenReturn(diagnosticWithDomain);
+            when(approvalWithDomain.isWaiting()).thenReturn(true);
+            when(approvalWithDomain.getStatus()).thenReturn(ApprovalStatus.APPROVED);
+            when(approvalWithDomain.getProcessedAt()).thenReturn(LocalDateTime.now());
+
+            ApprovalDecisionRequest request = ApprovalDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .comment("도메인 검토 완료")
+                    .build();
+
+            given(userRepository.findById(10L)).willReturn(Optional.of(domainApprover));
+            given(approvalRepository.findById(5L)).willReturn(Optional.of(approvalWithDomain));
+
+            // when
+            ApprovalDecisionResponse response = approvalService.processApproval(10L, 5L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getStatus()).isEqualTo("APPROVED");
+            verify(approvalWithDomain).approve(domainApprover, "도메인 검토 완료");
+        }
+
+        @Test
+        @DisplayName("도메인 APPROVER 권한이 없는 사용자가 결재 처리 시도 시 실패")
+        void processApproval_WithoutDomainApproverRole_ThrowsException() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            when(esgDomain.getCode()).thenReturn("ESG");
+
+            User userWithoutDomainRole = mock(User.class);
+            when(userWithoutDomainRole.getUserId()).thenReturn(20L);
+            when(userWithoutDomainRole.hasRoleInDomain("ESG", "APPROVER")).thenReturn(false);
+
+            Diagnostic diagnosticWithDomain = mock(Diagnostic.class);
+            when(diagnosticWithDomain.getDomain()).thenReturn(esgDomain);
+
+            Approval approvalWithDomain = mock(Approval.class);
+            when(approvalWithDomain.getDiagnostic()).thenReturn(diagnosticWithDomain);
+
+            ApprovalDecisionRequest request = ApprovalDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .build();
+
+            given(userRepository.findById(20L)).willReturn(Optional.of(userWithoutDomainRole));
+            given(approvalRepository.findById(10L)).willReturn(Optional.of(approvalWithDomain));
+
+            // when & then
+            assertThatThrownBy(() -> approvalService.processApproval(20L, 10L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
+        }
+
+        @Test
+        @DisplayName("다른 회사의 도메인 결재 접근 시 실패")
+        void processApproval_DifferentCompanyWithDomain_ThrowsException() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+
+            Company otherCompany = mock(Company.class);
+            when(otherCompany.getCompanyId()).thenReturn(999L);
+
+            User domainApprover = mock(User.class);
+            lenient().when(domainApprover.getUserId()).thenReturn(30L);
+            when(domainApprover.getCompany()).thenReturn(testCompany);
+            when(domainApprover.hasRoleInDomain("ESG", "APPROVER")).thenReturn(true);
+
+            Diagnostic diagnosticWithDomain = mock(Diagnostic.class);
+            when(diagnosticWithDomain.getDomain()).thenReturn(esgDomain);
+            when(diagnosticWithDomain.getCompany()).thenReturn(otherCompany);
+
+            Approval approvalWithDomain = mock(Approval.class);
+            when(approvalWithDomain.getDiagnostic()).thenReturn(diagnosticWithDomain);
+
+            ApprovalDecisionRequest request = ApprovalDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .build();
+
+            given(userRepository.findById(30L)).willReturn(Optional.of(domainApprover));
+            given(approvalRepository.findById(15L)).willReturn(Optional.of(approvalWithDomain));
+
+            // when & then
+            assertThatThrownBy(() -> approvalService.processApproval(30L, 15L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_RESOURCE);
                     });
         }
     }

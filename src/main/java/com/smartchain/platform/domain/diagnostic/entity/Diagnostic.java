@@ -1,6 +1,7 @@
 package com.smartchain.platform.domain.diagnostic.entity;
 
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.global.entity.BaseTimeEntity;
 import com.smartchain.platform.global.enums.DiagnosticStatus;
 import jakarta.persistence.*;
@@ -33,6 +34,10 @@ public class Diagnostic extends BaseTimeEntity {
     @JoinColumn(name = "company_id")
     private Company company;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domain_id")
+    private Domain domain;
+
     private Long drafterId;
     private Long approverId;
     private Long reviewerId;
@@ -53,11 +58,12 @@ public class Diagnostic extends BaseTimeEntity {
 
     @Builder
     public Diagnostic(String diagnosticCode, String title, Campaign campaign, Company company,
-                      Long drafterId, LocalDate periodStartDate, LocalDate periodEndDate, LocalDate deadline) {
+                      Domain domain, Long drafterId, LocalDate periodStartDate, LocalDate periodEndDate, LocalDate deadline) {
         this.diagnosticCode = diagnosticCode;
         this.title = title;
         this.campaign = campaign;
         this.company = company;
+        this.domain = domain;
         this.drafterId = drafterId;
         this.periodStartDate = periodStartDate;
         this.periodEndDate = periodEndDate;
