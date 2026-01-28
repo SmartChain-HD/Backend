@@ -6,6 +6,7 @@ import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.approval.common.DiagnosticSimpleDto;
 import com.smartchain.platform.dto.approval.common.PageDto;
@@ -46,6 +47,7 @@ public class ApprovalService {
 
     private final ApprovalRepository approvalRepository;
     private final UserRepository userRepository;
+    private final DomainRepository domainRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
@@ -55,7 +57,7 @@ public class ApprovalService {
             "REJECTED", "반려"
     );
 
-    public ApprovalListResponse getApprovalList(Long userId, String status, int page, int size) {
+    public ApprovalListResponse getApprovalList(Long userId, String domainCode, String status, int page, int size) {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -69,26 +71,54 @@ public class ApprovalService {
 
         // 도메인 역할이 없으면 레거시 로직 사용
         if (approverDomains.isEmpty()) {
-            return getApprovalListLegacy(currentUser, userCompany, status, page, size);
+            return getApprovalListLegacy(currentUser, userCompany, domainCode, status, page, size);
         }
 
         Pageable pageable = PageRequest.of(page, size);
         Page<Approval> approvalPage;
+        ApprovalStatsDto stats;
 
-        if (status != null && !status.isEmpty()) {
-            ApprovalStatus approvalStatus = parseStatus(status);
-            approvalPage = approvalRepository.findByDomainsAndCompanyAndStatusOrderByCreatedAtDesc(
-                    approverDomains, userCompany, approvalStatus, pageable);
+        // domainCode가 지정된 경우 단일 도메인 필터링
+        if (domainCode != null && !domainCode.isEmpty()) {
+            Domain filterDomain = domainRepository.findByCode(domainCode)
+                    .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT));
+
+            // 사용자가 해당 도메인에서 APPROVER 역할이 있는지 확인
+            if (!currentUser.hasRoleInDomain(domainCode, "APPROVER")) {
+                throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+            }
+
+            if (status != null && !status.isEmpty()) {
+                ApprovalStatus approvalStatus = parseStatus(status);
+                approvalPage = approvalRepository.findByDomainAndCompanyAndStatusOrderByCreatedAtDesc(
+                        filterDomain, userCompany, approvalStatus, pageable);
+            } else {
+                approvalPage = approvalRepository.findByDomainAndCompanyOrderByCreatedAtDesc(
+                        filterDomain, userCompany, pageable);
+            }
+
+            stats = ApprovalStatsDto.builder()
+                    .waiting(approvalRepository.countByDomainAndCompanyAndStatus(filterDomain, userCompany, ApprovalStatus.WAITING))
+                    .approved(approvalRepository.countByDomainAndCompanyAndStatus(filterDomain, userCompany, ApprovalStatus.APPROVED))
+                    .rejected(approvalRepository.countByDomainAndCompanyAndStatus(filterDomain, userCompany, ApprovalStatus.REJECTED))
+                    .build();
         } else {
-            approvalPage = approvalRepository.findByDomainsAndCompanyOrderByCreatedAtDesc(
-                    approverDomains, userCompany, pageable);
-        }
+            // 전체 도메인 조회 (기존 로직)
+            if (status != null && !status.isEmpty()) {
+                ApprovalStatus approvalStatus = parseStatus(status);
+                approvalPage = approvalRepository.findByDomainsAndCompanyAndStatusOrderByCreatedAtDesc(
+                        approverDomains, userCompany, approvalStatus, pageable);
+            } else {
+                approvalPage = approvalRepository.findByDomainsAndCompanyOrderByCreatedAtDesc(
+                        approverDomains, userCompany, pageable);
+            }
 
-        ApprovalStatsDto stats = ApprovalStatsDto.builder()
-                .waiting(approvalRepository.countByDomainsAndCompanyAndStatus(approverDomains, userCompany, ApprovalStatus.WAITING))
-                .approved(approvalRepository.countByDomainsAndCompanyAndStatus(approverDomains, userCompany, ApprovalStatus.APPROVED))
-                .rejected(approvalRepository.countByDomainsAndCompanyAndStatus(approverDomains, userCompany, ApprovalStatus.REJECTED))
-                .build();
+            stats = ApprovalStatsDto.builder()
+                    .waiting(approvalRepository.countByDomainsAndCompanyAndStatus(approverDomains, userCompany, ApprovalStatus.WAITING))
+                    .approved(approvalRepository.countByDomainsAndCompanyAndStatus(approverDomains, userCompany, ApprovalStatus.APPROVED))
+                    .rejected(approvalRepository.countByDomainsAndCompanyAndStatus(approverDomains, userCompany, ApprovalStatus.REJECTED))
+                    .build();
+        }
 
         List<ApprovalListItemDto> content = approvalPage.getContent().stream()
                 .map(this::mapToListItemDto)
@@ -110,12 +140,18 @@ public class ApprovalService {
 
     /**
      * 레거시: 도메인 역할이 없는 사용자용 결재 목록 조회
+     * Note: domainCode 필터는 레거시 모드에서는 지원하지 않음 (도메인 정보가 없는 데이터)
      */
     private ApprovalListResponse getApprovalListLegacy(User currentUser, Company userCompany,
-                                                        String status, int page, int size) {
+                                                        String domainCode, String status, int page, int size) {
         String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
         if (!"APPROVER".equals(userRoleCode)) {
             throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+        }
+
+        // 레거시 모드에서 domainCode 필터는 무시 (경고 로그만 출력)
+        if (domainCode != null && !domainCode.isEmpty()) {
+            log.warn("domainCode filter '{}' ignored in legacy mode for user {}", domainCode, currentUser.getUserId());
         }
 
         Pageable pageable = PageRequest.of(page, size);
@@ -185,10 +221,17 @@ public class ApprovalService {
                     .build();
         }
 
+        // 도메인 정보 추출
+        Domain domain = approval.getDiagnostic().getDomain();
+        String domainCode = domain != null ? domain.getCode() : null;
+        String domainName = domain != null ? domain.getName() : null;
+
         return ApprovalDetailResponse.builder()
                 .approvalId(approval.getApprovalId())
                 .diagnostic(diagnosticDto)
                 .requester(requesterDto)
+                .domainCode(domainCode)
+                .domainName(domainName)
                 .status(approval.getStatus().name())
                 .statusLabel(STATUS_LABEL_MAP.getOrDefault(approval.getStatus().name(), approval.getStatus().name()))
                 .requestComment(approval.getRequestComment())
@@ -345,10 +388,17 @@ public class ApprovalService {
                 ? approval.getCreatedAt().format(DATE_FORMATTER)
                 : null;
 
+        // 도메인 정보 추출
+        Domain domain = approval.getDiagnostic().getDomain();
+        String domainCode = domain != null ? domain.getCode() : null;
+        String domainName = domain != null ? domain.getName() : null;
+
         return ApprovalListItemDto.builder()
                 .approvalId(approval.getApprovalId())
                 .diagnostic(diagnosticDto)
                 .requester(requesterDto)
+                .domainCode(domainCode)
+                .domainName(domainName)
                 .status(approval.getStatus().name())
                 .statusLabel(STATUS_LABEL_MAP.getOrDefault(approval.getStatus().name(), approval.getStatus().name()))
                 .requestedAt(approval.getCreatedAt())
