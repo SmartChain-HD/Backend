@@ -12,6 +12,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReviewDashboardRequest {
+    private String domainCode;           // 도메인 필터 (ESG, SAFETY, COMPLIANCE)
     private Long campaignId;             // 캠페인 필터
     private LocalDate fromDate;          // 기간 시작
     private LocalDate toDate;            // 기간 종료

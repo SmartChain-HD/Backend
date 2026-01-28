@@ -9,6 +9,7 @@ import com.smartchain.platform.domain.user.entity.Industry;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
+import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.review.dashboard.ReviewDashboardResponse;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionRequest;
@@ -56,6 +57,9 @@ class ReviewServiceTest {
 
     @Mock
     private CompanyRepository companyRepository;
+
+    @Mock
+    private DomainRepository domainRepository;
 
     @Mock
     private User reviewerUser;
@@ -162,7 +166,7 @@ class ReviewServiceTest {
             given(reviewRepository.findByDomainInOrderBySubmittedAtDesc(eq(domains), any())).willReturn(List.of(testReview));
 
             // when
-            ReviewDashboardResponse response = reviewService.getDashboard(1L, null, null, null);
+            ReviewDashboardResponse response = reviewService.getDashboard(1L, null, null, null, null);
 
             // then
             assertThat(response).isNotNull();
@@ -180,7 +184,7 @@ class ReviewServiceTest {
             given(userRepository.findById(2L)).willReturn(Optional.of(guestUser));
 
             // when & then
-            assertThatThrownBy(() -> reviewService.getDashboard(2L, null, null, null))
+            assertThatThrownBy(() -> reviewService.getDashboard(2L, null, null, null, null))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
@@ -195,12 +199,38 @@ class ReviewServiceTest {
             given(userRepository.findById(3L)).willReturn(Optional.of(reviewerWithoutDomain));
 
             // when & then
-            assertThatThrownBy(() -> reviewService.getDashboard(3L, null, null, null))
+            assertThatThrownBy(() -> reviewService.getDashboard(3L, null, null, null, null))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
                     });
+        }
+
+        @Test
+        @DisplayName("domainCode 파라미터로 단일 도메인 대시보드 조회 성공")
+        void getDashboard_WithDomainCodeParam_Success() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(domainRepository.findByCode("ENV")).willReturn(Optional.of(envDomain));
+            given(reviewRepository.countDistinctCompaniesByDomain(envDomain)).willReturn(10L);
+            given(reviewRepository.countByDomainAndStatus(envDomain, ReviewStatus.REVIEWING)).willReturn(3L);
+            given(reviewRepository.countByDomainAndStatus(envDomain, ReviewStatus.APPROVED)).willReturn(5L);
+            given(reviewRepository.countByDomainAndStatus(envDomain, ReviewStatus.REVISION_REQUIRED)).willReturn(2L);
+            given(reviewRepository.countByDomainAndRiskLevel(envDomain, RiskLevel.HIGH)).willReturn(1L);
+            given(reviewRepository.countByDomainAndRiskLevel(envDomain, RiskLevel.MEDIUM)).willReturn(4L);
+            given(reviewRepository.countByDomainAndRiskLevel(envDomain, RiskLevel.LOW)).willReturn(5L);
+            given(reviewRepository.findByDomainOrderBySubmittedAtDesc(eq(envDomain), any())).willReturn(List.of(testReview));
+
+            // when
+            ReviewDashboardResponse response = reviewService.getDashboard(1L, "ENV", null, null, null);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getOverview().getTotalCompanies()).isEqualTo(10);
+            assertThat(response.getOverview().getInReviewCount()).isEqualTo(3);
+            verify(reviewRepository).countDistinctCompaniesByDomain(envDomain);
+            verify(reviewRepository, never()).countDistinctCompaniesByDomainIn(any());
         }
     }
 
@@ -225,7 +255,7 @@ class ReviewServiceTest {
             given(reviewRepository.countByDomainInAndRiskLevel(domains, RiskLevel.LOW)).willReturn(10L);
 
             // when
-            ReviewListResponse response = reviewService.getReviewList(1L, null, null, null, 0, 20);
+            ReviewListResponse response = reviewService.getReviewList(1L, null, null, null, null, 0, 20);
 
             // then
             assertThat(response).isNotNull();
@@ -248,11 +278,54 @@ class ReviewServiceTest {
             given(reviewRepository.countByDomainInAndRiskLevel(eq(domains), any())).willReturn(10L);
 
             // when
-            ReviewListResponse response = reviewService.getReviewList(1L, "REVIEWING", null, null, 0, 20);
+            ReviewListResponse response = reviewService.getReviewList(1L, null, "REVIEWING", null, null, 0, 20);
 
             // then
             assertThat(response).isNotNull();
             verify(reviewRepository).findByDomainInAndStatusOrderByCreatedAtDesc(eq(domains), eq(ReviewStatus.REVIEWING), any());
+        }
+
+        @Test
+        @DisplayName("domainCode 쿼리 파라미터로 단일 도메인 필터링 성공")
+        void getReviewList_WithDomainCodeParam_Success() {
+            // given
+            Page<Review> reviewPage = new PageImpl<>(List.of(testReview), PageRequest.of(0, 20), 1);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(domainRepository.findByCode("ENV")).willReturn(Optional.of(envDomain));
+            given(reviewRepository.findByDomainOrderByCreatedAtDesc(eq(envDomain), any())).willReturn(reviewPage);
+            given(reviewRepository.countDistinctCompaniesByDomain(envDomain)).willReturn(10L);
+            given(reviewRepository.countByDomainAndStatus(envDomain, ReviewStatus.APPROVED)).willReturn(5L);
+            given(reviewRepository.countByDomainAndStatus(envDomain, ReviewStatus.REVIEWING)).willReturn(3L);
+            given(reviewRepository.countByDomainAndRiskLevel(envDomain, RiskLevel.HIGH)).willReturn(1L);
+            given(reviewRepository.countByDomainAndRiskLevel(envDomain, RiskLevel.MEDIUM)).willReturn(4L);
+            given(reviewRepository.countByDomainAndRiskLevel(envDomain, RiskLevel.LOW)).willReturn(5L);
+
+            // when
+            ReviewListResponse response = reviewService.getReviewList(1L, "ENV", null, null, null, 0, 20);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getContent()).hasSize(1);
+            assertThat(response.getSummary().getTotalCompanies()).isEqualTo(10);
+            verify(reviewRepository).findByDomainOrderByCreatedAtDesc(eq(envDomain), any());
+            verify(reviewRepository, never()).findByDomainInOrderByCreatedAtDesc(any(), any());
+        }
+
+        @Test
+        @DisplayName("권한 없는 domainCode 파라미터로 조회 시 403 에러")
+        void getReviewList_WithUnauthorizedDomainCode_ThrowsException() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(domainRepository.findByCode("SOC")).willReturn(Optional.of(socDomain));
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.getReviewList(1L, "SOC", null, null, null, 0, 20))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
         }
     }
 

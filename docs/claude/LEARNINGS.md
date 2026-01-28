@@ -1,5 +1,50 @@
 # Claude Code Learnings
 
+## 2026-01-28: ReviewController 도메인 필터링 추가 (#13)
+
+### 원인
+- 심사 API에서 도메인별 필터링 미지원
+- REVIEWER가 여러 도메인 권한을 가질 때 특정 도메인만 조회 불가
+- 대시보드/목록 응답에 도메인 정보가 포함되지 않아 FE에서 도메인 구분 어려움
+
+### 해결
+- GET `/api/v1/reviews`에 `domainCode` 쿼리 파라미터 추가
+- GET `/api/v1/reviews/dashboard`에 `domainCode` 쿼리 파라미터 추가
+- 응답 DTO에 `domainCode`, `domainName` 필드 추가
+- `ReviewService`에서 단일 도메인 필터링 및 권한 검증 로직 구현
+- `ReviewRepository`에 단일 도메인 조회용 쿼리 메서드 추가
+
+### 재발 방지
+- #12 ApprovalController 구현 패턴을 참고하여 일관된 구조 유지
+- 기존 테스트 시그니처 변경 시 모든 호출부 확인 필수
+- 도메인 필터링 시 권한 검증을 먼저 수행
+
+### 검증 방법
+```bash
+./gradlew test --tests "ReviewServiceTest"
+./gradlew build
+```
+
+### 관련 커밋
+- b8fc218
+
+### 생성/수정 파일
+```
+src/main/java/com/smartchain/platform/
+├── domain/review/
+│   ├── controller/ReviewController.java (domainCode 파라미터 추가)
+│   ├── repository/ReviewRepository.java (단일 도메인 쿼리 추가)
+│   └── service/ReviewService.java (필터링 로직 구현)
+├── dto/review/
+│   ├── dashboard/ReviewDashboardRequest.java (domainCode 추가)
+│   ├── detail/ReviewDetailResponse.java (domainCode, domainName 추가)
+│   ├── list/ReviewListItemDto.java (domainCode, domainName 추가)
+│   └── list/ReviewListRequest.java (domainCode 추가)
+src/test/java/.../ReviewServiceTest.java (도메인 필터링 테스트 4건 추가)
+```
+
+---
+
 ## 2026-01-28: ApprovalController 도메인 필터링 추가 (#12)
 
 ### 원인

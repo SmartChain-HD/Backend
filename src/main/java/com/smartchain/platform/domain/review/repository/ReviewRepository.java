@@ -97,4 +97,36 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     @Query("SELECT r FROM Review r WHERE r.domain IN :domains ORDER BY r.submittedAt DESC")
     List<Review> findByDomainInOrderBySubmittedAtDesc(@Param("domains") List<Domain> domains, Pageable pageable);
+
+    // 단일 도메인 필터 조회 (domainCode 쿼리 파라미터용)
+    Page<Review> findByDomainAndStatusOrderByCreatedAtDesc(Domain domain, ReviewStatus status, Pageable pageable);
+
+    Page<Review> findByDomainAndRiskLevelOrderByCreatedAtDesc(Domain domain, RiskLevel riskLevel, Pageable pageable);
+
+    Page<Review> findByDomainAndStatusAndRiskLevelOrderByCreatedAtDesc(
+            Domain domain, ReviewStatus status, RiskLevel riskLevel, Pageable pageable);
+
+    Page<Review> findByDomainAndStatusAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+            Domain domain, ReviewStatus status, RiskLevel riskLevel, Company company, Pageable pageable);
+
+    Page<Review> findByDomainAndStatusAndCompanyOrderByCreatedAtDesc(
+            Domain domain, ReviewStatus status, Company company, Pageable pageable);
+
+    Page<Review> findByDomainAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+            Domain domain, RiskLevel riskLevel, Company company, Pageable pageable);
+
+    Page<Review> findByDomainAndCompanyOrderByCreatedAtDesc(Domain domain, Company company, Pageable pageable);
+
+    // 단일 도메인 통계
+    long countByDomain(Domain domain);
+
+    long countByDomainAndStatus(Domain domain, ReviewStatus status);
+
+    long countByDomainAndRiskLevel(Domain domain, RiskLevel riskLevel);
+
+    @Query("SELECT COUNT(DISTINCT r.company) FROM Review r WHERE r.domain = :domain")
+    long countDistinctCompaniesByDomain(@Param("domain") Domain domain);
+
+    @Query("SELECT r FROM Review r WHERE r.domain = :domain ORDER BY r.submittedAt DESC")
+    List<Review> findByDomainOrderBySubmittedAtDesc(@Param("domain") Domain domain, Pageable pageable);
 }
