@@ -1,5 +1,38 @@
 # Claude Code Learnings
 
+## 2026-01-28: API 통합 테스트 프레임워크 구축 (#16)
+
+### 원인
+- @SpringBootTest 기반 API 통합 테스트 부재
+- E2E API 동작 검증 불가
+- JWT 인증이 포함된 API 테스트 프레임워크 미구축
+
+### 해결
+- `ApiSmokeTest`: @SpringBootTest + @AutoConfigureMockMvc 기반 통합 테스트 추가
+- JWT 토큰 생성 및 Authorization 헤더 설정 패턴 구축
+- 기본 API 엔드포인트 접근성 테스트 (Health, Diagnostic 목록, 404 응답)
+- @Transactional로 테스트 간 데이터 격리
+
+### 재발 방지
+- 새 API 엔드포인트 추가 시 통합 테스트 필수
+- 테스트 데이터 설정은 @BeforeEach에서 수행
+- 인증이 필요한 API는 JWT 토큰 헤더 필수
+
+### 검증 방법
+```bash
+./gradlew test --tests "ApiSmokeTest"
+```
+
+### 관련 커밋
+- 4acc6aa
+
+### 생성/수정 파일
+```
+src/test/java/com/smartchain/platform/integration/ApiSmokeTest.java (신규)
+```
+
+---
+
 ## 2026-01-28: 도메인 권한 체계 단위 테스트 추가 (#15)
 
 ### 원인
