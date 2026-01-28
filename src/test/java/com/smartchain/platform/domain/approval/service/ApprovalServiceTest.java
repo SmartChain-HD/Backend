@@ -8,6 +8,7 @@ import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.entity.UserDomainRole;
+import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.approval.decision.ApprovalDecisionRequest;
 import com.smartchain.platform.dto.approval.decision.ApprovalDecisionResponse;
@@ -55,6 +56,9 @@ class ApprovalServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private DomainRepository domainRepository;
 
     @Mock
     private User approverUser;
@@ -131,7 +135,7 @@ class ApprovalServiceTest {
             given(approvalRepository.countByCompanyAndStatus(testCompany, ApprovalStatus.REJECTED)).willReturn(2);
 
             // when
-            ApprovalListResponse response = approvalService.getApprovalList(1L, null, 0, 10);
+            ApprovalListResponse response = approvalService.getApprovalList(1L, null, null, 0, 10);
 
             // then
             assertThat(response).isNotNull();
@@ -154,7 +158,7 @@ class ApprovalServiceTest {
             given(userRepository.findById(3L)).willReturn(Optional.of(guestUser));
 
             // when & then
-            assertThatThrownBy(() -> approvalService.getApprovalList(3L, null, 0, 10))
+            assertThatThrownBy(() -> approvalService.getApprovalList(3L, null, null, 0, 10))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
@@ -173,7 +177,7 @@ class ApprovalServiceTest {
             given(userRepository.findById(4L)).willReturn(Optional.of(noCompanyApprover));
 
             // when & then
-            assertThatThrownBy(() -> approvalService.getApprovalList(4L, null, 0, 10))
+            assertThatThrownBy(() -> approvalService.getApprovalList(4L, null, null, 0, 10))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
@@ -195,7 +199,7 @@ class ApprovalServiceTest {
             given(approvalRepository.countByCompanyAndStatus(testCompany, ApprovalStatus.REJECTED)).willReturn(2);
 
             // when
-            ApprovalListResponse response = approvalService.getApprovalList(1L, "WAITING", 0, 10);
+            ApprovalListResponse response = approvalService.getApprovalList(1L, null, "WAITING", 0, 10);
 
             // then
             assertThat(response).isNotNull();
@@ -212,7 +216,7 @@ class ApprovalServiceTest {
             given(userRepository.findById(1L)).willReturn(Optional.of(approverUser));
 
             // when & then
-            assertThatThrownBy(() -> approvalService.getApprovalList(1L, "INVALID_STATUS", 0, 10))
+            assertThatThrownBy(() -> approvalService.getApprovalList(1L, null, "INVALID_STATUS", 0, 10))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
@@ -581,6 +585,154 @@ class ApprovalServiceTest {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_RESOURCE);
                     });
+        }
+    }
+
+    @Nested
+    @DisplayName("도메인 필터링 테스트")
+    class DomainFilteringTest {
+
+        @Test
+        @DisplayName("ESG 도메인 필터로 결재 목록 조회 성공")
+        void getApprovalList_WithDomainFilter_Success() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+            lenient().when(esgDomain.getName()).thenReturn("ESG 실사");
+
+            User domainApprover = mock(User.class);
+            lenient().when(domainApprover.getUserId()).thenReturn(1L);
+            when(domainApprover.getCompany()).thenReturn(testCompany);
+            when(domainApprover.getDomainsWithRole("APPROVER")).thenReturn(List.of(esgDomain));
+            when(domainApprover.hasRoleInDomain("ESG", "APPROVER")).thenReturn(true);
+
+            Diagnostic diagnosticWithDomain = mock(Diagnostic.class);
+            when(diagnosticWithDomain.getDiagnosticId()).thenReturn(100L);
+            when(diagnosticWithDomain.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            when(diagnosticWithDomain.getTitle()).thenReturn("ESG 자가진단");
+            when(diagnosticWithDomain.getDomain()).thenReturn(esgDomain);
+
+            Approval approvalWithDomain = mock(Approval.class);
+            when(approvalWithDomain.getApprovalId()).thenReturn(1L);
+            when(approvalWithDomain.getDiagnostic()).thenReturn(diagnosticWithDomain);
+            when(approvalWithDomain.getRequester()).thenReturn(requesterUser);
+            when(approvalWithDomain.getStatus()).thenReturn(ApprovalStatus.WAITING);
+            lenient().when(approvalWithDomain.getCreatedAt()).thenReturn(LocalDateTime.now());
+            lenient().when(approvalWithDomain.getDeadline()).thenReturn(LocalDate.now().plusDays(7));
+
+            Page<Approval> approvalPage = new PageImpl<>(List.of(approvalWithDomain), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(domainApprover));
+            given(domainRepository.findByCode("ESG")).willReturn(Optional.of(esgDomain));
+            given(approvalRepository.findByDomainAndCompanyOrderByCreatedAtDesc(eq(esgDomain), eq(testCompany), any()))
+                    .willReturn(approvalPage);
+            given(approvalRepository.countByDomainAndCompanyAndStatus(esgDomain, testCompany, ApprovalStatus.WAITING)).willReturn(1);
+            given(approvalRepository.countByDomainAndCompanyAndStatus(esgDomain, testCompany, ApprovalStatus.APPROVED)).willReturn(0);
+            given(approvalRepository.countByDomainAndCompanyAndStatus(esgDomain, testCompany, ApprovalStatus.REJECTED)).willReturn(0);
+
+            // when
+            ApprovalListResponse response = approvalService.getApprovalList(1L, "ESG", null, 0, 10);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getStats().getWaiting()).isEqualTo(1);
+            assertThat(response.getContent()).hasSize(1);
+            assertThat(response.getContent().get(0).getDomainCode()).isEqualTo("ESG");
+            assertThat(response.getContent().get(0).getDomainName()).isEqualTo("ESG 실사");
+            verify(approvalRepository).findByDomainAndCompanyOrderByCreatedAtDesc(eq(esgDomain), eq(testCompany), any());
+        }
+
+        @Test
+        @DisplayName("권한 없는 도메인 필터로 조회 시 실패")
+        void getApprovalList_WithUnauthorizedDomainFilter_ThrowsException() {
+            // given
+            Domain safetyDomain = mock(Domain.class);
+            lenient().when(safetyDomain.getCode()).thenReturn("SAFETY");
+
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+
+            User esgOnlyApprover = mock(User.class);
+            lenient().when(esgOnlyApprover.getUserId()).thenReturn(1L);
+            when(esgOnlyApprover.getCompany()).thenReturn(testCompany);
+            when(esgOnlyApprover.getDomainsWithRole("APPROVER")).thenReturn(List.of(esgDomain));
+            when(esgOnlyApprover.hasRoleInDomain("SAFETY", "APPROVER")).thenReturn(false);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(esgOnlyApprover));
+            given(domainRepository.findByCode("SAFETY")).willReturn(Optional.of(safetyDomain));
+
+            // when & then
+            assertThatThrownBy(() -> approvalService.getApprovalList(1L, "SAFETY", null, 0, 10))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
+        }
+
+        @Test
+        @DisplayName("잘못된 도메인 코드로 조회 시 실패")
+        void getApprovalList_WithInvalidDomainCode_ThrowsException() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+
+            User domainApprover = mock(User.class);
+            lenient().when(domainApprover.getUserId()).thenReturn(1L);
+            when(domainApprover.getCompany()).thenReturn(testCompany);
+            when(domainApprover.getDomainsWithRole("APPROVER")).thenReturn(List.of(esgDomain));
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(domainApprover));
+            given(domainRepository.findByCode("INVALID")).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> approvalService.getApprovalList(1L, "INVALID", null, 0, 10))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.INVALID_INPUT);
+                    });
+        }
+
+        @Test
+        @DisplayName("결재 상세 조회 시 도메인 정보 포함 확인")
+        void getApprovalDetail_ContainsDomainInfo() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+            lenient().when(esgDomain.getName()).thenReturn("ESG 실사");
+
+            User domainApprover = mock(User.class);
+            lenient().when(domainApprover.getUserId()).thenReturn(1L);
+            when(domainApprover.getCompany()).thenReturn(testCompany);
+            when(domainApprover.hasRoleInDomain("ESG", "APPROVER")).thenReturn(true);
+
+            Diagnostic diagnosticWithDomain = mock(Diagnostic.class);
+            lenient().when(diagnosticWithDomain.getDiagnosticId()).thenReturn(100L);
+            lenient().when(diagnosticWithDomain.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnosticWithDomain.getTitle()).thenReturn("ESG 자가진단");
+            when(diagnosticWithDomain.getCompany()).thenReturn(testCompany);
+            when(diagnosticWithDomain.getDomain()).thenReturn(esgDomain);
+            lenient().when(diagnosticWithDomain.getQualitativeProgress()).thenReturn(100);
+            lenient().when(diagnosticWithDomain.getQuantitativeProgress()).thenReturn(100);
+            lenient().when(diagnosticWithDomain.getOverallScore()).thenReturn(72);
+
+            Approval approvalWithDomain = mock(Approval.class);
+            lenient().when(approvalWithDomain.getApprovalId()).thenReturn(1L);
+            when(approvalWithDomain.getDiagnostic()).thenReturn(diagnosticWithDomain);
+            lenient().when(approvalWithDomain.getRequester()).thenReturn(requesterUser);
+            when(approvalWithDomain.getStatus()).thenReturn(ApprovalStatus.WAITING);
+            lenient().when(approvalWithDomain.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(domainApprover));
+            given(approvalRepository.findById(1L)).willReturn(Optional.of(approvalWithDomain));
+
+            // when
+            ApprovalDetailResponse response = approvalService.getApprovalDetail(1L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDomainCode()).isEqualTo("ESG");
+            assertThat(response.getDomainName()).isEqualTo("ESG 실사");
         }
     }
 }

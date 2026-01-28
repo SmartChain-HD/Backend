@@ -15,6 +15,8 @@ public class ApprovalDetailResponse {
     private Long approvalId;
     private DiagnosticDetailDto diagnostic;  // v3.0: 구조화
     private RequesterDetailDto requester;    // v3.0: 구조화
+    private String domainCode;           // 도메인 코드 (ESG, SAFETY, COMPLIANCE)
+    private String domainName;           // 도메인 이름
     private String status;
     private String statusLabel;
     private String requestComment;       // v3.0: 요청 코멘트 추가

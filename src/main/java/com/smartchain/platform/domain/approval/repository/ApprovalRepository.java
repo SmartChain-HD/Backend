@@ -55,4 +55,26 @@ public interface ApprovalRepository extends JpaRepository<Approval, Long> {
             @Param("domains") List<Domain> domains,
             @Param("company") Company company,
             @Param("status") ApprovalStatus status);
+
+    // 단일 도메인 필터 조회 (domainCode 쿼리 파라미터용)
+    @Query("SELECT a FROM Approval a JOIN a.diagnostic d WHERE d.domain = :domain AND d.company = :company ORDER BY a.createdAt DESC")
+    Page<Approval> findByDomainAndCompanyOrderByCreatedAtDesc(
+            @Param("domain") Domain domain,
+            @Param("company") Company company,
+            Pageable pageable);
+
+    // 단일 도메인 + 상태 필터 조회
+    @Query("SELECT a FROM Approval a JOIN a.diagnostic d WHERE d.domain = :domain AND d.company = :company AND a.status = :status ORDER BY a.createdAt DESC")
+    Page<Approval> findByDomainAndCompanyAndStatusOrderByCreatedAtDesc(
+            @Param("domain") Domain domain,
+            @Param("company") Company company,
+            @Param("status") ApprovalStatus status,
+            Pageable pageable);
+
+    // 단일 도메인 + 회사 상태별 개수
+    @Query("SELECT COUNT(a) FROM Approval a JOIN a.diagnostic d WHERE d.domain = :domain AND d.company = :company AND a.status = :status")
+    int countByDomainAndCompanyAndStatus(
+            @Param("domain") Domain domain,
+            @Param("company") Company company,
+            @Param("status") ApprovalStatus status);
 }

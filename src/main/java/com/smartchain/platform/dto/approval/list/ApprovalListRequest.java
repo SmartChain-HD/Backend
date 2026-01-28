@@ -12,6 +12,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApprovalListRequest {
+    private String domainCode;           // 도메인 필터 (ESG, SAFETY, COMPLIANCE)
     private String status;               // WAITING, APPROVED, REJECTED
     private LocalDate fromDate;          // 기간 필터 시작
     private LocalDate toDate;            // 기간 필터 종료
