@@ -3,6 +3,7 @@ package com.smartchain.platform.domain.review.service;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
@@ -12,7 +13,6 @@ import com.smartchain.platform.dto.review.decision.ReviewDecisionRequest;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionResponse;
 import com.smartchain.platform.dto.review.detail.*;
 import com.smartchain.platform.dto.review.list.*;
-import com.smartchain.platform.global.enums.DiagnosticStatus;
 import com.smartchain.platform.global.enums.ReviewStatus;
 import com.smartchain.platform.global.enums.RiskLevel;
 import com.smartchain.platform.global.error.CustomException;
@@ -59,15 +59,17 @@ public class ReviewService {
 
     /**
      * 진단 현황 대시보드 조회
+     * - 사용자가 REVIEWER 권한을 가진 도메인의 심사만 통계에 포함
      */
     public ReviewDashboardResponse getDashboard(Long userId, Long campaignId, String fromDate, String toDate) {
         User currentUser = validateReviewerRole(userId);
+        List<Domain> permittedDomains = getPermittedReviewerDomains(currentUser);
 
-        // Overview 통계
-        long totalCompanies = reviewRepository.countDistinctCompanies();
-        long inReviewCount = reviewRepository.countByStatus(ReviewStatus.REVIEWING);
-        long completedCount = reviewRepository.countByStatus(ReviewStatus.APPROVED);
-        long revisionCount = reviewRepository.countByStatus(ReviewStatus.REVISION_REQUIRED);
+        // Overview 통계 (도메인 필터링 적용)
+        long totalCompanies = reviewRepository.countDistinctCompaniesByDomainIn(permittedDomains);
+        long inReviewCount = reviewRepository.countByDomainInAndStatus(permittedDomains, ReviewStatus.REVIEWING);
+        long completedCount = reviewRepository.countByDomainInAndStatus(permittedDomains, ReviewStatus.APPROVED);
+        long revisionCount = reviewRepository.countByDomainInAndStatus(permittedDomains, ReviewStatus.REVISION_REQUIRED);
         long submittedCount = inReviewCount + completedCount + revisionCount;
 
         OverviewDto overview = OverviewDto.builder()
@@ -75,14 +77,14 @@ public class ReviewService {
                 .submittedCount((int) submittedCount)
                 .inReviewCount((int) inReviewCount)
                 .completedCount((int) completedCount)
-                .notStartedCount(0) // 계산 로직 필요시 추가
+                .notStartedCount(0)
                 .build();
 
-        // Risk Distribution
+        // Risk Distribution (도메인 필터링 적용)
         RiskDistributionDto riskDistribution = RiskDistributionDto.builder()
-                .high((int) reviewRepository.countByRiskLevel(RiskLevel.HIGH))
-                .medium((int) reviewRepository.countByRiskLevel(RiskLevel.MEDIUM))
-                .low((int) reviewRepository.countByRiskLevel(RiskLevel.LOW))
+                .high((int) reviewRepository.countByDomainInAndRiskLevel(permittedDomains, RiskLevel.HIGH))
+                .medium((int) reviewRepository.countByDomainInAndRiskLevel(permittedDomains, RiskLevel.MEDIUM))
+                .low((int) reviewRepository.countByDomainInAndRiskLevel(permittedDomains, RiskLevel.LOW))
                 .build();
 
         // Category Averages (현재 단순 고정값, 추후 실제 계산 로직 추가)
@@ -92,8 +94,9 @@ public class ReviewService {
                 .G(68.0)
                 .build();
 
-        // Recent Activities
-        List<Review> recentReviews = reviewRepository.findTopNByOrderBySubmittedAtDesc(PageRequest.of(0, 5));
+        // Recent Activities (도메인 필터링 적용)
+        List<Review> recentReviews = reviewRepository.findByDomainInOrderBySubmittedAtDesc(
+                permittedDomains, PageRequest.of(0, 5));
         List<RecentActivityDto> recentActivities = recentReviews.stream()
                 .map(review -> RecentActivityDto.builder()
                         .type(review.getStatus().name())
@@ -113,22 +116,24 @@ public class ReviewService {
 
     /**
      * 심사 대상 목록 조회
+     * - 사용자가 REVIEWER 권한을 가진 도메인의 심사만 조회
      */
     public ReviewListResponse getReviewList(Long userId, String status, String riskLevel, Long companyId, int page, int size) {
         User currentUser = validateReviewerRole(userId);
+        List<Domain> permittedDomains = getPermittedReviewerDomains(currentUser);
         Pageable pageable = PageRequest.of(page, size);
 
-        Page<Review> reviewPage = findReviewsWithFilters(status, riskLevel, companyId, pageable);
+        Page<Review> reviewPage = findReviewsWithDomainFilters(permittedDomains, status, riskLevel, companyId, pageable);
 
-        // Summary 생성
+        // Summary 생성 (도메인 필터링 적용)
         ReviewSummaryDto summary = ReviewSummaryDto.builder()
-                .totalCompanies((int) reviewRepository.countDistinctCompanies())
-                .completedCount((int) reviewRepository.countByStatus(ReviewStatus.APPROVED))
-                .inProgressCount((int) reviewRepository.countByStatus(ReviewStatus.REVIEWING))
+                .totalCompanies((int) reviewRepository.countDistinctCompaniesByDomainIn(permittedDomains))
+                .completedCount((int) reviewRepository.countByDomainInAndStatus(permittedDomains, ReviewStatus.APPROVED))
+                .inProgressCount((int) reviewRepository.countByDomainInAndStatus(permittedDomains, ReviewStatus.REVIEWING))
                 .pendingCount(0)
-                .highRiskCount((int) reviewRepository.countByRiskLevel(RiskLevel.HIGH))
-                .mediumRiskCount((int) reviewRepository.countByRiskLevel(RiskLevel.MEDIUM))
-                .lowRiskCount((int) reviewRepository.countByRiskLevel(RiskLevel.LOW))
+                .highRiskCount((int) reviewRepository.countByDomainInAndRiskLevel(permittedDomains, RiskLevel.HIGH))
+                .mediumRiskCount((int) reviewRepository.countByDomainInAndRiskLevel(permittedDomains, RiskLevel.MEDIUM))
+                .lowRiskCount((int) reviewRepository.countByDomainInAndRiskLevel(permittedDomains, RiskLevel.LOW))
                 .build();
 
         // Content 변환
@@ -153,12 +158,15 @@ public class ReviewService {
 
     /**
      * 심사 상세 조회
+     * - 해당 심사의 도메인에 REVIEWER 권한이 있는지 검증
      */
     public ReviewDetailResponse getReviewDetail(Long userId, Long reviewId) {
         User currentUser = validateReviewerRole(userId);
 
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND));
+
+        validateDomainReviewerAccess(currentUser, review);
 
         // Diagnostic Info
         DiagnosticDetailInfoDto diagnosticDto = DiagnosticDetailInfoDto.builder()
@@ -204,6 +212,7 @@ public class ReviewService {
 
     /**
      * 심사 결과 입력 (승인/보완요청)
+     * - 해당 심사의 도메인에 REVIEWER 권한이 있는지 검증
      */
     @Transactional
     public ReviewDecisionResponse processReview(Long userId, Long reviewId, ReviewDecisionRequest request) {
@@ -211,6 +220,8 @@ public class ReviewService {
 
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND));
+
+        validateDomainReviewerAccess(currentUser, review);
 
         if (!review.isReviewing()) {
             throw new CustomException(ErrorCode.ALREADY_PROCESSED_REVIEW);
@@ -271,32 +282,49 @@ public class ReviewService {
         return user;
     }
 
-    private Page<Review> findReviewsWithFilters(String status, String riskLevel, Long companyId, Pageable pageable) {
+    private List<Domain> getPermittedReviewerDomains(User user) {
+        List<Domain> domains = user.getDomainsWithRole("REVIEWER");
+        if (domains.isEmpty()) {
+            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+        }
+        return domains;
+    }
+
+    private void validateDomainReviewerAccess(User user, Review review) {
+        if (review.getDomain() == null) {
+            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+        }
+        String domainCode = review.getDomain().getCode();
+        if (!user.hasRoleInDomain(domainCode, "REVIEWER")) {
+            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+        }
+    }
+
+    private Page<Review> findReviewsWithDomainFilters(List<Domain> domains, String status, String riskLevel, Long companyId, Pageable pageable) {
         ReviewStatus reviewStatus = parseReviewStatus(status);
         RiskLevel riskLevelEnum = parseRiskLevel(riskLevel);
         Company company = companyId != null ? companyRepository.findById(companyId).orElse(null) : null;
 
-        // 필터 조합에 따른 쿼리 선택
         if (reviewStatus != null && riskLevelEnum != null && company != null) {
-            return reviewRepository.findByStatusAndRiskLevelAndCompanyOrderByCreatedAtDesc(
-                    reviewStatus, riskLevelEnum, company, pageable);
+            return reviewRepository.findByDomainInAndStatusAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+                    domains, reviewStatus, riskLevelEnum, company, pageable);
         } else if (reviewStatus != null && riskLevelEnum != null) {
-            return reviewRepository.findByStatusAndRiskLevelOrderByCreatedAtDesc(
-                    reviewStatus, riskLevelEnum, pageable);
+            return reviewRepository.findByDomainInAndStatusAndRiskLevelOrderByCreatedAtDesc(
+                    domains, reviewStatus, riskLevelEnum, pageable);
         } else if (reviewStatus != null && company != null) {
-            return reviewRepository.findByStatusAndCompanyOrderByCreatedAtDesc(
-                    reviewStatus, company, pageable);
+            return reviewRepository.findByDomainInAndStatusAndCompanyOrderByCreatedAtDesc(
+                    domains, reviewStatus, company, pageable);
         } else if (riskLevelEnum != null && company != null) {
-            return reviewRepository.findByRiskLevelAndCompanyOrderByCreatedAtDesc(
-                    riskLevelEnum, company, pageable);
+            return reviewRepository.findByDomainInAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+                    domains, riskLevelEnum, company, pageable);
         } else if (reviewStatus != null) {
-            return reviewRepository.findByStatusOrderByCreatedAtDesc(reviewStatus, pageable);
+            return reviewRepository.findByDomainInAndStatusOrderByCreatedAtDesc(domains, reviewStatus, pageable);
         } else if (riskLevelEnum != null) {
-            return reviewRepository.findByRiskLevelOrderByCreatedAtDesc(riskLevelEnum, pageable);
+            return reviewRepository.findByDomainInAndRiskLevelOrderByCreatedAtDesc(domains, riskLevelEnum, pageable);
         } else if (company != null) {
-            return reviewRepository.findByCompanyOrderByCreatedAtDesc(company, pageable);
+            return reviewRepository.findByDomainInAndCompanyOrderByCreatedAtDesc(domains, company, pageable);
         } else {
-            return reviewRepository.findAllByOrderByCreatedAtDesc(pageable);
+            return reviewRepository.findByDomainInOrderByCreatedAtDesc(domains, pageable);
         }
     }
 
