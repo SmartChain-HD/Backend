@@ -110,3 +110,49 @@ application.yaml (AI 설정 추가)
 | POST | `/api/v1/ai/run/diagnostics/{id}/submit` | 전체 검증 요청 |
 | GET | `/api/v1/ai/run/diagnostics/{id}/result` | 최신 결과 조회 |
 | GET | `/api/v1/ai/run/diagnostics/{id}/history` | 분석 이력 조회 |
+
+---
+
+## 2026-01-28: Domain 관리 API 추가 (#14)
+
+### 원인
+- 도메인(ESG, SAFETY, COMPLIANCE) 목록/상세 조회 API 부재
+- 프론트엔드에서 도메인 정보를 하드코딩해야 하는 상황
+- 도메인 코드 유효성 검증을 위한 공개 엔드포인트 필요
+
+### 해결
+- `DomainController`: 도메인 목록/상세 조회 REST API (인증 불필요)
+- `DomainService`: 도메인 조회 비즈니스 로직 (대소문자 무관 코드 검색)
+- `DomainResponse`: 도메인 응답 DTO (record 타입)
+- 기존 `DomainRepository` 메서드 재사용 (`findByCode`, `findByIsActiveTrue`)
+
+### 재발 방지
+- 공개 API 설계 시 인증 요구사항 명확히 문서화
+- 코드 검색은 대소문자 무관하게 처리 (toUpperCase 변환)
+- 기존 Repository 메서드 확인 후 재사용 우선
+
+### 검증 방법
+```bash
+./gradlew test --tests "DomainServiceTest"
+./gradlew build
+```
+
+### 관련 커밋
+- 6d6df4d
+
+### 생성/수정 파일
+```
+src/main/java/com/smartchain/platform/
+├── domain/user/
+│   ├── controller/DomainController.java (신규)
+│   └── service/DomainService.java (신규)
+├── dto/domain/
+│   └── DomainResponse.java (신규)
+src/test/java/.../DomainServiceTest.java (신규, 테스트 7건)
+```
+
+### API 엔드포인트
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/api/v1/domains` | 도메인 목록 조회 (includeInactive 옵션) |
+| GET | `/api/v1/domains/{code}` | 도메인 상세 조회 |
