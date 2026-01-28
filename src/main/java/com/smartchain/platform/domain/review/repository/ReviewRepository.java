@@ -63,4 +63,38 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     Page<Review> findByAssignedReviewerAndDomainOrderByCreatedAtDesc(User assignedReviewer, Domain domain, Pageable pageable);
 
     List<Review> findByAssignedReviewerAndDomain(User assignedReviewer, Domain domain);
+
+    // 도메인 목록(IN)으로 필터링
+    Page<Review> findByDomainInOrderByCreatedAtDesc(List<Domain> domains, Pageable pageable);
+
+    Page<Review> findByDomainInAndStatusOrderByCreatedAtDesc(List<Domain> domains, ReviewStatus status, Pageable pageable);
+
+    Page<Review> findByDomainInAndRiskLevelOrderByCreatedAtDesc(List<Domain> domains, RiskLevel riskLevel, Pageable pageable);
+
+    Page<Review> findByDomainInAndStatusAndRiskLevelOrderByCreatedAtDesc(
+            List<Domain> domains, ReviewStatus status, RiskLevel riskLevel, Pageable pageable);
+
+    Page<Review> findByDomainInAndStatusAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+            List<Domain> domains, ReviewStatus status, RiskLevel riskLevel, Company company, Pageable pageable);
+
+    Page<Review> findByDomainInAndStatusAndCompanyOrderByCreatedAtDesc(
+            List<Domain> domains, ReviewStatus status, Company company, Pageable pageable);
+
+    Page<Review> findByDomainInAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+            List<Domain> domains, RiskLevel riskLevel, Company company, Pageable pageable);
+
+    Page<Review> findByDomainInAndCompanyOrderByCreatedAtDesc(List<Domain> domains, Company company, Pageable pageable);
+
+    // 도메인 목록 기반 통계
+    long countByDomainIn(List<Domain> domains);
+
+    long countByDomainInAndStatus(List<Domain> domains, ReviewStatus status);
+
+    long countByDomainInAndRiskLevel(List<Domain> domains, RiskLevel riskLevel);
+
+    @Query("SELECT COUNT(DISTINCT r.company) FROM Review r WHERE r.domain IN :domains")
+    long countDistinctCompaniesByDomainIn(@Param("domains") List<Domain> domains);
+
+    @Query("SELECT r FROM Review r WHERE r.domain IN :domains ORDER BY r.submittedAt DESC")
+    List<Review> findByDomainInOrderBySubmittedAtDesc(@Param("domains") List<Domain> domains, Pageable pageable);
 }

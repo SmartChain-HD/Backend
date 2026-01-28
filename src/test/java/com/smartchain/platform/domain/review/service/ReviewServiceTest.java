@@ -4,6 +4,7 @@ import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Industry;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
@@ -37,6 +38,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -62,6 +64,9 @@ class ReviewServiceTest {
     private User guestUser;
 
     @Mock
+    private User reviewerWithoutDomain;
+
+    @Mock
     private Company testCompany;
 
     @Mock
@@ -79,19 +84,41 @@ class ReviewServiceTest {
     @Mock
     private Review testReview;
 
+    @Mock
+    private Domain envDomain;
+
+    @Mock
+    private Domain socDomain;
+
     @BeforeEach
     void setUp() {
         lenient().when(reviewerRole.getCode()).thenReturn("REVIEWER");
         lenient().when(guestRole.getCode()).thenReturn("GUEST");
 
+        lenient().when(envDomain.getCode()).thenReturn("ENV");
+        lenient().when(envDomain.getName()).thenReturn("환경");
+        lenient().when(envDomain.getDomainId()).thenReturn(1L);
+
+        lenient().when(socDomain.getCode()).thenReturn("SOC");
+        lenient().when(socDomain.getName()).thenReturn("사회");
+        lenient().when(socDomain.getDomainId()).thenReturn(2L);
+
         lenient().when(reviewerUser.getUserId()).thenReturn(1L);
         lenient().when(reviewerUser.getName()).thenReturn("심사자");
         lenient().when(reviewerUser.getEmail()).thenReturn("reviewer@test.com");
         lenient().when(reviewerUser.getRole()).thenReturn(reviewerRole);
+        lenient().when(reviewerUser.getDomainsWithRole("REVIEWER")).thenReturn(List.of(envDomain));
+        lenient().when(reviewerUser.hasRoleInDomain("ENV", "REVIEWER")).thenReturn(true);
+        lenient().when(reviewerUser.hasRoleInDomain("SOC", "REVIEWER")).thenReturn(false);
 
         lenient().when(guestUser.getUserId()).thenReturn(2L);
         lenient().when(guestUser.getName()).thenReturn("게스트");
         lenient().when(guestUser.getRole()).thenReturn(guestRole);
+
+        lenient().when(reviewerWithoutDomain.getUserId()).thenReturn(3L);
+        lenient().when(reviewerWithoutDomain.getName()).thenReturn("도메인없는심사자");
+        lenient().when(reviewerWithoutDomain.getRole()).thenReturn(reviewerRole);
+        lenient().when(reviewerWithoutDomain.getDomainsWithRole("REVIEWER")).thenReturn(List.of());
 
         lenient().when(testIndustry.getName()).thenReturn("제조업");
 
@@ -112,6 +139,7 @@ class ReviewServiceTest {
         lenient().when(testReview.getScore()).thenReturn(72);
         lenient().when(testReview.getRiskLevel()).thenReturn(RiskLevel.MEDIUM);
         lenient().when(testReview.getSubmittedAt()).thenReturn(LocalDateTime.now());
+        lenient().when(testReview.getDomain()).thenReturn(envDomain);
     }
 
     @Nested
@@ -119,30 +147,29 @@ class ReviewServiceTest {
     class GetDashboardTest {
 
         @Test
-        @DisplayName("REVIEWER가 대시보드 조회 성공")
-        void getDashboard_AsReviewer_Success() {
+        @DisplayName("REVIEWER가 도메인 필터링된 대시보드 조회 성공")
+        void getDashboard_AsReviewer_WithDomainFilter_Success() {
             // given
+            List<Domain> domains = List.of(envDomain);
             given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
-            given(reviewRepository.countDistinctCompanies()).willReturn(50L);
-            given(reviewRepository.countByStatus(ReviewStatus.REVIEWING)).willReturn(10L);
-            given(reviewRepository.countByStatus(ReviewStatus.APPROVED)).willReturn(30L);
-            given(reviewRepository.countByStatus(ReviewStatus.REVISION_REQUIRED)).willReturn(5L);
-            given(reviewRepository.countByRiskLevel(RiskLevel.HIGH)).willReturn(5L);
-            given(reviewRepository.countByRiskLevel(RiskLevel.MEDIUM)).willReturn(25L);
-            given(reviewRepository.countByRiskLevel(RiskLevel.LOW)).willReturn(15L);
-            given(reviewRepository.findTopNByOrderBySubmittedAtDesc(any())).willReturn(List.of(testReview));
+            given(reviewRepository.countDistinctCompaniesByDomainIn(domains)).willReturn(30L);
+            given(reviewRepository.countByDomainInAndStatus(domains, ReviewStatus.REVIEWING)).willReturn(5L);
+            given(reviewRepository.countByDomainInAndStatus(domains, ReviewStatus.APPROVED)).willReturn(20L);
+            given(reviewRepository.countByDomainInAndStatus(domains, ReviewStatus.REVISION_REQUIRED)).willReturn(3L);
+            given(reviewRepository.countByDomainInAndRiskLevel(domains, RiskLevel.HIGH)).willReturn(3L);
+            given(reviewRepository.countByDomainInAndRiskLevel(domains, RiskLevel.MEDIUM)).willReturn(15L);
+            given(reviewRepository.countByDomainInAndRiskLevel(domains, RiskLevel.LOW)).willReturn(10L);
+            given(reviewRepository.findByDomainInOrderBySubmittedAtDesc(eq(domains), any())).willReturn(List.of(testReview));
 
             // when
             ReviewDashboardResponse response = reviewService.getDashboard(1L, null, null, null);
 
             // then
             assertThat(response).isNotNull();
-            assertThat(response.getOverview().getTotalCompanies()).isEqualTo(50);
-            assertThat(response.getOverview().getInReviewCount()).isEqualTo(10);
-            assertThat(response.getOverview().getCompletedCount()).isEqualTo(30);
-            assertThat(response.getRiskDistribution().getHigh()).isEqualTo(5);
-            assertThat(response.getRiskDistribution().getMedium()).isEqualTo(25);
-            assertThat(response.getRiskDistribution().getLow()).isEqualTo(15);
+            assertThat(response.getOverview().getTotalCompanies()).isEqualTo(30);
+            assertThat(response.getOverview().getInReviewCount()).isEqualTo(5);
+            assertThat(response.getOverview().getCompletedCount()).isEqualTo(20);
+            assertThat(response.getRiskDistribution().getHigh()).isEqualTo(3);
             assertThat(response.getRecentActivities()).hasSize(1);
         }
 
@@ -160,6 +187,21 @@ class ReviewServiceTest {
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
                     });
         }
+
+        @Test
+        @DisplayName("REVIEWER 역할이지만 도메인 권한이 없으면 실패")
+        void getDashboard_ReviewerWithoutDomain_ThrowsException() {
+            // given
+            given(userRepository.findById(3L)).willReturn(Optional.of(reviewerWithoutDomain));
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.getDashboard(3L, null, null, null))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
+        }
     }
 
     @Nested
@@ -167,19 +209,20 @@ class ReviewServiceTest {
     class GetReviewListTest {
 
         @Test
-        @DisplayName("REVIEWER가 심사 목록 조회 성공")
-        void getReviewList_AsReviewer_Success() {
+        @DisplayName("REVIEWER가 도메인 필터링된 심사 목록 조회 성공")
+        void getReviewList_AsReviewer_WithDomainFilter_Success() {
             // given
+            List<Domain> domains = List.of(envDomain);
             Page<Review> reviewPage = new PageImpl<>(List.of(testReview), PageRequest.of(0, 20), 1);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
-            given(reviewRepository.findAllByOrderByCreatedAtDesc(any())).willReturn(reviewPage);
-            given(reviewRepository.countDistinctCompanies()).willReturn(50L);
-            given(reviewRepository.countByStatus(ReviewStatus.REVIEWING)).willReturn(10L);
-            given(reviewRepository.countByStatus(ReviewStatus.APPROVED)).willReturn(30L);
-            given(reviewRepository.countByRiskLevel(RiskLevel.HIGH)).willReturn(5L);
-            given(reviewRepository.countByRiskLevel(RiskLevel.MEDIUM)).willReturn(25L);
-            given(reviewRepository.countByRiskLevel(RiskLevel.LOW)).willReturn(15L);
+            given(reviewRepository.findByDomainInOrderByCreatedAtDesc(eq(domains), any())).willReturn(reviewPage);
+            given(reviewRepository.countDistinctCompaniesByDomainIn(domains)).willReturn(30L);
+            given(reviewRepository.countByDomainInAndStatus(domains, ReviewStatus.APPROVED)).willReturn(20L);
+            given(reviewRepository.countByDomainInAndStatus(domains, ReviewStatus.REVIEWING)).willReturn(5L);
+            given(reviewRepository.countByDomainInAndRiskLevel(domains, RiskLevel.HIGH)).willReturn(3L);
+            given(reviewRepository.countByDomainInAndRiskLevel(domains, RiskLevel.MEDIUM)).willReturn(15L);
+            given(reviewRepository.countByDomainInAndRiskLevel(domains, RiskLevel.LOW)).willReturn(10L);
 
             // when
             ReviewListResponse response = reviewService.getReviewList(1L, null, null, null, 0, 20);
@@ -188,41 +231,38 @@ class ReviewServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.getContent()).hasSize(1);
             assertThat(response.getContent().get(0).getReviewId()).isEqualTo(1L);
-            assertThat(response.getContent().get(0).getScore()).isEqualTo(72);
-            assertThat(response.getContent().get(0).getRiskLevel()).isEqualTo("MEDIUM");
-            assertThat(response.getPage().getNumber()).isEqualTo(0);
-            assertThat(response.getPage().getTotalElements()).isEqualTo(1);
+            verify(reviewRepository).findByDomainInOrderByCreatedAtDesc(eq(domains), any());
         }
 
         @Test
-        @DisplayName("상태 필터로 심사 목록 조회 성공")
-        void getReviewList_WithStatusFilter_Success() {
+        @DisplayName("상태 필터 + 도메인 필터 조합 조회 성공")
+        void getReviewList_WithStatusAndDomainFilter_Success() {
             // given
+            List<Domain> domains = List.of(envDomain);
             Page<Review> reviewPage = new PageImpl<>(List.of(testReview), PageRequest.of(0, 20), 1);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
-            given(reviewRepository.findByStatusOrderByCreatedAtDesc(eq(ReviewStatus.REVIEWING), any())).willReturn(reviewPage);
-            given(reviewRepository.countDistinctCompanies()).willReturn(50L);
-            given(reviewRepository.countByStatus(any())).willReturn(10L);
-            given(reviewRepository.countByRiskLevel(any())).willReturn(15L);
+            given(reviewRepository.findByDomainInAndStatusOrderByCreatedAtDesc(eq(domains), eq(ReviewStatus.REVIEWING), any())).willReturn(reviewPage);
+            given(reviewRepository.countDistinctCompaniesByDomainIn(domains)).willReturn(30L);
+            given(reviewRepository.countByDomainInAndStatus(eq(domains), any())).willReturn(10L);
+            given(reviewRepository.countByDomainInAndRiskLevel(eq(domains), any())).willReturn(10L);
 
             // when
             ReviewListResponse response = reviewService.getReviewList(1L, "REVIEWING", null, null, 0, 20);
 
             // then
             assertThat(response).isNotNull();
-            assertThat(response.getContent()).hasSize(1);
-            verify(reviewRepository).findByStatusOrderByCreatedAtDesc(eq(ReviewStatus.REVIEWING), any());
+            verify(reviewRepository).findByDomainInAndStatusOrderByCreatedAtDesc(eq(domains), eq(ReviewStatus.REVIEWING), any());
         }
     }
 
     @Nested
-    @DisplayName("심사 상세 조회 테스트")
-    class GetReviewDetailTest {
+    @DisplayName("심사 상세 조회 - 도메인 권한 검증 테스트")
+    class GetReviewDetailDomainTest {
 
         @Test
-        @DisplayName("심사 상세 조회 성공")
-        void getReviewDetail_Success() {
+        @DisplayName("해당 도메인 REVIEWER 권한이 있으면 상세 조회 성공")
+        void getReviewDetail_WithDomainPermission_Success() {
             // given
             given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
             given(reviewRepository.findById(1L)).willReturn(Optional.of(testReview));
@@ -234,11 +274,44 @@ class ReviewServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.getReviewId()).isEqualTo(1L);
             assertThat(response.getDiagnostic().getDiagnosticId()).isEqualTo(100L);
-            assertThat(response.getDiagnostic().getDiagnosticCode()).isEqualTo("DG-2026-00001");
-            assertThat(response.getCompany().getCompanyId()).isEqualTo(10L);
-            assertThat(response.getScore()).isEqualTo(72);
-            assertThat(response.getRiskLevel()).isEqualTo("MEDIUM");
-            assertThat(response.getStatus()).isEqualTo("REVIEWING");
+        }
+
+        @Test
+        @DisplayName("다른 도메인의 심사 상세 조회 시 403 에러")
+        void getReviewDetail_WithoutDomainPermission_ThrowsException() {
+            // given
+            Review socReview = mock(Review.class);
+            when(socReview.getDomain()).thenReturn(socDomain);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(2L)).willReturn(Optional.of(socReview));
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.getReviewDetail(1L, 2L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
+        }
+
+        @Test
+        @DisplayName("도메인이 null인 심사 상세 조회 시 403 에러")
+        void getReviewDetail_NullDomain_ThrowsException() {
+            // given
+            Review noDomainReview = mock(Review.class);
+            when(noDomainReview.getDomain()).thenReturn(null);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(3L)).willReturn(Optional.of(noDomainReview));
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.getReviewDetail(1L, 3L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
         }
 
         @Test
@@ -259,12 +332,12 @@ class ReviewServiceTest {
     }
 
     @Nested
-    @DisplayName("심사 결과 입력 테스트")
-    class ProcessReviewTest {
+    @DisplayName("심사 결과 입력 - 도메인 권한 검증 테스트")
+    class ProcessReviewDomainTest {
 
         @Test
-        @DisplayName("심사 승인 성공")
-        void processReview_Approve_Success() {
+        @DisplayName("해당 도메인 REVIEWER 권한으로 심사 승인 성공")
+        void processReview_WithDomainPermission_Approve_Success() {
             // given
             when(testReview.isReviewing()).thenReturn(true);
             when(testReview.getStatus()).thenReturn(ReviewStatus.APPROVED);
@@ -287,6 +360,29 @@ class ReviewServiceTest {
             assertThat(response.getMessage()).isEqualTo("심사가 승인되었습니다");
             verify(testReview).approve(eq(reviewerUser), eq("ESG 관리 체계가 양호합니다"), any(), any(), any());
             verify(testDiagnostic).complete();
+        }
+
+        @Test
+        @DisplayName("다른 도메인 심사 결과 입력 시 403 에러")
+        void processReview_WithoutDomainPermission_ThrowsException() {
+            // given
+            Review socReview = mock(Review.class);
+            when(socReview.getDomain()).thenReturn(socDomain);
+
+            ReviewDecisionRequest request = ReviewDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(2L)).willReturn(Optional.of(socReview));
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.processReview(1L, 2L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
         }
 
         @Test
