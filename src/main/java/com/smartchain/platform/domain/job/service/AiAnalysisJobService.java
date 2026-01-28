@@ -4,11 +4,13 @@ import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.job.entity.AsyncJob;
 import com.smartchain.platform.domain.job.repository.AsyncJobRepository;
+import com.smartchain.platform.domain.notification.service.NotificationService;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.job.JobStatusResponse;
 import com.smartchain.platform.global.enums.JobStatus;
 import com.smartchain.platform.global.enums.JobType;
+import com.smartchain.platform.global.enums.NotificationType;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ public class AiAnalysisJobService {
     private final AsyncJobRepository asyncJobRepository;
     private final DiagnosticRepository diagnosticRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     private static final int AI_ANALYSIS_ESTIMATED_SECONDS = 120;
 
@@ -102,10 +105,22 @@ public class AiAnalysisJobService {
 
             log.info("AI analysis completed: jobId={}, targetId={}", jobId, job.getTargetId());
 
+            // 성공 알림 전송
+            sendNotification(job, NotificationType.AI_ANALYSIS_COMPLETE,
+                    "AI 분석 완료",
+                    "ESG 진단 AI 분석이 완료되었습니다. 결과를 확인해주세요.",
+                    resultUrl);
+
         } catch (Exception e) {
             log.error("AI analysis failed: jobId={}, error={}", jobId, e.getMessage(), e);
             job.fail("AI_ERROR", e.getMessage(), true);
             asyncJobRepository.save(job);
+
+            // 실패 알림 전송
+            sendNotification(job, NotificationType.AI_ANALYSIS_FAILED,
+                    "AI 분석 실패",
+                    "ESG 진단 AI 분석이 실패했습니다. 다시 시도해주세요.",
+                    "/api/v1/jobs/" + jobId);
         }
 
         return CompletableFuture.completedFuture(null);
@@ -121,6 +136,17 @@ public class AiAnalysisJobService {
             case "SAFETY" -> JobType.AI_SAFETY_ANALYSIS;
             default -> JobType.AI_ESG_ANALYSIS;
         };
+    }
+
+    private void sendNotification(AsyncJob job, NotificationType type, String title, String message, String linkUrl) {
+        try {
+            User requester = userRepository.findById(job.getRequesterId()).orElse(null);
+            if (requester != null) {
+                notificationService.createNotification(requester, type, title, message, linkUrl);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to send notification for jobId={}: {}", job.getJobId(), e.getMessage());
+        }
     }
 
     private void validateAccess(User user, Diagnostic diagnostic) {

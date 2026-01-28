@@ -4,6 +4,7 @@ import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.job.entity.AsyncJob;
 import com.smartchain.platform.domain.job.repository.AsyncJobRepository;
+import com.smartchain.platform.domain.notification.service.NotificationService;
 import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
@@ -11,6 +12,7 @@ import com.smartchain.platform.domain.user.entity.UserDomainRole;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.job.JobStatusResponse;
 import com.smartchain.platform.global.enums.JobType;
+import com.smartchain.platform.global.enums.NotificationType;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +29,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -44,6 +47,9 @@ class AiAnalysisJobServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private NotificationService notificationService;
 
     private User testUser;
     private Diagnostic testDiagnostic;
@@ -193,8 +199,8 @@ class AiAnalysisJobServiceTest {
     class ExecuteAnalysisAsync {
 
         @Test
-        @DisplayName("비동기 실행 시 작업 상태가 SUCCEEDED로 변경된다")
-        void executeAsync_success() {
+        @DisplayName("비동기 실행 성공 시 AI_ANALYSIS_COMPLETE 알림이 생성된다")
+        void executeAsync_success_sendsCompleteNotification() {
             // given
             AsyncJob job = AsyncJob.builder()
                     .jobType(JobType.AI_ESG_ANALYSIS)
@@ -204,12 +210,49 @@ class AiAnalysisJobServiceTest {
 
             given(asyncJobRepository.findByJobId(job.getJobId())).willReturn(Optional.of(job));
             given(asyncJobRepository.save(any(AsyncJob.class))).willAnswer(inv -> inv.getArgument(0));
+            given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
 
             // when
             aiAnalysisJobService.executeAnalysisAsync(job.getJobId());
 
             // then
             assertThat(job.getProgress()).isEqualTo(100);
+            verify(notificationService).createNotification(
+                    eq(testUser),
+                    eq(NotificationType.AI_ANALYSIS_COMPLETE),
+                    eq("AI 분석 완료"),
+                    eq("ESG 진단 AI 분석이 완료되었습니다. 결과를 확인해주세요."),
+                    eq("/api/v1/diagnostics/100/ai-analysis"));
+        }
+
+        @Test
+        @DisplayName("비동기 실행 실패 시 AI_ANALYSIS_FAILED 알림이 생성된다")
+        void executeAsync_failure_sendsFailedNotification() {
+            // given
+            AsyncJob job = AsyncJob.builder()
+                    .jobType(JobType.AI_ESG_ANALYSIS)
+                    .requesterId(1L)
+                    .targetId(100L)
+                    .build();
+
+            // start() save succeeds, then first progress update throws
+            given(asyncJobRepository.findByJobId(job.getJobId())).willReturn(Optional.of(job));
+            given(asyncJobRepository.save(any(AsyncJob.class)))
+                    .willAnswer(inv -> inv.getArgument(0))   // start()
+                    .willThrow(new RuntimeException("DB error"))  // progress 30% fails
+                    .willAnswer(inv -> inv.getArgument(0));  // fail() save
+            given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+
+            // when
+            aiAnalysisJobService.executeAnalysisAsync(job.getJobId());
+
+            // then
+            verify(notificationService).createNotification(
+                    eq(testUser),
+                    eq(NotificationType.AI_ANALYSIS_FAILED),
+                    eq("AI 분석 실패"),
+                    eq("ESG 진단 AI 분석이 실패했습니다. 다시 시도해주세요."),
+                    any(String.class));
         }
     }
 }
