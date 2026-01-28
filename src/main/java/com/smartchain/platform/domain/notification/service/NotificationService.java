@@ -2,11 +2,13 @@ package com.smartchain.platform.domain.notification.service;
 
 import com.smartchain.platform.domain.notification.entity.Notification;
 import com.smartchain.platform.domain.notification.repository.NotificationRepository;
+import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.dto.notification.NotificationItemDto;
 import com.smartchain.platform.dto.notification.NotificationListResponse;
 import com.smartchain.platform.dto.notification.NotificationReadRequest;
 import com.smartchain.platform.dto.notification.NotificationReadResponse;
 import com.smartchain.platform.dto.review.common.PageDto;
+import com.smartchain.platform.global.enums.NotificationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -76,6 +78,20 @@ public class NotificationService {
                 .markedCount(markedCount)
                 .remainingUnread(remainingUnread)
                 .build();
+    }
+
+    @Transactional
+    public Notification createNotification(User user, NotificationType type, String title, String message, String linkUrl) {
+        Notification notification = Notification.builder()
+                .user(user)
+                .type(type)
+                .title(title)
+                .message(message)
+                .linkUrl(linkUrl)
+                .build();
+        Notification saved = notificationRepository.save(notification);
+        log.info("Notification created: userId={}, type={}, title={}", user.getUserId(), type, title);
+        return saved;
     }
 
     private NotificationItemDto mapToItemDto(Notification notification) {
