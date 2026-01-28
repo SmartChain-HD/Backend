@@ -1,5 +1,42 @@
 # Claude Code Learnings
 
+## 2026-01-28: 도메인 권한 체계 단위 테스트 추가 (#15)
+
+### 원인
+- 도메인 기반 권한 체계에 대한 단위 테스트 부재
+- User 엔티티의 도메인 권한 헬퍼 메서드(getRoleForDomain, hasRoleInDomain 등) 테스트 없음
+- UserDomainRoleRepository의 쿼리 메서드 검증 테스트 없음
+
+### 해결
+- `UserDomainPermissionTest`: User 엔티티의 도메인 권한 헬퍼 메서드 단위 테스트 22개 추가
+  - getRoleForDomain(), hasRoleInDomain(), hasAnyRoleInDomain(), getDomainsWithRole()
+  - addDomainRole(), removeDomainRole() 메서드
+  - 복합 시나리오 (여러 도메인/역할 조합)
+- `UserDomainRoleRepositoryTest`: Repository 통합 테스트 12개 추가
+  - CRUD 메서드, 페치 조인 쿼리, 복합 조건 쿼리
+
+### 재발 방지
+- 새로운 권한 관련 기능 추가 시 User 엔티티 헬퍼 메서드 테스트 필수
+- Repository 쿼리 메서드는 @DataJpaTest로 통합 테스트 작성
+
+### 검증 방법
+```bash
+./gradlew test --tests "UserDomainPermissionTest"
+./gradlew test --tests "UserDomainRoleRepositoryTest"
+```
+
+### 관련 커밋
+- 2d29017
+
+### 생성/수정 파일
+```
+src/test/java/com/smartchain/platform/
+├── domain/user/entity/UserDomainPermissionTest.java (신규)
+└── domain/user/repository/UserDomainRoleRepositoryTest.java (신규)
+```
+
+---
+
 ## 2026-01-28: ReviewController 도메인 필터링 추가 (#13)
 
 ### 원인
