@@ -13,6 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReviewListRequest {
+    private String domainCode;           // 도메인 필터 (ESG, SAFETY, COMPLIANCE)
     private LocalDate fromDate;          // 기간 필터 시작
     private LocalDate toDate;            // 기간 필터 종료
     private String companyName;          // 협력사명 검색

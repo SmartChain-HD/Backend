@@ -19,6 +19,8 @@ public class ReviewListItemDto {
     private String reviewIdLabel;        // "Review0001"
     private DiagnosticSimpleDto diagnostic;  // v3.0: 진단 정보 구조화
     private CompanySimpleDto company;    // v3.0: 회사 정보 구조화
+    private String domainCode;           // 도메인 코드 (ESG, SAFETY, COMPLIANCE)
+    private String domainName;           // 도메인 이름
     private int score;                   // v3.0: 점수 추가
     private String riskLevel;            // HIGH, MEDIUM, LOW
     private String riskLevelLabel;       // "저위험군", "중위험군", "고위험군"
