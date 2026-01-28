@@ -25,10 +25,14 @@ public class Domain extends BaseTimeEntity {
 
     private String description;
 
+    @Column(nullable = false)
+    private Boolean isActive = true;
+
     @Builder
-    public Domain(String code, String name, String description) {
+    public Domain(String code, String name, String description, Boolean isActive) {
         this.code = code;
         this.name = name;
         this.description = description;
+        this.isActive = isActive != null ? isActive : true;
     }
 }
