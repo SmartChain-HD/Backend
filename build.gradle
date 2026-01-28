@@ -41,6 +41,8 @@ dependencies {
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+	// Azure Blob Storage
+	implementation 'com.azure:azure-storage-blob:12.29.0'
 	// Database
 	runtimeOnly 'org.postgresql:postgresql'
 	testRuntimeOnly 'com.h2database:h2'

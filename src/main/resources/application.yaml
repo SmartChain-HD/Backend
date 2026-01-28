@@ -56,6 +56,12 @@ logging:
     com.smartchain.platform: DEBUG
     org.hibernate.SQL: DEBUG
 
+# 파일 저장소 설정 (로컬)
+file:
+  storage:
+    local:
+      base-path: ./uploads
+
 # AI Run API 설정
 ai:
   run-api:
@@ -81,6 +87,12 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
+
+# Azure Blob Storage 설정
+azure:
+  storage:
+    connection-string: ${AZURE_STORAGE_CONNECTION_STRING}
+    container-name: ${AZURE_STORAGE_CONTAINER:smartchain-files}
 
 logging:
   level:

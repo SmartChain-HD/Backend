@@ -4,6 +4,7 @@ import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.evidence.entity.EvidenceFile;
 import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
+import com.smartchain.platform.domain.file.storage.FileStorageService;
 import com.smartchain.platform.domain.job.entity.AsyncJob;
 import com.smartchain.platform.domain.job.repository.AsyncJobRepository;
 import com.smartchain.platform.domain.user.entity.Company;
@@ -32,6 +33,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -52,6 +54,9 @@ class FileServiceTest {
 
     @Mock
     private AsyncJobRepository asyncJobRepository;
+
+    @Mock
+    private FileStorageService fileStorageService;
 
     @Mock
     private User drafterUser;
@@ -155,6 +160,7 @@ class FileServiceTest {
             assertThat(response.getMimeType()).isEqualTo("application/pdf");
             assertThat(response.getJobId()).isNotNull();
             assertThat(response.getJobId()).startsWith("job_parse_");
+            verify(fileStorageService).upload(eq(file), any(String.class));
             verify(evidenceFileRepository).save(any(EvidenceFile.class));
             verify(asyncJobRepository).save(any(AsyncJob.class));
         }
@@ -246,20 +252,23 @@ class FileServiceTest {
     class GetDownloadUrlTest {
 
         @Test
-        @DisplayName("다운로드 URL 발급 성공")
+        @DisplayName("다운로드 URL 발급 시 FileStorageService의 presignedUrl을 사용한다")
         void getDownloadUrl_Success() {
             // given
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
             given(evidenceFileRepository.findById(200L)).willReturn(Optional.of(testEvidenceFile));
+            given(fileStorageService.getPresignedUrl(eq("diagnostics/10/abc_test.pdf"), any()))
+                    .willReturn("https://storage.blob.core.windows.net/files/diagnostics/10/abc_test.pdf?sig=real");
 
             // when
             FileDownloadUrlResponse response = fileService.getDownloadUrl(1L, 200L);
 
             // then
             assertThat(response).isNotNull();
-            assertThat(response.getDownloadUrl()).isNotNull();
+            assertThat(response.getDownloadUrl()).contains("sig=real");
             assertThat(response.getFileName()).isEqualTo("test.pdf");
             assertThat(response.getExpiresAt()).isNotNull();
+            verify(fileStorageService).getPresignedUrl(eq("diagnostics/10/abc_test.pdf"), any());
         }
     }
 
@@ -281,6 +290,7 @@ class FileServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.getFileId()).isEqualTo(200L);
             assertThat(response.getMessage()).isEqualTo("파일이 삭제되었습니다");
+            verify(fileStorageService).delete("diagnostics/10/abc_test.pdf");
             verify(evidenceFileRepository).delete(testEvidenceFile);
         }
 
@@ -314,6 +324,8 @@ class FileServiceTest {
             given(diagnosticRepository.findById(10L)).willReturn(Optional.of(testDiagnostic));
             given(evidenceFileRepository.findByDiagnosticId(10L))
                     .willReturn(List.of(testEvidenceFile));
+            given(fileStorageService.getPresignedUrl(any(), any()))
+                    .willReturn("https://storage.blob.core.windows.net/packages/diagnostic_10.zip?sig=test");
 
             // when
             DataPackageUrlResponse response = fileService.getPackageUrl(2L, 10L);
