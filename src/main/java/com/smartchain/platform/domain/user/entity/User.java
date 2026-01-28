@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -97,7 +98,7 @@ public class User extends BaseTimeEntity {
         return domainRoles.stream()
                 .anyMatch(udr ->
                         udr.getDomain().getCode().equals(domainCode) &&
-                        java.util.Arrays.asList(roleCodes).contains(udr.getRole().getCode()));
+                        Arrays.asList(roleCodes).contains(udr.getRole().getCode()));
     }
 
     /**
@@ -112,5 +113,15 @@ public class User extends BaseTimeEntity {
      */
     public void removeDomainRole(String domainCode) {
         this.domainRoles.removeIf(udr -> udr.getDomain().getCode().equals(domainCode));
+    }
+
+    /**
+     * 특정 역할을 가진 모든 도메인 조회
+     */
+    public List<Domain> getDomainsWithRole(String roleCode) {
+        return domainRoles.stream()
+                .filter(udr -> udr.getRole().getCode().equals(roleCode))
+                .map(UserDomainRole::getDomain)
+                .toList();
     }
 }

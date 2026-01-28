@@ -10,7 +10,6 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "domain")
 public class Domain extends BaseTimeEntity {
 
     @Id
@@ -18,31 +17,18 @@ public class Domain extends BaseTimeEntity {
     @Column(name = "domain_id")
     private Long domainId;
 
-    @Column(nullable = false, unique = true, length = 50)
+    @Column(nullable = false, unique = true)
     private String code;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false)
     private String name;
 
-    @Column(length = 500)
     private String description;
 
-    @Column(nullable = false)
-    private Boolean isActive = true;
-
     @Builder
-    public Domain(String code, String name, String description, Boolean isActive) {
+    public Domain(String code, String name, String description) {
         this.code = code;
         this.name = name;
         this.description = description;
-        this.isActive = isActive != null ? isActive : true;
-    }
-
-    public void deactivate() {
-        this.isActive = false;
-    }
-
-    public void activate() {
-        this.isActive = true;
     }
 }

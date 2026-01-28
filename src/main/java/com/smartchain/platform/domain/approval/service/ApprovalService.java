@@ -2,7 +2,9 @@ package com.smartchain.platform.domain.approval.service;
 
 import com.smartchain.platform.domain.approval.entity.Approval;
 import com.smartchain.platform.domain.approval.repository.ApprovalRepository;
+import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.approval.common.DiagnosticSimpleDto;
@@ -32,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -56,14 +59,63 @@ public class ApprovalService {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
-        if (!"APPROVER".equals(userRoleCode)) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
-        }
-
         Company userCompany = currentUser.getCompany();
         if (userCompany == null) {
             throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
+        }
+
+        // APPROVER 권한을 가진 도메인 목록 조회
+        List<Domain> approverDomains = currentUser.getDomainsWithRole("APPROVER");
+
+        // 도메인 역할이 없으면 레거시 로직 사용
+        if (approverDomains.isEmpty()) {
+            return getApprovalListLegacy(currentUser, userCompany, status, page, size);
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Approval> approvalPage;
+
+        if (status != null && !status.isEmpty()) {
+            ApprovalStatus approvalStatus = parseStatus(status);
+            approvalPage = approvalRepository.findByDomainsAndCompanyAndStatusOrderByCreatedAtDesc(
+                    approverDomains, userCompany, approvalStatus, pageable);
+        } else {
+            approvalPage = approvalRepository.findByDomainsAndCompanyOrderByCreatedAtDesc(
+                    approverDomains, userCompany, pageable);
+        }
+
+        ApprovalStatsDto stats = ApprovalStatsDto.builder()
+                .waiting(approvalRepository.countByDomainsAndCompanyAndStatus(approverDomains, userCompany, ApprovalStatus.WAITING))
+                .approved(approvalRepository.countByDomainsAndCompanyAndStatus(approverDomains, userCompany, ApprovalStatus.APPROVED))
+                .rejected(approvalRepository.countByDomainsAndCompanyAndStatus(approverDomains, userCompany, ApprovalStatus.REJECTED))
+                .build();
+
+        List<ApprovalListItemDto> content = approvalPage.getContent().stream()
+                .map(this::mapToListItemDto)
+                .toList();
+
+        PageDto pageDto = PageDto.builder()
+                .number(approvalPage.getNumber())
+                .size(approvalPage.getSize())
+                .totalElements(approvalPage.getTotalElements())
+                .totalPages(approvalPage.getTotalPages())
+                .build();
+
+        return ApprovalListResponse.builder()
+                .stats(stats)
+                .content(content)
+                .page(pageDto)
+                .build();
+    }
+
+    /**
+     * 레거시: 도메인 역할이 없는 사용자용 결재 목록 조회
+     */
+    private ApprovalListResponse getApprovalListLegacy(User currentUser, Company userCompany,
+                                                        String status, int page, int size) {
+        String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
+        if (!"APPROVER".equals(userRoleCode)) {
+            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
         }
 
         Pageable pageable = PageRequest.of(page, size);
@@ -104,18 +156,11 @@ public class ApprovalService {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
-        if (!"APPROVER".equals(userRoleCode)) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
-        }
-
         Approval approval = approvalRepository.findById(approvalId)
                 .orElseThrow(() -> new CustomException(ErrorCode.APPROVAL_NOT_FOUND));
 
-        Company userCompany = currentUser.getCompany();
-        if (userCompany == null || !userCompany.getCompanyId().equals(approval.getDiagnostic().getCompany().getCompanyId())) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
-        }
+        // 도메인 기반 권한 검증
+        validateDomainApproverAccess(currentUser, approval);
 
         DiagnosticDetailDto diagnosticDto = DiagnosticDetailDto.builder()
                 .diagnosticId(approval.getDiagnostic().getDiagnosticId())
@@ -159,18 +204,11 @@ public class ApprovalService {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
-        if (!"APPROVER".equals(userRoleCode)) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
-        }
-
         Approval approval = approvalRepository.findById(approvalId)
                 .orElseThrow(() -> new CustomException(ErrorCode.APPROVAL_NOT_FOUND));
 
-        Company userCompany = currentUser.getCompany();
-        if (userCompany == null || !userCompany.getCompanyId().equals(approval.getDiagnostic().getCompany().getCompanyId())) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
-        }
+        // 도메인 기반 권한 검증
+        validateDomainApproverAccess(currentUser, approval);
 
         if (!approval.isWaiting()) {
             throw new CustomException(ErrorCode.ALREADY_PROCESSED_APPROVAL);
@@ -217,18 +255,11 @@ public class ApprovalService {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
-        if (!"APPROVER".equals(userRoleCode)) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
-        }
-
         Approval approval = approvalRepository.findById(approvalId)
                 .orElseThrow(() -> new CustomException(ErrorCode.APPROVAL_NOT_FOUND));
 
-        Company userCompany = currentUser.getCompany();
-        if (userCompany == null || !userCompany.getCompanyId().equals(approval.getDiagnostic().getCompany().getCompanyId())) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
-        }
+        // 도메인 기반 권한 검증
+        validateDomainApproverAccess(currentUser, approval);
 
         if (!approval.isApproved()) {
             throw new CustomException(ErrorCode.APPROVAL_NOT_APPROVED);
@@ -255,6 +286,39 @@ public class ApprovalService {
                 .submittedAt(approval.getSubmittedToReviewerAt())
                 .message("원청에 제출되었습니다")
                 .build();
+    }
+
+    /**
+     * 도메인 기반 APPROVER 접근 권한 검증
+     */
+    private void validateDomainApproverAccess(User user, Approval approval) {
+        Diagnostic diagnostic = approval.getDiagnostic();
+        Domain domain = diagnostic.getDomain();
+
+        if (domain != null) {
+            // 도메인 기반 권한 검증
+            if (!user.hasRoleInDomain(domain.getCode(), "APPROVER")) {
+                log.warn("User {} does not have APPROVER role in domain {}", user.getUserId(), domain.getCode());
+                throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+            }
+
+            // 같은 회사 검증
+            Company userCompany = user.getCompany();
+            if (userCompany == null || !userCompany.getCompanyId().equals(diagnostic.getCompany().getCompanyId())) {
+                throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
+            }
+        } else {
+            // 레거시: 도메인이 없는 경우 기본 역할로 검증
+            String userRoleCode = user.getRole() != null ? user.getRole().getCode() : "GUEST";
+            if (!"APPROVER".equals(userRoleCode)) {
+                throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+            }
+
+            Company userCompany = user.getCompany();
+            if (userCompany == null || !userCompany.getCompanyId().equals(diagnostic.getCompany().getCompanyId())) {
+                throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
+            }
+        }
     }
 
     private ApprovalStatus parseStatus(String status) {
