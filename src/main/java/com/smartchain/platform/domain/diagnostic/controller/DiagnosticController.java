@@ -34,10 +34,12 @@ public class DiagnosticController {
     private final DiagnosticService diagnosticService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Operation(summary = "기안 목록 조회", description = "기안 목록을 조회합니다. DRAFTER는 본인 기안만, APPROVER는 소속 회사 전체 기안을 조회합니다.")
+    @Operation(summary = "기안 목록 조회", description = "기안 목록을 조회합니다. DRAFTER는 본인 기안만, APPROVER는 소속 회사 전체 기안을 조회합니다. domainCode로 특정 도메인 필터링 가능합니다.")
     @GetMapping
     public ResponseEntity<BaseResponse<DiagnosticListResponse>> getDiagnosticList(
             HttpServletRequest request,
+            @Parameter(description = "도메인 코드 필터 (예: ENV, SOC, GOV)")
+            @RequestParam(required = false) String domainCode,
             @Parameter(description = "상태 필터 (쉼표로 구분, 예: WRITING,SUBMITTED)")
             @RequestParam(required = false) String statuses,
             @Parameter(description = "마감일 시작")
@@ -47,7 +49,7 @@ public class DiagnosticController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Long userId = extractUserIdFromRequest(request);
-        DiagnosticListResponse response = diagnosticService.getDiagnosticList(userId, statuses, deadlineFrom, deadlineTo, page, size);
+        DiagnosticListResponse response = diagnosticService.getDiagnosticList(userId, domainCode, statuses, deadlineFrom, deadlineTo, page, size);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 

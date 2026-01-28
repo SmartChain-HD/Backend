@@ -73,7 +73,7 @@ public class DiagnosticService {
             "COMPLETED", "완료"
     );
 
-    public DiagnosticListResponse getDiagnosticList(Long userId, String statuses, LocalDate deadlineFrom,
+    public DiagnosticListResponse getDiagnosticList(Long userId, String domainCode, String statuses, LocalDate deadlineFrom,
                                                      LocalDate deadlineTo, int page, int size) {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
@@ -98,7 +98,14 @@ public class DiagnosticService {
         // 도메인 역할이 없으면 레거시 로직 사용
         boolean hasDomainRoles = !reviewerDomains.isEmpty() || !approverDomains.isEmpty() || !drafterDomains.isEmpty();
         if (!hasDomainRoles) {
-            return getDiagnosticListLegacy(currentUser, userCompany, statuses, deadlineFrom, deadlineTo, page, size);
+            return getDiagnosticListLegacy(currentUser, userCompany, domainCode, statuses, deadlineFrom, deadlineTo, page, size);
+        }
+
+        // domainCode 파라미터가 있으면 해당 도메인으로 필터링
+        if (domainCode != null && !domainCode.isEmpty()) {
+            reviewerDomains = reviewerDomains.stream().filter(d -> d.getCode().equals(domainCode)).toList();
+            approverDomains = approverDomains.stream().filter(d -> d.getCode().equals(domainCode)).toList();
+            drafterDomains = drafterDomains.stream().filter(d -> d.getCode().equals(domainCode)).toList();
         }
 
         // 빈 리스트를 placeholder 도메인으로 대체 (JPQL IN 절 처리)
@@ -154,7 +161,7 @@ public class DiagnosticService {
      * 레거시: 도메인 역할이 없는 사용자용 기안 목록 조회
      */
     private DiagnosticListResponse getDiagnosticListLegacy(User currentUser, Company userCompany,
-                                                            String statuses, LocalDate deadlineFrom,
+                                                            String domainCode, String statuses, LocalDate deadlineFrom,
                                                             LocalDate deadlineTo, int page, int size) {
         validateAccessRole(currentUser);
 
@@ -165,7 +172,12 @@ public class DiagnosticService {
         Pageable pageable = PageRequest.of(page, size);
         Page<Diagnostic> diagnosticPage;
 
-        if (statuses != null && !statuses.isEmpty()) {
+        // domainCode 필터가 있으면 도메인별 조회
+        if (domainCode != null && !domainCode.isEmpty()) {
+            Domain domain = domainRepository.findByCode(domainCode)
+                    .orElseThrow(() -> new CustomException(ErrorCode.DOMAIN_NOT_FOUND));
+            diagnosticPage = diagnosticRepository.findByDomainOrderByCreatedAtDesc(domain, pageable);
+        } else if (statuses != null && !statuses.isEmpty()) {
             List<DiagnosticStatus> statusList = parseStatuses(statuses);
             diagnosticPage = diagnosticRepository.findByCompanyAndStatusInOrderByCreatedAtDesc(
                     userCompany, statusList, pageable);
@@ -241,9 +253,20 @@ public class DiagnosticService {
                     .build();
         }
 
+        DomainSimpleDto domainDto = null;
+        if (diagnostic.getDomain() != null) {
+            Domain domain = diagnostic.getDomain();
+            domainDto = DomainSimpleDto.builder()
+                    .domainId(domain.getDomainId())
+                    .code(domain.getCode())
+                    .name(domain.getName())
+                    .build();
+        }
+
         return DiagnosticDetailResponse.builder()
                 .diagnosticId(diagnostic.getDiagnosticId())
                 .diagnosticCode(diagnostic.getDiagnosticCode())
+                .domain(domainDto)
                 .campaign(campaignDto)
                 .company(companyDto)
                 .period(periodDto)
@@ -578,9 +601,20 @@ public class DiagnosticService {
                 .overall(diagnostic.getOverallProgress())
                 .build();
 
+        DomainSimpleDto domainDto = null;
+        if (diagnostic.getDomain() != null) {
+            Domain domain = diagnostic.getDomain();
+            domainDto = DomainSimpleDto.builder()
+                    .domainId(domain.getDomainId())
+                    .code(domain.getCode())
+                    .name(domain.getName())
+                    .build();
+        }
+
         return DiagnosticListItemDto.builder()
                 .diagnosticId(diagnostic.getDiagnosticId())
                 .diagnosticCode(diagnostic.getDiagnosticCode())
+                .domain(domainDto)
                 .campaign(campaignDto)
                 .summary(diagnostic.getTitle())
                 .period(periodDto)
