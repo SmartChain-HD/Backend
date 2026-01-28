@@ -9,6 +9,7 @@ import com.smartchain.platform.domain.diagnostic.repository.CampaignRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.entity.UserDomainRole;
@@ -154,7 +155,7 @@ class DiagnosticServiceTest {
                     .willReturn(diagnosticPage);
 
             // when
-            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, null, 0, 10);
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, null, null, 0, 10);
 
             // then
             assertThat(response).isNotNull();
@@ -190,7 +191,7 @@ class DiagnosticServiceTest {
                     .willReturn(diagnosticPage);
 
             // when
-            DiagnosticListResponse response = diagnosticService.getDiagnosticList(2L, null, null, null, 0, 10);
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(2L, null, null, null, null, 0, 10);
 
             // then
             assertThat(response).isNotNull();
@@ -208,7 +209,7 @@ class DiagnosticServiceTest {
             given(userRepository.findById(99L)).willReturn(Optional.of(guestUser));
 
             // when & then
-            assertThatThrownBy(() -> diagnosticService.getDiagnosticList(99L, null, null, null, 0, 10))
+            assertThatThrownBy(() -> diagnosticService.getDiagnosticList(99L, null, null, null, null, 0, 10))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
@@ -580,6 +581,114 @@ class DiagnosticServiceTest {
             assertThat(response.getHistory()).hasSize(1);
             assertThat(response.getHistory().get(0).getAction()).isEqualTo("CREATED");
             assertThat(response.getHistory().get(0).getNewStatus()).isEqualTo("WRITING");
+        }
+    }
+
+    @Nested
+    @DisplayName("도메인 파라미터 관련 테스트")
+    class DomainParameterTest {
+
+        @Test
+        @DisplayName("domainCode 필터로 기안 목록 조회 성공 (레거시)")
+        void getDiagnosticList_WithDomainCodeFilter_Legacy_Success() {
+            // given
+            Domain envDomain = mock(Domain.class);
+            when(envDomain.getDomainId()).thenReturn(1L);
+            when(envDomain.getCode()).thenReturn("ENV");
+            when(envDomain.getName()).thenReturn("환경");
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            lenient().when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnostic.getTitle()).thenReturn("2026년 ESG 자가진단");
+            lenient().when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            lenient().when(diagnostic.getCompany()).thenReturn(testCompany);
+            lenient().when(diagnostic.getDomain()).thenReturn(envDomain);
+            lenient().when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            lenient().when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            lenient().when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            lenient().when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            lenient().when(diagnostic.getQualitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getQuantitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getOverallProgress()).thenReturn(0);
+            lenient().when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(domainRepository.findByCode("ENV")).willReturn(Optional.of(envDomain));
+            given(diagnosticRepository.findByDomainOrderByCreatedAtDesc(eq(envDomain), any()))
+                    .willReturn(diagnosticPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, "ENV", null, null, null, 0, 10);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getContent()).hasSize(1);
+            assertThat(response.getContent().get(0).getDomain()).isNotNull();
+            assertThat(response.getContent().get(0).getDomain().getCode()).isEqualTo("ENV");
+            assertThat(response.getContent().get(0).getDomain().getName()).isEqualTo("환경");
+            verify(diagnosticRepository).findByDomainOrderByCreatedAtDesc(eq(envDomain), any());
+        }
+
+        @Test
+        @DisplayName("상세 조회 시 도메인 정보가 응답에 포함됨")
+        void getDiagnosticDetail_IncludesDomainInfo() {
+            // given
+            Domain envDomain = mock(Domain.class);
+            when(envDomain.getDomainId()).thenReturn(1L);
+            when(envDomain.getCode()).thenReturn("ENV");
+            when(envDomain.getName()).thenReturn("환경");
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            when(diagnostic.getCompany()).thenReturn(testCompany);
+            when(diagnostic.getDomain()).thenReturn(envDomain);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            when(diagnostic.getQualitativeProgress()).thenReturn(50);
+            when(diagnostic.getQuantitativeProgress()).thenReturn(30);
+            when(diagnostic.getOverallProgress()).thenReturn(40);
+            when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            // 도메인 기반 접근 검증을 통과하도록 설정
+            when(drafterUser.hasAnyRoleInDomain("ENV", "DRAFTER", "APPROVER", "REVIEWER")).thenReturn(true);
+            when(drafterUser.hasRoleInDomain("ENV", "DRAFTER")).thenReturn(true);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when
+            DiagnosticDetailResponse response = diagnosticService.getDiagnosticDetail(1L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDomain()).isNotNull();
+            assertThat(response.getDomain().getDomainId()).isEqualTo(1L);
+            assertThat(response.getDomain().getCode()).isEqualTo("ENV");
+            assertThat(response.getDomain().getName()).isEqualTo("환경");
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 domainCode 필터 시 DOMAIN_NOT_FOUND")
+        void getDiagnosticList_InvalidDomainCode_ThrowsException() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(domainRepository.findByCode("INVALID")).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.getDiagnosticList(1L, "INVALID", null, null, null, 0, 10))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DOMAIN_NOT_FOUND);
+                    });
         }
     }
 }
