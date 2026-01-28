@@ -56,6 +56,13 @@ logging:
     com.smartchain.platform: DEBUG
     org.hibernate.SQL: DEBUG
 
+# AI Run API 설정
+ai:
+  run-api:
+    url: http://localhost:8000
+    timeout-seconds: 180
+    max-retry: 3
+
 ---
 # ========================================
 # 개발 서버 환경 (Azure)
