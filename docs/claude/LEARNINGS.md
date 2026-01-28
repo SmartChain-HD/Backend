@@ -1,5 +1,48 @@
 # Claude Code Learnings
 
+## 2026-01-28: ApprovalController 도메인 필터링 추가 (#12)
+
+### 원인
+- 결재 API에서 도메인별 필터링 미지원
+- 사용자가 여러 도메인에서 APPROVER 역할을 가질 때 특정 도메인만 조회 불가
+- 응답 DTO에 도메인 정보가 포함되지 않아 FE에서 도메인 구분 어려움
+
+### 해결
+- GET `/api/v1/approvals`에 `domainCode` 쿼리 파라미터 추가 (선택)
+- GET `/api/v1/approvals/{id}` 응답에 `domainCode`, `domainName` 필드 추가
+- `ApprovalService`에서 domainCode 필터 시 권한 검증 강화
+- `ApprovalRepository`에 단일 도메인 쿼리 메서드 추가
+
+### 재발 방지
+- 도메인 기반 API 구현 시 필터링과 권한 검증 함께 고려
+- 응답 DTO에 도메인 정보 포함하여 FE 연동 용이하게
+- 레거시 데이터(domain=null) 호환성 유지 필수
+
+### 검증 방법
+```bash
+./gradlew test --tests "ApprovalServiceTest"
+./gradlew build
+```
+
+### 관련 커밋
+- 92aa38b
+
+### 생성/수정 파일
+```
+src/main/java/com/smartchain/platform/
+├── domain/approval/
+│   ├── controller/ApprovalController.java (domainCode 파라미터 추가)
+│   ├── repository/ApprovalRepository.java (단일 도메인 쿼리 추가)
+│   └── service/ApprovalService.java (필터링 로직 구현)
+├── dto/approval/
+│   ├── detail/ApprovalDetailResponse.java (domainCode, domainName 추가)
+│   ├── list/ApprovalListItemDto.java (domainCode, domainName 추가)
+│   └── list/ApprovalListRequest.java (domainCode 추가)
+src/test/java/.../ApprovalServiceTest.java (도메인 필터링 테스트 4건 추가)
+```
+
+---
+
 ## 2026-01-28: AI Run API 공통 클라이언트 구현
 
 ### 원인
