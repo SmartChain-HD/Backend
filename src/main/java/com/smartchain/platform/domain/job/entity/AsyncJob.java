@@ -83,6 +83,9 @@ public class AsyncJob extends BaseTimeEntity {
             case REPORT_GENERATION -> "job_report_";
             case BULK_REPORT -> "job_bulk_report_";
             case EXPORT -> "job_export_";
+            case AI_ESG_ANALYSIS -> "job_ai_esg_";
+            case AI_COMPLIANCE_ANALYSIS -> "job_ai_compliance_";
+            case AI_SAFETY_ANALYSIS -> "job_ai_safety_";
         };
         return prefix + UUID.randomUUID().toString().substring(0, 8);
     }
