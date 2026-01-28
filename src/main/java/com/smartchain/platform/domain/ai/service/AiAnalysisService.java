@@ -3,6 +3,7 @@ package com.smartchain.platform.domain.ai.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartchain.platform.domain.ai.client.AiRunApiClient;
+import com.smartchain.platform.domain.ai.config.SlotConfigProperties;
 import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
 import com.smartchain.platform.domain.ai.repository.AiAnalysisResultRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
@@ -39,19 +40,22 @@ public class AiAnalysisService {
     private final DiagnosticRepository diagnosticRepository;
     private final EvidenceFileRepository evidenceFileRepository;
     private final ObjectMapper objectMapper;
+    private final SlotConfigProperties slotConfigProperties;
 
     public AiAnalysisService(
         AiRunApiClient aiRunApiClient,
         AiAnalysisResultRepository resultRepository,
         DiagnosticRepository diagnosticRepository,
         EvidenceFileRepository evidenceFileRepository,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        SlotConfigProperties slotConfigProperties
     ) {
         this.aiRunApiClient = aiRunApiClient;
         this.resultRepository = resultRepository;
         this.diagnosticRepository = diagnosticRepository;
         this.evidenceFileRepository = evidenceFileRepository;
         this.objectMapper = objectMapper;
+        this.slotConfigProperties = slotConfigProperties;
     }
 
     /**
@@ -198,31 +202,7 @@ public class AiAnalysisService {
     }
 
     private String guessSlotName(String fileName, String domainCode) {
-        String lowerName = fileName.toLowerCase();
-
-        return switch (domainCode.toUpperCase()) {
-            case "SAFETY" -> {
-                if (lowerName.contains("tbm") || lowerName.contains("작업전")) yield "safety.tbm";
-                if (lowerName.contains("교육") || lowerName.contains("education")) yield "safety.education.status";
-                if (lowerName.contains("소방") || lowerName.contains("fire")) yield "safety.fire.inspection";
-                if (lowerName.contains("사진") || lowerName.contains("photo")) yield "safety.site.photos";
-                yield "safety.other";
-            }
-            case "COMPLIANCE" -> {
-                if (lowerName.contains("계약") || lowerName.contains("contract")) yield "compliance.contract.sample";
-                if (lowerName.contains("개인정보") || lowerName.contains("privacy")) yield "compliance.privacy.policy";
-                if (lowerName.contains("교육") || lowerName.contains("education")) yield "compliance.education.status";
-                yield "compliance.other";
-            }
-            case "ESG" -> {
-                if (lowerName.contains("에너지") || lowerName.contains("energy")) yield "esg.energy.usage";
-                if (lowerName.contains("고지서") || lowerName.contains("bill")) yield "esg.energy.bill";
-                if (lowerName.contains("msds") || lowerName.contains("화학")) yield "esg.hazmat.msds";
-                if (lowerName.contains("윤리") || lowerName.contains("ethics")) yield "esg.ethics.code";
-                yield "esg.other";
-            }
-            default -> "other";
-        };
+        return slotConfigProperties.matchSlotName(fileName, domainCode);
     }
 
     private String generatePackageId(Diagnostic diagnostic) {

@@ -68,6 +68,47 @@ ai:
     url: http://localhost:8000
     timeout-seconds: 180
     max-retry: 3
+  slots:
+    domains:
+      safety:
+        - name: safety.tbm
+          keywords: [tbm, 작업전, 안전점검, 안전회의, toolbox, 작업전회의]
+          required: true
+        - name: safety.education.status
+          keywords: [교육, education, 이수, 안전교육, 교육이수, 수료]
+          required: true
+        - name: safety.fire.inspection
+          keywords: [소방, fire, 점검, 소방점검, 소화기, 방화]
+          required: true
+        - name: safety.site.photos
+          keywords: [사진, photo, 현장, 현장사진, site, image]
+          required: true
+      compliance:
+        - name: compliance.contract.sample
+          keywords: [계약, contract, 계약서, 샘플, 표준계약, 도급계약]
+          required: true
+        - name: compliance.contract.status
+          keywords: [계약현황, 현황, status, 계약목록]
+          required: true
+        - name: compliance.privacy.policy
+          keywords: [개인정보, privacy, 정책, 보호, 개인정보처리]
+          required: true
+        - name: compliance.education.status
+          keywords: [교육, education, 이수, 법정교육, 컴플라이언스교육]
+          required: true
+      esg:
+        - name: esg.energy.usage
+          keywords: [에너지, energy, 사용량, 전력, 가스, 에너지사용]
+          required: true
+        - name: esg.energy.bill
+          keywords: [고지서, bill, 근거, 요금, 청구서, 납부]
+          required: true
+        - name: esg.hazmat.msds
+          keywords: [msds, 화학, 물질안전, 유해물질, 화학물질, hazmat]
+          required: true
+        - name: esg.ethics.code
+          keywords: [윤리, ethics, 강령, 윤리강령, 행동강령, code of conduct]
+          required: true
 
 ---
 # ========================================
