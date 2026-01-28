@@ -75,7 +75,12 @@ public enum ErrorCode {
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S001", "서버 오류가 발생했습니다"),
     FILE_UPLOAD_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S002", "파일 업로드에 실패했습니다"),
     AI_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S003", "AI 서비스 연동에 실패했습니다"),
-    FILE_PARSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SYS_003", "파일 파싱에 실패했습니다");
+    FILE_PARSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SYS_003", "파일 파싱에 실패했습니다"),
+
+    // 503 Service Unavailable - AI Service
+    AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI001", "AI 서비스에 연결할 수 없습니다"),
+    AI_ANALYSIS_IN_PROGRESS(HttpStatus.CONFLICT, "AI002", "이미 분석이 진행 중입니다"),
+    AI_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "AI003", "AI 분석 결과를 찾을 수 없습니다");
 
     private final HttpStatus status;
     private final String code;
