@@ -3,6 +3,7 @@ package com.smartchain.platform.domain.ai.controller;
 import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
 import com.smartchain.platform.domain.ai.service.AiAnalysisService;
 import com.smartchain.platform.dto.ai.AiAnalysisRequest;
+import com.smartchain.platform.dto.ai.AiAnalysisResultDetailResponse;
 import com.smartchain.platform.dto.ai.AiAnalysisResultResponse;
 import com.smartchain.platform.dto.ai.AiPreviewRequest;
 import com.smartchain.platform.dto.ai.run.RunPreviewResponse;
@@ -79,6 +80,19 @@ public class AiAnalysisController {
         AiAnalysisResultResponse response = AiAnalysisResultResponse.from(result);
 
         return ResponseEntity.ok(BaseResponse.success("분석 결과 조회 완료", response));
+    }
+
+    @Operation(summary = "AI Run 결과 상세 조회", description = "진단의 최신 AI Run 분석 결과를 슬롯별로 파싱하여 조회")
+    @GetMapping("/result/detail")
+    public ResponseEntity<BaseResponse<AiAnalysisResultDetailResponse>> getLatestResultDetail(
+        @PathVariable Long diagnosticId
+    ) {
+        log.info("AI 분석 결과 상세 조회 - diagnosticId: {}", diagnosticId);
+
+        AiAnalysisResult result = aiAnalysisService.getLatestResult(diagnosticId);
+        AiAnalysisResultDetailResponse response = AiAnalysisResultDetailResponse.from(result);
+
+        return ResponseEntity.ok(BaseResponse.success("분석 결과 상세 조회 완료", response));
     }
 
     @Operation(summary = "AI Run 이력 조회", description = "진단의 AI Run 분석 이력 전체 조회")

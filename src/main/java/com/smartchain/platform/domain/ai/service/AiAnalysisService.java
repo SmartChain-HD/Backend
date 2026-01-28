@@ -160,6 +160,14 @@ public class AiAnalysisService {
     }
 
     /**
+     * 특정 분석 결과 조회 (ID로)
+     */
+    public AiAnalysisResult getResultById(Long resultId) {
+        return resultRepository.findById(resultId)
+            .orElseThrow(() -> new CustomException(ErrorCode.AI_ANALYSIS_NOT_FOUND));
+    }
+
+    /**
      * 진단의 분석 이력 조회
      */
     public List<AiAnalysisResult> getAnalysisHistory(Long diagnosticId) {
