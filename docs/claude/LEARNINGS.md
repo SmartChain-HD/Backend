@@ -271,3 +271,38 @@ src/test/java/.../DomainServiceTest.java (신규, 테스트 7건)
 |--------|------|------|
 | GET | `/api/v1/domains` | 도메인 목록 조회 (includeInactive 옵션) |
 | GET | `/api/v1/domains/{code}` | 도메인 상세 조회 |
+
+---
+
+## 2026-01-29: 서비스 플로우 문서 현행화
+
+### 원인
+- 기존 `docs/service_flow.png`가 초기 버전으로 현재 코드베이스와 불일치
+- 도메인 기반 권한 체계(UserDomainRole) 미반영
+- 도메인별 워크플로우 차이 미표현 (ESG는 결재 단계 있음, SAFETY/COMPLIANCE는 결재 없음)
+- AI Run API, 수신자 심사 플로우, 알림 시스템 등 신규 기능 누락
+
+### 해결
+- `docs/service_flow.md` 신규 작성 (텍스트 기반 다이어그램)
+- 도메인별 분리된 워크플로우 문서화:
+  - ESG: 3단계 (기안자 → 결재자 → 수신자)
+  - SAFETY/COMPLIANCE: 2단계 (기안자 → 수신자, 결재 없음)
+- 상태 전이 요약 (WRITING → SUBMITTED → APPROVED → REVIEWING → COMPLETED)
+- 수신자 공통 플로우 (심사 대시보드, 리포트 생성, 데이터 내보내기)
+
+### 재발 방지
+- 워크플로우 변경 시 `docs/service_flow.md` 동기화 필수
+- 도메인별 기능 차이는 명시적으로 문서화
+- 코드 레벨에서 SAFETY/COMPLIANCE 결재 스킵 로직 구현 시 문서 업데이트
+
+### 검증 방법
+- 문서 리뷰: `docs/service_flow.md` 내용과 실제 코드 동작 비교
+- 도메인별 상태 전이 흐름이 코드와 일치하는지 확인
+
+### 관련 커밋
+- (별도 커밋 예정)
+
+### 생성/수정 파일
+```
+docs/service_flow.md (신규)
+```
