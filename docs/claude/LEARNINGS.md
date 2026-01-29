@@ -1,5 +1,40 @@
 # Claude Code Learnings
 
+## 2026-01-29: API 명세서 최종 업데이트 (#17)
+
+### 원인
+- DiagnosticController Swagger 어노테이션에 잘못된 도메인 코드(ENV, SOC, GOV) 기재
+- 역할별 도메인 권한 매트릭스 문서화 부재
+- 도메인 기반 권한 검증 요구사항 명세 불충분
+
+### 해결
+- Swagger 도메인 코드 수정: `ENV/SOC/GOV` → `ESG/SAFETY/COMPLIANCE`
+- API_QUICK_REFERENCE.md: 역할별 도메인 권한 매트릭스 섹션 추가
+- API_SPECIFICATION.md: 도메인 기반 권한 검증 테이블 추가
+- `ApiDocumentationConsistencyTest`: Swagger 어노테이션 일관성 검증 테스트
+
+### 재발 방지
+- 새 도메인 추가 시 모든 Swagger 어노테이션 업데이트 확인
+- `ApiDocumentationConsistencyTest`가 잘못된 도메인 코드 사용 시 빌드 실패
+
+### 검증 방법
+```bash
+./gradlew test --tests "ApiDocumentationConsistencyTest"
+```
+
+### 관련 커밋
+- 518db07
+
+### 생성/수정 파일
+```
+docs/API_QUICK_REFERENCE.md (역할별 도메인 권한 매트릭스 추가)
+docs/API_SPECIFICATION.md (도메인 기반 권한 검증 섹션 추가)
+src/main/java/.../DiagnosticController.java (Swagger 수정)
+src/test/java/.../docs/ApiDocumentationConsistencyTest.java (신규)
+```
+
+---
+
 ## 2026-01-28: API 통합 테스트 프레임워크 구축 (#16)
 
 ### 원인
