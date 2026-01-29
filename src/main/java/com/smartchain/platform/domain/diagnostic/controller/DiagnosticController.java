@@ -41,7 +41,7 @@ public class DiagnosticController {
     @GetMapping
     public ResponseEntity<BaseResponse<DiagnosticListResponse>> getDiagnosticList(
             HttpServletRequest request,
-            @Parameter(description = "도메인 코드 필터 (예: ENV, SOC, GOV)")
+            @Parameter(description = "도메인 코드 필터 (ESG, SAFETY, COMPLIANCE)")
             @RequestParam(required = false) String domainCode,
             @Parameter(description = "상태 필터 (쉼표로 구분, 예: WRITING,SUBMITTED)")
             @RequestParam(required = false) String statuses,

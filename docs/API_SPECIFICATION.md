@@ -1,7 +1,7 @@
 # SmartChain API 명세서
 
-> 버전: 2.1
-> 최종 수정: 2026-01-28
+> 버전: 2.2
+> 최종 수정: 2026-01-29
 > Base URL: `http://localhost:8080`
 > 인증: Bearer Token (JWT)
 
@@ -74,6 +74,26 @@ Authorization: Bearer {accessToken}
     { "domainCode": "ESG", "roleCode": "APPROVER" },
     { "domainCode": "SAFETY", "roleCode": "DRAFTER" }
   ]
+}
+```
+
+### 도메인 기반 권한 검증
+
+API 요청 시 다음 규칙에 따라 도메인 권한이 검증됩니다:
+
+| API | 필요 역할 | 설명 |
+|-----|----------|------|
+| `/api/v1/diagnostics` | DRAFTER/APPROVER | 진단이 속한 도메인에서 역할 필요 |
+| `/api/v1/approvals` | APPROVER | 진단이 속한 도메인에서 APPROVER 필요 |
+| `/api/v1/reviews` | REVIEWER | 진단이 속한 도메인에서 REVIEWER 필요 |
+| `/api/v1/ai/run/*` | DRAFTER/APPROVER/REVIEWER | 진단 도메인에서 하나 이상 역할 필요 |
+
+**권한 없음 에러:**
+```json
+{
+  "success": false,
+  "message": "해당 도메인에 대한 접근 권한이 없습니다",
+  "code": "DOM002"
 }
 ```
 
