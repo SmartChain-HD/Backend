@@ -1,0 +1,132 @@
+### SmartChain AI Run API 워크플로우 테스트
+### 모든 도메인(ESG, SAFETY, COMPLIANCE) 공통 AI 분석 API
+###
+### 사전 조건:
+###   1. 01_auth_and_setup.http 의 로그인 요청 실행 완료
+###   2. 진단(Diagnostic)이 생성되어 있고 증빙 파일이 업로드된 상태
+###   3. AI 서비스(Python FastAPI)가 실행 중 (기본: http://localhost:8000)
+###
+### 흐름: 파일 업로드 → Preview(슬롯 추정) → Submit(AI 검증) → Result(결과 조회) → History(이력)
+
+@host = http://localhost:8080
+
+### 토큰 변수 (01_auth_and_setup.http에서 복사)
+@drafterToken = eyJhbGciOiJIUzUxMiJ9.REPLACE_WITH_ACTUAL_TOKEN
+
+### ID 변수 (실제 값으로 교체)
+@diagnosticId = 1
+
+### ================================================================
+###                     파일 업로드
+### ================================================================
+
+### ========== STEP 1: 기안자 - 증빙 파일 업로드 ==========
+### 응답의 data에서 fileId 확인
+### 여러 파일을 업로드해야 슬롯 매칭 테스트가 의미 있음
+POST {{host}}/api/v1/diagnostics/{{diagnosticId}}/files
+Authorization: Bearer {{drafterToken}}
+Content-Type: multipart/form-data; boundary=----FormBoundary
+
+------FormBoundary
+Content-Disposition: form-data; name="file"; filename="전기사용량_2026Q1.xlsx"
+Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+< ./test_files/전기사용량_2026Q1.xlsx
+------FormBoundary--
+
+### ========== STEP 1-B: 추가 파일 업로드 (선택) ==========
+# POST {{host}}/api/v1/diagnostics/{{diagnosticId}}/files
+# Authorization: Bearer {{drafterToken}}
+# Content-Type: multipart/form-data; boundary=----FormBoundary
+#
+# ------FormBoundary
+# Content-Disposition: form-data; name="file"; filename="MSDS_화학물질목록.pdf"
+# Content-Type: application/pdf
+#
+# < ./test_files/MSDS_화학물질목록.pdf
+# ------FormBoundary--
+
+### ================================================================
+###                     AI Run Preview
+### ================================================================
+
+### ========== STEP 2: Preview - 슬롯 추정 ==========
+### 파일 업로드 후 호출하여 필수 항목 현황 확인
+### 응답 필드:
+###   - packageId: 패키지 식별자
+###   - requiredSlotStatus: 필수 슬롯별 제출 상태 (SUBMITTED/MISSING)
+###   - slotHints: 파일→슬롯 매핑 추정 결과 (confidence 포함)
+###   - missingRequiredSlots: 아직 미제출된 필수 슬롯 목록
+POST {{host}}/api/v1/ai/run/diagnostics/{{diagnosticId}}/preview
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+{
+  "fileIds": [1, 2]
+}
+
+### ================================================================
+###                     AI Run Submit
+### ================================================================
+
+### ========== STEP 3: Submit - AI 검증 요청 (비동기) ==========
+### 202 Accepted 반환 → 백그라운드에서 AI 분석 진행
+### AI 서비스가 실행 중이어야 함 (http://localhost:8000)
+###
+### AI 파이프라인 6단계:
+###   1. TRIAGE (파일 분류) → 2. SLOT APPLY (슬롯 매핑)
+###   3. EXTRACT (추출+LLM 보강) → 4. VALIDATE (룰 검증+교차 검증)
+###   5. CLARIFY (보완요청 생성) → 6. AGGREGATE (최종 판정)
+POST {{host}}/api/v1/ai/run/diagnostics/{{diagnosticId}}/submit
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+### ================================================================
+###                     결과 조회
+### ================================================================
+
+### ========== STEP 4: Result - 최신 분석 결과 조회 ==========
+### Submit 직후에는 404 (아직 분석 중) → 분석 완료 후 결과 반환
+### ※ 이 엔드포인트는 백엔드 DB 조회 (AI 서비스 호출 아님)
+###
+### verdict 가능한 값: PASS | WARN | NEED_CLARIFY | NEED_FIX
+### riskLevel 가능한 값: LOW | MEDIUM | HIGH
+GET {{host}}/api/v1/ai/run/diagnostics/{{diagnosticId}}/result
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+### ========== STEP 5: Result Detail - 슬롯별 상세 결과 ==========
+### resultJson을 파싱하여 slotResults, clarifications, extras로 구조화
+GET {{host}}/api/v1/ai/run/diagnostics/{{diagnosticId}}/result/detail
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+### ========== STEP 6: History - 분석 이력 조회 ==========
+### 해당 진단의 모든 AI 분석 이력 (최신순)
+### ※ 이 엔드포인트는 백엔드 DB 조회 (AI 서비스 호출 아님)
+GET {{host}}/api/v1/ai/run/diagnostics/{{diagnosticId}}/history
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+### ================================================================
+###                     에러 시나리오
+### ================================================================
+
+### ========== 에러: 증빙 파일 없이 Submit ==========
+### 기대 응답: 422 - BIZ_004 "필수 증빙 파일이 누락되었습니다"
+# POST {{host}}/api/v1/ai/run/diagnostics/999/submit
+# Authorization: Bearer {{drafterToken}}
+# Content-Type: application/json
+
+### ========== 에러: 분석 결과 없는 진단 조회 ==========
+### 기대 응답: 404 - AI003 "AI 분석 결과를 찾을 수 없습니다"
+# GET {{host}}/api/v1/ai/run/diagnostics/999/result
+# Authorization: Bearer {{drafterToken}}
+# Content-Type: application/json
+
+### ========== 에러: AI 서비스 미실행 시 Submit ==========
+### 기대 응답: 503 - AI001 "AI 서비스에 연결할 수 없습니다"
+### (AI 서비스를 중지한 상태에서 테스트)
+# POST {{host}}/api/v1/ai/run/diagnostics/{{diagnosticId}}/submit
+# Authorization: Bearer {{drafterToken}}
+# Content-Type: application/json
