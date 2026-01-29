@@ -1,6 +1,6 @@
 # API 빠른 참조표
 
-> **버전**: 2.1
+> **버전**: 2.2
 > **최종 수정**: 2026-01-28
 > 프론트엔드 개발용 API 요약
 
@@ -91,6 +91,7 @@ GET /api/v1/reviews?domainCode=COMPLIANCE
 | POST | `/api/v1/diagnostics/{id}/files` | 업로드 (multipart) |
 | GET | `/api/v1/diagnostics/{id}/files/{fid}/parsing-result` | 파싱 결과 |
 | GET | `/api/v1/files/{id}/download-url` | 다운로드 URL |
+| GET | `/api/v1/files/diagnostics/{id}/package-url` | 전체 파일 패키지 URL |
 | DELETE | `/api/v1/files/{id}` | 파일 삭제 |
 
 ---
@@ -164,46 +165,25 @@ PENDING → RUNNING → SUCCEEDED / FAILED
 
 ---
 
-## AI 서비스 (도메인별)
-
-### ESG 도메인 - 증빙 파싱/리포트
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/api/v1/ai/esg/parse` | ESG 증빙 파일 AI 파싱 (비동기) |
-| GET | `/api/v1/ai/esg/parse/{jobId}` | 파싱 작업 상태 조회 |
-| POST | `/api/v1/ai/esg/report` | AI 리포트 생성 (비동기) |
-| GET | `/api/v1/ai/esg/report/{jobId}` | 리포트 생성 상태 조회 |
-
-### SAFETY 도메인 - TBM 영상 분석
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/api/v1/ai/safety/tbm/upload` | TBM 영상 업로드 및 분석 요청 |
-| GET | `/api/v1/ai/safety/tbm/{jobId}` | TBM 분석 결과 조회 |
-| POST | `/api/v1/ai/safety/tbm/{id}/verify` | 분석 결과 검증/승인 |
-
-### COMPLIANCE 도메인 - 계약서 검토
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| POST | `/api/v1/ai/compliance/contract/upload` | 하도급 계약서 업로드 |
-| POST | `/api/v1/ai/compliance/contract/{id}/review` | AI 계약서 검토 요청 |
-| GET | `/api/v1/ai/compliance/contract/{id}/result` | 검토 결과 조회 |
-| GET | `/api/v1/ai/compliance/contract/{id}/risk-items` | 위험 조항 목록 |
-
----
-
 ## AI Run API (공통)
 
-> 기획서 기반 공통 AI Run API - 모든 도메인에서 동일한 인터페이스 사용
+> 모든 도메인(ESG, SAFETY, COMPLIANCE)에서 동일한 인터페이스를 사용하는 통합 AI API
 
 | Method | Endpoint | 설명 |
 |--------|----------|------|
 | POST | `/api/v1/ai/run/diagnostics/{id}/preview` | 슬롯 추정 (파일 추가 시 필수 항목 확인) |
 | POST | `/api/v1/ai/run/diagnostics/{id}/submit` | AI 검증 요청 (비동기) |
 | GET | `/api/v1/ai/run/diagnostics/{id}/result` | 최신 AI 분석 결과 조회 |
+| GET | `/api/v1/ai/run/diagnostics/{id}/result/detail` | AI 분석 결과 상세 (슬롯별 파싱) |
 | GET | `/api/v1/ai/run/diagnostics/{id}/history` | AI 분석 이력 조회 |
+
+### 도메인별 슬롯 예시
+
+| 도메인 | 슬롯 예시 |
+|--------|----------|
+| ESG | `esg.energy.usage`, `esg.hazmat.msds`, `esg.waste.manifest` |
+| SAFETY | `safety.tbm.video`, `safety.checklist` |
+| COMPLIANCE | `compliance.contract.main`, `compliance.contract.subcontract` |
 
 ### AI Run 응답 스키마 (고정)
 
@@ -218,13 +198,3 @@ PENDING → RUNNING → SUCCEEDED / FAILED
   "extras": {...}
 }
 ```
-
----
-
-## AI 공통
-
-| Method | Endpoint | 설명 |
-|--------|----------|------|
-| GET | `/api/v1/ai/jobs/{jobId}` | AI 작업 상태 공통 조회 |
-| POST | `/api/v1/ai/jobs/{jobId}/retry` | 실패한 AI 작업 재시도 |
-| GET | `/api/v1/ai/health` | AI 서비스 상태 확인 |

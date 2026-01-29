@@ -1,6 +1,6 @@
 # API Contract - Single Source of Truth (SSOT)
 
-> **버전**: 2.1
+> **버전**: 2.2
 > **최종 수정**: 2026-01-28
 > **목적**: 백엔드/프론트엔드 간 API 계약의 단일 진실 공급원
 
@@ -476,6 +476,40 @@ interface AiAnalysisResultResponse {
   whySummary: string;
   resultJson: string;  // 전체 AI 응답 JSON
   analyzedAt: string;  // ISO 8601
+}
+```
+
+### 8.5 AI 분석 결과 상세 응답
+
+> `/result/detail` 엔드포인트 - resultJson을 파싱하여 구조화된 데이터 제공
+
+```typescript
+interface AiAnalysisResultDetailResponse {
+  id: number;
+  diagnosticId: number;
+  domainCode: string;
+  packageId: string;
+  riskLevel: string;
+  verdict: string;
+  whySummary: string;
+  slotResults: SlotResultDetail[];    // 슬롯별 검증 결과
+  clarifications: ClarificationDetail[];  // 보완 요청 목록
+  extras: Record<string, any>;        // 도메인별 추가 데이터
+  analyzedAt: string;
+}
+
+interface SlotResultDetail {
+  slotName: string;
+  verdict: string;
+  reasons: string[];
+  fileIds: string[];
+  fileNames: string[];
+}
+
+interface ClarificationDetail {
+  slotName: string;
+  message: string;
+  fileIds: string[];
 }
 ```
 
