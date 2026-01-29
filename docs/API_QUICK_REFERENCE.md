@@ -1,7 +1,7 @@
 # API 빠른 참조표
 
-> **버전**: 2.3
-> **최종 수정**: 2026-01-29
+> **버전**: 2.4
+> **최종 수정**: 2026-01-30
 > 프론트엔드 개발용 API 요약
 
 ---
@@ -194,21 +194,28 @@ PENDING → RUNNING → SUCCEEDED / FAILED
 | GET | `/api/v1/ai/run/diagnostics/{id}/result/detail` | AI 분석 결과 상세 (슬롯별 파싱) |
 | GET | `/api/v1/ai/run/diagnostics/{id}/history` | AI 분석 이력 조회 |
 
-### 도메인별 슬롯 예시
+### 도메인별 슬롯
 
-| 도메인 | 슬롯 예시 |
-|--------|----------|
-| ESG | `esg.energy.usage`, `esg.hazmat.msds`, `esg.waste.manifest` |
-| SAFETY | `safety.tbm.video`, `safety.checklist` |
-| COMPLIANCE | `compliance.contract.main`, `compliance.contract.subcontract` |
+| 도메인 | 전체/필수 | 주요 슬롯 |
+|--------|:---------:|----------|
+| ESG | 15/4 | `esg.energy.electricity.usage`, `esg.energy.gas.usage`, `esg.hazmat.msds`, `esg.ethics.code` |
+| SAFETY | 8/4 | `safety.education.status`, `safety.fire.inspection`, `safety.risk.assessment`, `safety.management.system` |
+| COMPLIANCE | 7/3 | `compliance.contract.sample`, `compliance.education.privacy`, `compliance.fair.trade` |
+
+> 전체 슬롯 목록은 [API Contract SSOT §8.6](./API_CONTRACT_SSOT.md) 참조
+
+### 아키텍처 참고
+
+- `preview`/`submit`은 AI 서비스(Python FastAPI)로 프록시
+- `result`/`history`는 백엔드 DB 조회 (AI 서비스 호출 없음)
 
 ### AI Run 응답 스키마 (고정)
 
 ```json
 {
   "packageId": "PKG_1_202601_1",
-  "verdict": "PASS | FAIL | PENDING",
-  "riskLevel": "LOW | MEDIUM | HIGH | CRITICAL",
+  "verdict": "PASS | WARN | NEED_CLARIFY | NEED_FIX",
+  "riskLevel": "LOW | MEDIUM | HIGH",
   "why": "판정 사유",
   "slotResults": [...],
   "clarifications": [...],
