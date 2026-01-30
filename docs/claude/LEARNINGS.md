@@ -447,3 +447,39 @@ docs/STATUS_AND_ERROR_CODES.md
 docs/BACKEND_IMPLEMENTATION_GUIDE.md
 docs/claude/LEARNINGS.md
 ```
+
+---
+
+## #62 Preview의 missingRequiredSlots 활용 로직 추가 (2026-01-30)
+
+### 원인
+- RunPreviewResponse에 missingRequiredSlots 필드가 있지만 활용되지 않음
+- 필수 슬롯 미제출 상태에서 submit 요청 시 AI 서비스까지 갔다가 실패하는 비효율
+- 백엔드에서 사전 검증 없이 모든 요청을 AI 서비스로 전달
+
+### 해결
+- `AiAnalysisService.validateRequiredSlots()` 메서드 추가
+- submit() 호출 전 SlotConfigProperties의 필수 슬롯과 제출 파일 슬롯 비교
+- 누락된 필수 슬롯 있으면 `AI_MISSING_REQUIRED_SLOTS` (AI007) 에러로 조기 차단
+- ErrorCode에 AI007 추가, docs/STATUS_AND_ERROR_CODES.md 동기화
+
+### 재발 방지
+- AI 서비스 호출 전 비용이 드는 작업은 백엔드에서 사전 검증 패턴 적용
+- 필수 슬롯 정의 변경 시 application.yaml과 테스트 동기화 필수
+- `AiAnalysisServiceTest.validateRequiredSlots` 테스트가 로직 검증
+
+### 검증 방법
+```bash
+./gradlew test --tests "AiAnalysisServiceTest"
+```
+
+### 관련 커밋
+- (이 PR에 포함)
+
+### 생성/수정 파일
+```
+src/main/java/.../ai/service/AiAnalysisService.java (validateRequiredSlots 추가)
+src/main/java/.../global/error/ErrorCode.java (AI007 추가)
+src/test/java/.../ai/service/AiAnalysisServiceTest.java (신규)
+docs/STATUS_AND_ERROR_CODES.md (AI007 문서화)
+```
