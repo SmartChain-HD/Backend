@@ -105,7 +105,8 @@ public record AiAnalysisResultDetailResponse(
                         (String) map.get("verdict"),
                         getListValue(map, "reasons"),
                         getListValue(map, "file_ids", "fileIds"),
-                        getListValue(map, "file_names", "fileNames")
+                        getListValue(map, "file_names", "fileNames"),
+                        getMapValue(map, "extras")
                     );
                 })
                 .toList();
@@ -164,6 +165,21 @@ public record AiAnalysisResultDetailResponse(
             }
         }
         return Collections.emptyList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> getMapValue(Map<String, Object> map, String key) {
+        Object value = map.get(key);
+        if (value instanceof Map<?, ?> rawMap) {
+            Map<String, String> result = new java.util.HashMap<>();
+            rawMap.forEach((k, v) -> {
+                if (k instanceof String && v instanceof String) {
+                    result.put((String) k, (String) v);
+                }
+            });
+            return result;
+        }
+        return Collections.emptyMap();
     }
 
     /**
