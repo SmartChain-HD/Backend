@@ -1,5 +1,43 @@
 # Claude Code Learnings
 
+## 2026-01-30: AI Run API 응답 값 검증 로직 추가 (#58)
+
+### 원인
+- `AiAnalysisService.saveAnalysisResult()`에서 AI 응답의 `verdict`, `riskLevel` 값을 검증 없이 저장
+- `AiRunApiClient`에서 응답 필수 필드(packageId, verdict, riskLevel) null 체크 없음
+- 잘못된 값이 DB에 저장되면 프론트엔드 로직 오류 및 데이터 무결성 문제 발생 가능
+
+### 해결
+- `AiVerdict` enum 신규 생성: `PASS`, `WARN`, `NEED_CLARIFY`, `NEED_FIX` (docs 명세 기준)
+- `RiskLevel` enum에 `isValid()`, `fromString()`, `validValuesString()` 검증 메서드 추가
+- `AiRunApiClient.validateSubmitResponse()`: submit 응답 수신 직후 필수 필드 null 체크 및 값 검증
+- `ErrorCode`에 AI 응답 검증 에러코드 추가: `AI004` (응답 유효성), `AI005` (verdict), `AI006` (riskLevel)
+
+### 재발 방지
+- AI 서비스와 Backend 간 DTO 값 정의는 docs/API_CONTRACT_SSOT.md를 SSOT로 유지
+- 새로운 verdict/riskLevel 값 추가 시 enum과 문서 동시 업데이트 필수
+- `AiResponseValidationTest`로 enum 검증 로직 자동 테스트
+
+### 검증 방법
+```bash
+./gradlew test --tests "AiResponseValidationTest"
+```
+
+### 관련 커밋
+- 05d00a8
+
+### 생성/수정 파일
+```
+src/main/java/com/smartchain/platform/
+├── global/enums/AiVerdict.java (신규)
+├── global/enums/RiskLevel.java (검증 메서드 추가)
+├── global/error/ErrorCode.java (AI 검증 에러코드 추가)
+├── domain/ai/client/AiRunApiClient.java (validateSubmitResponse 추가)
+src/test/java/com/smartchain/platform/domain/ai/validation/AiResponseValidationTest.java (신규)
+```
+
+---
+
 ## 2026-01-29: 기안 목록 조회 500 에러 - JPQL 빈 IN 절 오류
 
 ### 원인
