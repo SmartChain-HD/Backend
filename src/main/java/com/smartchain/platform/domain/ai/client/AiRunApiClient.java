@@ -4,6 +4,8 @@ import com.smartchain.platform.dto.ai.run.RunPreviewRequest;
 import com.smartchain.platform.dto.ai.run.RunPreviewResponse;
 import com.smartchain.platform.dto.ai.run.RunSubmitRequest;
 import com.smartchain.platform.dto.ai.run.RunSubmitResponse;
+import com.smartchain.platform.global.enums.AiVerdict;
+import com.smartchain.platform.global.enums.RiskLevel;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import org.slf4j.Logger;
@@ -78,6 +80,7 @@ public class AiRunApiClient {
             .bodyValue(request)
             .retrieve()
             .bodyToMono(RunSubmitResponse.class)
+            .map(this::validateSubmitResponse)
             .retryWhen(Retry.backoff(maxRetry, Duration.ofSeconds(2))
                 .filter(this::isRetryableError)
                 .onRetryExhaustedThrow((spec, signal) ->
@@ -110,5 +113,48 @@ public class AiRunApiClient {
         }
         // 네트워크 에러도 재시도
         return throwable instanceof java.net.ConnectException;
+    }
+
+    /**
+     * Submit 응답 필수 필드 검증
+     * - packageId: null 체크
+     * - verdict: null 체크 및 유효값 검증 (PASS, WARN, NEED_CLARIFY, NEED_FIX)
+     * - riskLevel: null 체크 및 유효값 검증 (LOW, MEDIUM, HIGH)
+     */
+    private RunSubmitResponse validateSubmitResponse(RunSubmitResponse response) {
+        // 필수 필드 null 체크
+        if (response.packageId() == null || response.packageId().isBlank()) {
+            log.error("AI 응답 검증 실패: packageId가 null 또는 빈 값입니다");
+            throw new CustomException(ErrorCode.AI_INVALID_RESPONSE);
+        }
+
+        if (response.verdict() == null || response.verdict().isBlank()) {
+            log.error("AI 응답 검증 실패: verdict가 null 또는 빈 값입니다");
+            throw new CustomException(ErrorCode.AI_INVALID_RESPONSE);
+        }
+
+        if (response.riskLevel() == null || response.riskLevel().isBlank()) {
+            log.error("AI 응답 검증 실패: riskLevel이 null 또는 빈 값입니다");
+            throw new CustomException(ErrorCode.AI_INVALID_RESPONSE);
+        }
+
+        // verdict 값 유효성 검증
+        if (!AiVerdict.isValid(response.verdict())) {
+            log.warn("AI 응답 검증 경고: 유효하지 않은 verdict 값 '{}'. 유효한 값: {}",
+                response.verdict(), AiVerdict.validValuesString());
+            throw new CustomException(ErrorCode.AI_INVALID_VERDICT);
+        }
+
+        // riskLevel 값 유효성 검증
+        if (!RiskLevel.isValid(response.riskLevel())) {
+            log.warn("AI 응답 검증 경고: 유효하지 않은 riskLevel 값 '{}'. 유효한 값: {}",
+                response.riskLevel(), RiskLevel.validValuesString());
+            throw new CustomException(ErrorCode.AI_INVALID_RISK_LEVEL);
+        }
+
+        log.debug("AI 응답 검증 성공 - verdict: {}, riskLevel: {}",
+            response.verdict(), response.riskLevel());
+
+        return response;
     }
 }
