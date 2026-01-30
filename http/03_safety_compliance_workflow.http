@@ -1,0 +1,86 @@
+### SmartChain SAFETY/COMPLIANCE 워크플로우 테스트
+### SAFETY, COMPLIANCE 도메인: 기안자 → 수신자 (2단계, 결재 없음)
+###
+### 사전 조건:
+###   1. 01_auth_and_setup.http 의 로그인 요청 실행 완료
+###   2. SAFETY 캠페인 생성 필요
+
+@host = http://localhost:8080
+
+### 토큰 변수 (01_auth_and_setup.http에서 복사)
+@drafterToken = 여기에_기안자_토큰_붙여넣기
+@reviewerToken = 여기에_수신자_토큰_붙여넣기
+
+### ID 변수 (각 단계 응답에서 복사)
+@safetyDiagnosticId = 1
+@safetyReviewId = 1
+
+### ========== SAFETY 워크플로우 ==========
+
+### STEP 1: 기안자 - SAFETY 기안 목록 조회
+GET {{host}}/api/v1/diagnostics?domainCode=SAFETY
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+### STEP 2: 기안자 - SAFETY 기안 생성
+### 응답의 data.diagnosticId를 위의 @safetyDiagnosticId에 붙여넣기
+### campaignId는 SAFETY 캠페인 ID로 교체
+POST {{host}}/api/v1/diagnostics
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+{
+  "campaignId": 2,
+  "domainCode": "SAFETY"
+}
+
+### STEP 3: 기안자 - SAFETY 기안 상세 조회
+GET {{host}}/api/v1/diagnostics/{{safetyDiagnosticId}}
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+### STEP 4: 기안자 - SAFETY 기안 제출 (수신자에게 직접)
+### NOTE: SAFETY는 결재 없이 바로 수신자에게 제출됨
+POST {{host}}/api/v1/diagnostics/{{safetyDiagnosticId}}/submit
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+{
+  "submitComment": "TBM 점검 결과 제출합니다."
+}
+
+### STEP 5: 수신자 - SAFETY 대시보드 조회
+GET {{host}}/api/v1/reviews/dashboard?domainCode=SAFETY
+Authorization: Bearer {{reviewerToken}}
+Content-Type: application/json
+
+### STEP 6: 수신자 - SAFETY 심사 목록 조회
+### 응답의 data.content[0].reviewId를 위의 @safetyReviewId에 붙여넣기
+GET {{host}}/api/v1/reviews?domainCode=SAFETY
+Authorization: Bearer {{reviewerToken}}
+Content-Type: application/json
+
+### STEP 7: 수신자 - SAFETY 심사 승인
+PATCH {{host}}/api/v1/reviews/{{safetyReviewId}}
+Authorization: Bearer {{reviewerToken}}
+Content-Type: application/json
+
+{
+  "decision": "APPROVED",
+  "comment": "안전보건 점검 심사 완료."
+}
+
+### ========== COMPLIANCE 워크플로우 (동일 패턴) ==========
+
+### STEP 1: 기안자 - COMPLIANCE 기안 생성
+### campaignId는 COMPLIANCE 캠페인 ID로 교체
+# POST {{host}}/api/v1/diagnostics
+# Authorization: Bearer {{drafterToken}}
+# Content-Type: application/json
+#
+# {
+#   "campaignId": 3,
+#   "domainCode": "COMPLIANCE"
+# }
+
+### (이하 SAFETY와 동일한 플로우)
