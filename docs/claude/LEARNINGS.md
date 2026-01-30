@@ -1,5 +1,40 @@
 # Claude Code Learnings
 
+## 2026-01-30: SlotResult DTO에 extras 필드 누락 (#72)
+
+### 원인
+- AI Python 서비스의 `SlotResult` 스키마에 `extras: dict[str, str]` 필드 존재
+- 백엔드 Java `SlotResult` record에 해당 필드 누락
+- AI 응답 역직렬화 시 extras 데이터가 무시되어 손실
+
+### 해결
+- `SlotResult.java`에 `Map<String, String> extras` 필드 추가
+- `AiAnalysisResultDetailResponse.java`에 `getMapValue()` 헬퍼 메서드 추가
+- JSON 파싱 시 extras 필드를 `Map<String, String>`으로 안전하게 변환
+- verdict 주석에서 AI가 실제로 사용하지 않는 `WARN` 값 제거
+
+### 재발 방지
+- AI 레포와 백엔드 레포 간 DTO 스키마 비교 체크리스트 운용
+- 새 AI API 연동 시 Python Pydantic 스키마와 Java record 1:1 대조 필수
+- AI 레포 `apps/ai_run_api/app/schemas/run.py`가 SSOT
+
+### 검증 방법
+```bash
+./gradlew compileJava  # 빌드 성공
+./gradlew test         # 전체 테스트 통과
+```
+
+### 관련 커밋
+- aefde70
+
+### 생성/수정 파일
+```
+src/main/java/com/smartchain/platform/dto/ai/run/SlotResult.java (extras 필드 추가)
+src/main/java/com/smartchain/platform/dto/ai/AiAnalysisResultDetailResponse.java (getMapValue 헬퍼 추가)
+```
+
+---
+
 ## 2026-01-30: AiRunApiClient 에러 핸들링 강화 (#59)
 
 ### 원인
