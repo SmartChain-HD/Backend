@@ -734,7 +734,7 @@ interface RunPreviewResponse {
   packageId: string;
   requiredSlotStatus: SlotStatus[];
   slotHints: SlotHint[];
-  clarifications: Clarification[];
+  missingRequiredSlots: string[];  // 미제출 필수 슬롯 목록
 }
 
 interface SlotResult {
@@ -749,8 +749,8 @@ interface AiAnalysisResultResponse {
   diagnosticId: number;
   domainCode: string;
   packageId: string;
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-  verdict: 'PASS' | 'FAIL' | 'PENDING';
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  verdict: 'PASS' | 'WARN' | 'NEED_CLARIFY' | 'NEED_FIX';
   whySummary: string;
   resultJson: string;
   analyzedAt: string;
@@ -836,13 +836,15 @@ export const useAiRunResult = (diagnosticId: number, enabled = true) => {
     queryKey: QUERY_KEYS.AI_RUN.RESULT(diagnosticId),
     queryFn: () => aiRunApi.getAiRunResult(diagnosticId),
     enabled,
-    refetchInterval: (data) => {
-      // 결과가 PENDING이면 5초마다 재조회
-      if (data?.state?.data?.verdict === 'PENDING') {
+    refetchInterval: (query) => {
+      // 결과가 아직 없으면(404 → error) 5초마다 재조회
+      // NOTE: verdict에 'PENDING' 값은 없음. AI 분석 완료 전에는 result 자체가 없음(404).
+      if (query?.state?.error || !query?.state?.data) {
         return 5000;
       }
       return false;
     },
+    retry: false,  // 404는 polling으로 처리, retry 불필요
   });
 };
 

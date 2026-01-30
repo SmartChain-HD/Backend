@@ -1036,7 +1036,7 @@ POST /api/v1/ai/run/diagnostics/{diagnosticId}/preview
   "slotHints": [
     { "fileId": "1", "slotName": "esg.energy.usage", "confidence": 0.95 }
   ],
-  "clarifications": []
+  "missingRequiredSlots": ["esg.energy.gas.usage", "esg.hazmat.msds", "esg.ethics.code"]
 }
 ```
 
@@ -1063,7 +1063,10 @@ POST /api/v1/ai/run/diagnostics/{diagnosticId}/submit
 GET /api/v1/ai/run/diagnostics/{diagnosticId}/result
 ```
 
-최신 AI 분석 결과 조회
+최신 AI 분석 결과 조회 (백엔드 DB에서 조회, AI 서비스 호출 없음)
+
+> **verdict 가능한 값**: `PASS` | `WARN` | `NEED_CLARIFY` | `NEED_FIX`
+> **riskLevel 가능한 값**: `LOW` | `MEDIUM` | `HIGH`
 
 **Response:**
 ```json
@@ -1073,7 +1076,7 @@ GET /api/v1/ai/run/diagnostics/{diagnosticId}/result
   "domainCode": "ESG",
   "packageId": "PKG_1_202601_1",
   "riskLevel": "MEDIUM",
-  "verdict": "PASS",
+  "verdict": "NEED_FIX",
   "whySummary": "에너지 사용량 증빙 확인 완료, 화학물질 MSDS 미제출",
   "resultJson": "{...}",
   "analyzedAt": "2026-01-28T10:30:00"
@@ -1087,7 +1090,7 @@ GET /api/v1/ai/run/diagnostics/{diagnosticId}/result
 GET /api/v1/ai/run/diagnostics/{diagnosticId}/history
 ```
 
-진단의 AI Run 분석 이력 전체 조회
+진단의 AI Run 분석 이력 전체 조회 (백엔드 DB에서 조회, AI 서비스 호출 없음)
 
 **Response:**
 ```json

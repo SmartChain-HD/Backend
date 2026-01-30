@@ -1,7 +1,7 @@
 # API Contract - Single Source of Truth (SSOT)
 
-> **버전**: 2.2
-> **최종 수정**: 2026-01-28
+> **버전**: 2.3
+> **최종 수정**: 2026-01-30
 > **목적**: 백엔드/프론트엔드 간 API 계약의 단일 진실 공급원
 
 ---
@@ -410,7 +410,7 @@ interface RunPreviewResponse {
   packageId: string;           // 패키지 식별자
   requiredSlotStatus: SlotStatus[];  // 필수 슬롯 상태
   slotHints: SlotHint[];       // 파일-슬롯 매핑 추정
-  clarifications: Clarification[];  // 보완 요청
+  missingRequiredSlots: string[];    // 미제출 필수 슬롯 목록
 }
 ```
 
@@ -419,8 +419,8 @@ interface RunPreviewResponse {
 ```typescript
 interface RunSubmitResponse {
   packageId: string;           // 패키지 식별자
-  verdict: 'PASS' | 'FAIL' | 'PENDING';
-  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  verdict: 'PASS' | 'WARN' | 'NEED_CLARIFY' | 'NEED_FIX';
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
   why: string;                 // 판정 사유
   slotResults: SlotResult[];   // 슬롯별 검증 결과
   clarifications: Clarification[];  // 보완 요청
@@ -511,6 +511,65 @@ interface ClarificationDetail {
   message: string;
   fileIds: string[];
 }
+```
+
+### 8.6 도메인별 슬롯 정의
+
+AI 서비스가 관리하는 전체 슬롯 목록입니다. 백엔드는 파일명 기반 1차 추정만 수행하고, AI 서비스가 전체 슬롯을 기준으로 검증합니다.
+
+#### ESG 도메인 (15개 슬롯, 필수 4개)
+
+| 슬롯명 | 필수 | 설명 |
+|--------|:---:|------|
+| `esg.energy.electricity.usage` | O | 전기 사용량 (XLSX) |
+| `esg.energy.electricity.bill` | | 전기 고지서 (PDF) |
+| `esg.energy.gas.usage` | O | 도시가스 사용량 (XLSX) |
+| `esg.energy.gas.bill` | | 도시가스 고지서 (PDF) |
+| `esg.energy.water.usage` | | 수도 사용량 (XLSX) |
+| `esg.energy.water.bill` | | 수도 고지서 (PDF) |
+| `esg.energy.ghg.evidence` | | GHG 산정 근거 |
+| `esg.hazmat.msds` | O | MSDS/SDS 문서 |
+| `esg.hazmat.inventory` | | 유해물질 목록 (XLSX) |
+| `esg.hazmat.disposal.list` | | 폐기/처리 목록 (XLSX) |
+| `esg.hazmat.disposal.evidence` | | 폐기/처리 증빙 (PDF) |
+| `esg.ethics.code` | O | 윤리강령/행동강령 (PDF) |
+| `esg.ethics.distribution.log` | | 배포/수신확인 로그 (XLSX) |
+| `esg.ethics.pledge` | | 서약서 (PDF) |
+| `esg.ethics.poster.image` | | 윤리 포스터/사진 (이미지) |
+
+#### Safety 도메인 (8개 슬롯, 필수 4개)
+
+| 슬롯명 | 필수 | 설명 |
+|--------|:---:|------|
+| `safety.education.status` | O | 교육 이수 현황 (XLSX) |
+| `safety.fire.inspection` | O | 소방 점검표 (PDF/XLSX) |
+| `safety.risk.assessment` | O | 위험성평가서 (XLSX/PDF) |
+| `safety.management.system` | O | 안전보건관리체계 매뉴얼 (PDF) |
+| `safety.site.photos` | | 현장 사진 (이미지) |
+| `safety.education.attendance` | | 교육 출석부 (스캔 PDF) |
+| `safety.education.photo` | | 교육일 사진 (이미지) |
+| `safety.tbm` | | TBM 자료 |
+
+#### Compliance 도메인 (7개 슬롯, 필수 3개)
+
+| 슬롯명 | 필수 | 설명 |
+|--------|:---:|------|
+| `compliance.contract.sample` | O | 표준 근로/하도급 계약서 |
+| `compliance.education.privacy` | O | 개인정보보호 교육 이수 현황 |
+| `compliance.fair.trade` | O | 공정거래 자율 점검표 |
+| `compliance.ethics.report` | | 윤리경영 내부신고 현황 |
+| `compliance.education.plan` | | 법정의무 교육 계획서 |
+| `compliance.education.attendance` | | 교육 출석부 (스캔 PDF) |
+| `compliance.education.photo` | | 교육일 사진 (이미지) |
+
+### 8.7 result/history 엔드포인트 아키텍처
+
+> `result`와 `history` 엔드포인트는 **백엔드 DB 조회**입니다. AI 서비스로 프록시되지 않습니다.
+
+```
+submit 호출 → AI 서비스 /run/submit → 응답을 ai_analysis_result 테이블에 저장
+result 조회 → DB에서 최신 결과 반환 (AI 서비스 호출 없음)
+history 조회 → DB에서 전체 이력 반환 (AI 서비스 호출 없음)
 ```
 
 ---

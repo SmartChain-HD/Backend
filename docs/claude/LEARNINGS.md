@@ -1,5 +1,31 @@
 # Claude Code Learnings
 
+## 2026-01-29: 기안 목록 조회 500 에러 - JPQL 빈 IN 절 오류
+
+### 원인
+- `DiagnosticRepository`의 복합 JPQL 쿼리에서 `d.domain IN :reviewerDomains` 등에 빈 리스트가 전달됨
+- DRAFTER 역할만 가진 사용자가 목록 조회 시 `reviewerDomains`, `approverDomains`가 빈 리스트
+- PostgreSQL에서 `IN ()` 빈 절은 SQL 문법 오류로 500 에러 발생
+
+### 해결
+- JPQL 쿼리에 `hasReviewer`, `hasApprover`, `hasDrafter` boolean 플래그 파라미터 추가
+- `:hasXxx = true AND d.domain IN :xxxDomains` 패턴으로 빈 리스트일 때 조건 자체를 비활성화
+- 모든 도메인 리스트가 비어있으면 쿼리 실행 없이 `Page.empty()` 반환
+
+### 재발방지
+- JPQL `IN` 절에 빈 리스트 전달 시 DB별 동작이 다름 - 항상 비어있는 경우를 별도 처리
+- 복합 OR 조건에서 각 분기별 존재 여부 플래그를 사용하는 패턴 적용
+
+### 검증방법
+- `./gradlew test` 전체 통과
+- `GET /api/v1/diagnostics?domainCode=ESG` 요청으로 200 응답 확인
+
+### 관련파일
+- `DiagnosticRepository.java` - JPQL 쿼리에 boolean 플래그 추가
+- `DiagnosticService.java` - 빈 리스트 가드 및 플래그 전달 로직
+
+---
+
 ## 2026-01-29: API 명세서 최종 업데이트 (#17)
 
 ### 원인
@@ -340,4 +366,46 @@ src/test/java/.../DomainServiceTest.java (신규, 테스트 7건)
 ### 생성/수정 파일
 ```
 docs/service_flow.md (신규)
+```
+
+---
+
+## #10 AI API 문서-구현 불일치 수정 (2026-01-30)
+
+### 원인
+- AI Run API 초기 설계 문서가 실제 Python AI 서비스 및 Java DTO 구현과 동기화되지 않음
+- verdict 값: 문서 `PASS/FAIL/PENDING` vs 실제 `PASS/WARN/NEED_CLARIFY/NEED_FIX`
+- riskLevel 값: 문서 `LOW/MEDIUM/HIGH/CRITICAL` vs 실제 `LOW/MEDIUM/HIGH`
+- Preview 응답의 `missingRequiredSlots` 필드 문서 누락
+- 도메인별 전체 슬롯 목록(ESG 15개, Safety 8개, Compliance 7개) 미문서화
+- result/history 엔드포인트가 백엔드 DB 조회임이 명시되지 않음
+
+### 해결
+- 6개 문서 파일에서 verdict/riskLevel 값 통일
+- Preview 응답에 `missingRequiredSlots` 추가, 잘못된 `clarifications` 제거
+- SSOT에 도메인별 전체 슬롯 정의 테이블 추가
+- BACKEND_IMPLEMENTATION_GUIDE에 AI 파이프라인 아키텍처 섹션 추가
+- STATUS_AND_ERROR_CODES에 `BIZ_004` (DIAGNOSTIC_MISSING_EVIDENCE) 에러 코드 추가
+- FE polling 로직: verdict 기반 → 결과 존재 여부 기반으로 수정
+
+### 재발 방지
+- AI API 스키마 변경 시 docs/ 하위 모든 관련 문서 동시 업데이트 필수
+- AI 레포와 백엔드 레포 간 DTO 값(verdict, riskLevel) 동기화 체크리스트 운용
+
+### 검증 방법
+- 각 문서에서 `FAIL`, `PENDING`(verdict 컨텍스트), `CRITICAL` 검색하여 잔존 여부 확인
+- Java RunSubmitResponse DTO 주석과 문서 일치 확인
+
+### 관련 커밋
+- (별도 커밋 예정)
+
+### 생성/수정 파일
+```
+docs/API_CONTRACT_SSOT.md
+docs/API_QUICK_REFERENCE.md
+docs/API_SPECIFICATION.md
+docs/FE_INTEGRATION_RULES.md
+docs/STATUS_AND_ERROR_CODES.md
+docs/BACKEND_IMPLEMENTATION_GUIDE.md
+docs/claude/LEARNINGS.md
 ```

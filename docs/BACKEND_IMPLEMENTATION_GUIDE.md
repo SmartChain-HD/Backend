@@ -673,6 +673,57 @@ public class FileStorageService {
 }
 ```
 
+### 7. AI 파이프라인 아키텍처
+
+AI 서비스(Python FastAPI)의 내부 처리 과정과 백엔드 연동 구조입니다.
+
+#### 기술 스택
+
+| 구성 요소 | 기술 |
+|----------|------|
+| AI 서비스 프레임워크 | Python FastAPI + Uvicorn |
+| LLM (경량 분석) | OpenAI GPT-4o-mini |
+| LLM (중량 분석/Vision) | OpenAI GPT-4o |
+| OCR | Naver Clova OCR |
+| 파일 저장소 | Azure Blob Storage (SAS URL) |
+
+#### 파일 업로드 → AI 분석 전체 흐름
+
+```
+1. 협력사(DRAFTER)가 파일 업로드 (multipart)
+2. 백엔드: Azure Blob Storage에 저장, SAS URL 생성
+3. 백엔드 → AI: POST /run/preview (파일명 기반 슬롯 추정)
+4. 프론트엔드: 슬롯 현황판 표시 (제출/미제출 상태)
+5. 사용자가 "AI 검증 요청" 클릭
+6. 백엔드 → AI: POST /run/submit (SAS URL 포함, 비동기)
+7. AI 서비스: 6단계 파이프라인 실행 (아래 참조)
+8. 백엔드: AI 응답을 ai_analysis_result 테이블에 저장
+9. 프론트엔드: GET /result 폴링으로 결과 조회
+```
+
+#### AI Submit 파이프라인 (6단계)
+
+| 단계 | 이름 | 설명 |
+|:---:|------|------|
+| 1 | **TRIAGE** | 확장자 기반 파일 분류 (PDF/XLSX/이미지) |
+| 2 | **SLOT APPLY** | slot_hint에서 file_id → slot_name 매핑 적용 |
+| 3 | **EXTRACT** | 파일 다운로드 → 텍스트 추출 → LLM 보강 (병렬 처리) |
+| 4 | **VALIDATE** | 슬롯별 룰 기반 검증 + 교차 검증 (예: 사용량 vs 고지서 합계) |
+| 5 | **CLARIFY** | PASS가 아닌 슬롯에 대해 LLM으로 한국어 보완요청 생성 |
+| 6 | **AGGREGATE** | GPT-4o로 전체 verdict/riskLevel/why 최종 판정 |
+
+#### verdict/riskLevel 값
+
+| 필드 | 가능한 값 | 설명 |
+|------|----------|------|
+| `verdict` | `PASS` | 모든 필수 항목 검증 통과 |
+| | `WARN` | 경미한 이슈 발견 |
+| | `NEED_CLARIFY` | 추가 확인 필요 |
+| | `NEED_FIX` | 수정 필요 (필수 항목 미충족) |
+| `riskLevel` | `LOW` / `MEDIUM` / `HIGH` | 종합 위험도 |
+
+> **참고**: result/history 엔드포인트는 백엔드 DB 조회입니다. AI 서비스는 preview/submit만 제공합니다.
+
 ---
 
 ## 📅 일정 (4주차 기준)
