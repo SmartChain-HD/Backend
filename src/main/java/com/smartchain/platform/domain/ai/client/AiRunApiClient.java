@@ -8,17 +8,22 @@ import com.smartchain.platform.global.enums.AiVerdict;
 import com.smartchain.platform.global.enums.RiskLevel;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
+import io.netty.channel.ConnectTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.time.Duration;
+import java.util.concurrent.TimeoutException;
 
 /**
  * AI Run API 클라이언트
@@ -59,10 +64,14 @@ public class AiRunApiClient {
                 .filter(this::isRetryableError)
                 .onRetryExhaustedThrow((spec, signal) ->
                     new CustomException(ErrorCode.AI_SERVICE_UNAVAILABLE)))
+            .onErrorMap(this::mapToCustomException)
             .doOnSuccess(response ->
                 log.info("AI Run API preview 성공 - packageId: {}", response.packageId()))
-            .doOnError(error ->
-                log.error("AI Run API preview 실패", error));
+            .doOnError(error -> {
+                if (!(error instanceof CustomException)) {
+                    log.error("AI Run API preview 실패", error);
+                }
+            });
     }
 
     /**
@@ -85,11 +94,15 @@ public class AiRunApiClient {
                 .filter(this::isRetryableError)
                 .onRetryExhaustedThrow((spec, signal) ->
                     new CustomException(ErrorCode.AI_SERVICE_UNAVAILABLE)))
+            .onErrorMap(this::mapToCustomException)
             .doOnSuccess(response ->
                 log.info("AI Run API submit 성공 - packageId: {}, verdict: {}",
                     response.packageId(), response.verdict()))
-            .doOnError(error ->
-                log.error("AI Run API submit 실패", error));
+            .doOnError(error -> {
+                if (!(error instanceof CustomException)) {
+                    log.error("AI Run API submit 실패", error);
+                }
+            });
     }
 
     /**
@@ -106,13 +119,95 @@ public class AiRunApiClient {
         return submit(request).block();
     }
 
+    /**
+     * 재시도 가능한 에러인지 판단
+     * - 5xx 서버 에러: 재시도
+     * - 네트워크/타임아웃 에러: 재시도
+     * - 4xx 클라이언트 에러: 재시도 안함 (요청 파라미터 문제)
+     */
     private boolean isRetryableError(Throwable throwable) {
         if (throwable instanceof WebClientResponseException ex) {
-            // 5xx 에러만 재시도
+            // 5xx 에러만 재시도 (4xx는 요청 문제이므로 재시도 무의미)
             return ex.getStatusCode().is5xxServerError();
         }
-        // 네트워크 에러도 재시도
-        return throwable instanceof java.net.ConnectException;
+        // 네트워크/타임아웃 에러도 재시도
+        return isNetworkOrTimeoutError(throwable);
+    }
+
+    /**
+     * 네트워크 또는 타임아웃 에러인지 확인
+     */
+    private boolean isNetworkOrTimeoutError(Throwable throwable) {
+        if (throwable instanceof ConnectException ||
+            throwable instanceof ConnectTimeoutException ||
+            throwable instanceof SocketTimeoutException ||
+            throwable instanceof TimeoutException) {
+            return true;
+        }
+        if (throwable instanceof WebClientRequestException requestEx) {
+            Throwable cause = requestEx.getCause();
+            return cause instanceof ConnectException ||
+                   cause instanceof ConnectTimeoutException ||
+                   cause instanceof SocketTimeoutException ||
+                   cause instanceof TimeoutException;
+        }
+        return false;
+    }
+
+    /**
+     * 에러를 CustomException으로 매핑
+     * - 4xx: AI_BAD_REQUEST (요청 파라미터 문제)
+     * - 5xx: AI_SERVICE_ERROR (서버 장애)
+     * - 타임아웃/네트워크: AI_SERVICE_UNAVAILABLE
+     * - 이미 CustomException인 경우: 그대로 반환
+     */
+    private Throwable mapToCustomException(Throwable throwable) {
+        // 이미 CustomException이면 그대로 반환
+        if (throwable instanceof CustomException) {
+            return throwable;
+        }
+
+        // HTTP 에러 응답 처리
+        if (throwable instanceof WebClientResponseException ex) {
+            logErrorResponseBody(ex);
+
+            if (ex.getStatusCode().is4xxClientError()) {
+                log.warn("AI 서비스 4xx 에러 - status: {}, message: {}",
+                    ex.getStatusCode(), ex.getMessage());
+                return new CustomException(ErrorCode.AI_BAD_REQUEST);
+            }
+            if (ex.getStatusCode().is5xxServerError()) {
+                log.error("AI 서비스 5xx 에러 - status: {}, message: {}",
+                    ex.getStatusCode(), ex.getMessage());
+                return new CustomException(ErrorCode.AI_SERVICE_ERROR);
+            }
+        }
+
+        // 타임아웃/네트워크 에러 처리
+        if (isNetworkOrTimeoutError(throwable)) {
+            log.error("AI 서비스 연결 실패 (타임아웃/네트워크) - {}: {}",
+                throwable.getClass().getSimpleName(), throwable.getMessage());
+            return new CustomException(ErrorCode.AI_SERVICE_UNAVAILABLE);
+        }
+
+        // 그 외 에러는 일반 AI 서비스 에러로 처리
+        log.error("AI 서비스 알 수 없는 에러 - {}: {}",
+            throwable.getClass().getSimpleName(), throwable.getMessage());
+        return new CustomException(ErrorCode.AI_SERVICE_ERROR);
+    }
+
+    /**
+     * AI 서비스 에러 응답 body 로깅 (디버깅용)
+     */
+    private void logErrorResponseBody(WebClientResponseException ex) {
+        try {
+            String responseBody = ex.getResponseBodyAsString();
+            if (responseBody != null && !responseBody.isBlank()) {
+                log.error("AI 서비스 에러 응답 body: {}", responseBody);
+            }
+        } catch (Exception e) {
+            log.debug("AI 서비스 에러 응답 body 파싱 실패", e);
+        }
     }
 
     /**
