@@ -83,7 +83,8 @@ public enum ErrorCode {
     AI_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "AI003", "AI 분석 결과를 찾을 수 없습니다"),
     AI_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "AI004", "AI 서비스 응답이 유효하지 않습니다"),
     AI_INVALID_VERDICT(HttpStatus.BAD_GATEWAY, "AI005", "AI 서비스의 verdict 값이 유효하지 않습니다"),
-    AI_INVALID_RISK_LEVEL(HttpStatus.BAD_GATEWAY, "AI006", "AI 서비스의 riskLevel 값이 유효하지 않습니다");
+    AI_INVALID_RISK_LEVEL(HttpStatus.BAD_GATEWAY, "AI006", "AI 서비스의 riskLevel 값이 유효하지 않습니다"),
+    AI_MISSING_REQUIRED_SLOTS(HttpStatus.UNPROCESSABLE_ENTITY, "AI007", "필수 슬롯에 해당하는 파일이 제출되지 않았습니다");
 
     private final HttpStatus status;
     private final String code;

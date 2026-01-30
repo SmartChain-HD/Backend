@@ -21,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -133,6 +135,14 @@ public class AiAnalysisService {
             ))
             .toList();
 
+        // 필수 슬롯 검증 - AI 서비스 호출 전 사전 차단
+        List<String> missingRequiredSlots = validateRequiredSlots(slotHints, domainCode);
+        if (!missingRequiredSlots.isEmpty()) {
+            log.warn("필수 슬롯 미제출 - diagnosticId: {}, missingSlots: {}",
+                diagnosticId, missingRequiredSlots);
+            throw new CustomException(ErrorCode.AI_MISSING_REQUIRED_SLOTS);
+        }
+
         // 기존 package_id 조회
         String packageId = resultRepository
             .findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(diagnosticId)
@@ -153,6 +163,29 @@ public class AiAnalysisService {
 
         // 결과 저장
         return saveAnalysisResult(diagnostic, domainCode, response);
+    }
+
+    /**
+     * 필수 슬롯 검증 - 제출된 파일의 슬롯과 필수 슬롯을 비교
+     * @return 누락된 필수 슬롯 목록 (비어있으면 모든 필수 슬롯 제출됨)
+     */
+    public List<String> validateRequiredSlots(List<SlotHint> slotHints, String domainCode) {
+        // 필수 슬롯 목록 조회
+        List<String> requiredSlotNames = slotConfigProperties.getRequiredSlots(domainCode)
+            .stream()
+            .map(SlotConfigProperties.SlotDefinition::getName)
+            .toList();
+
+        // 제출된 슬롯 목록
+        Set<String> submittedSlots = new HashSet<>();
+        for (SlotHint hint : slotHints) {
+            submittedSlots.add(hint.slotName());
+        }
+
+        // 누락된 필수 슬롯 계산
+        return requiredSlotNames.stream()
+            .filter(slot -> !submittedSlots.contains(slot))
+            .toList();
     }
 
     /**
