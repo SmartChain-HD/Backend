@@ -45,6 +45,7 @@ public class FileService {
             "application/pdf",
             "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "text/csv",
             "image/png",
             "image/jpeg",
             "image/jpg"
@@ -310,6 +311,7 @@ public class FileService {
         return switch (extension) {
             case "PDF" -> "PDF";
             case "XLS", "XLSX" -> "XLSX";
+            case "CSV" -> "CSV";
             case "DOC", "DOCX" -> "DOCX";
             case "PNG" -> "PNG";
             case "JPG", "JPEG" -> "JPG";
