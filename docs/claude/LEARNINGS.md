@@ -1,5 +1,42 @@
 # Claude Code Learnings
 
+## 2026-01-30: AiRunApiClient 에러 핸들링 강화 (#59)
+
+### 원인
+- 4xx 클라이언트 에러(잘못된 요청)와 5xx 서버 에러가 구분되지 않고 일괄 `AI_SERVICE_ERROR`로 처리됨
+- WebClient 타임아웃/네트워크 에러가 `AI_SERVICE_UNAVAILABLE`이 아닌 일반 에러로 처리됨
+- AI 서비스가 반환하는 에러 응답 body가 로깅되지 않아 디버깅 어려움
+
+### 해결
+- `AI_BAD_REQUEST` (AI007) 에러코드 추가 - 4xx 응답 시 요청 파라미터 문제로 판단
+- `mapToCustomException()` 메서드로 에러 유형별 분기 처리 (4xx→AI_BAD_REQUEST, 5xx→AI_SERVICE_ERROR, 타임아웃→AI_SERVICE_UNAVAILABLE)
+- `isNetworkOrTimeoutError()` 메서드로 다양한 타임아웃 예외 감지 (ConnectTimeoutException, SocketTimeoutException, TimeoutException)
+- `logErrorResponseBody()` 메서드로 에러 응답 body 로깅
+
+### 재발 방지
+- WebClient 에러 핸들링 시 `onErrorMap()`으로 에러 유형별 CustomException 매핑 패턴 사용
+- 외부 API 호출 시 4xx/5xx/타임아웃 에러 분기 처리 필수
+- 에러 응답 body 로깅으로 디버깅 용이성 확보
+
+### 검증 방법
+```bash
+./gradlew test --tests "AiRunApiClientErrorHandlingTest"
+```
+
+### 관련 커밋
+- 451b6a5
+
+### 생성/수정 파일
+```
+build.gradle (MockWebServer 테스트 의존성 추가)
+src/main/java/com/smartchain/platform/
+├── global/error/ErrorCode.java (AI_BAD_REQUEST 추가)
+├── domain/ai/client/AiRunApiClient.java (에러 핸들링 메서드 추가)
+src/test/java/com/smartchain/platform/domain/ai/client/AiRunApiClientErrorHandlingTest.java (신규)
+```
+
+---
+
 ## 2026-01-30: AI Run API 응답 값 검증 로직 추가 (#58)
 
 ### 원인
