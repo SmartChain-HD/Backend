@@ -63,6 +63,12 @@ public class FileService {
                 .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
 
         validateDiagnosticAccess(user, diagnostic);
+
+        // 제출 이후 상태에서는 파일 업로드 불가
+        if (isSubmittedOrLater(diagnostic.getStatus())) {
+            throw new CustomException(ErrorCode.DIAGNOSTIC_INVALID_STATE_TRANSITION);
+        }
+
         validateFileForUpload(file);
 
         // 파일 저장소에 업로드
@@ -105,6 +111,38 @@ public class FileService {
                 .uploadedAt(LocalDateTime.now())
                 .jobId(savedJob.getJobId())
                 .statusCheckUrl(savedJob.getStatusCheckUrl())
+                .build();
+    }
+
+    /**
+     * 진단별 파일 목록 조회
+     */
+    public List<EvidenceFileDto> getFileList(Long userId, Long diagnosticId) {
+        User user = validateUser(userId);
+
+        Diagnostic diagnostic = diagnosticRepository.findById(diagnosticId)
+                .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
+
+        validateDiagnosticAccess(user, diagnostic);
+
+        List<EvidenceFile> files = evidenceFileRepository.findByDiagnosticId(diagnosticId);
+
+        return files.stream()
+                .map(this::toEvidenceFileDto)
+                .collect(Collectors.toList());
+    }
+
+    private EvidenceFileDto toEvidenceFileDto(EvidenceFile file) {
+        return EvidenceFileDto.builder()
+                .fileId(file.getResultFileId())
+                .fileName(file.getOriginalFileName())
+                .fileUrl("/api/v1/files/" + file.getResultFileId() + "/download-url")
+                .fileType(getFileType(file.getOriginalFileName()))
+                .fileSize(file.getFileSize())
+                .parsingStatus(file.getParsingStatus() != null ? file.getParsingStatus().name() : null)
+                .parsedDataUrl("/api/v1/diagnostics/" + file.getDiagnostic().getDiagnosticId()
+                        + "/files/" + file.getResultFileId() + "/parsing-result")
+                .uploadedAt(file.getCreatedAt())
                 .build();
     }
 

@@ -135,6 +135,45 @@ class FileServiceTest {
     }
 
     @Nested
+    @DisplayName("파일 목록 조회 테스트")
+    class GetFileListTest {
+
+        @Test
+        @DisplayName("DRAFTER가 파일 목록 조회 성공")
+        void getFileList_Success() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(10L)).willReturn(Optional.of(testDiagnostic));
+            given(evidenceFileRepository.findByDiagnosticId(10L))
+                    .willReturn(List.of(testEvidenceFile));
+
+            // when
+            List<EvidenceFileDto> result = fileService.getFileList(1L, 10L);
+
+            // then
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getFileId()).isEqualTo(200L);
+            assertThat(result.get(0).getFileName()).isEqualTo("test.pdf");
+            assertThat(result.get(0).getParsingStatus()).isEqualTo("SUCCESS");
+        }
+
+        @Test
+        @DisplayName("파일이 없는 진단의 목록 조회 시 빈 리스트 반환")
+        void getFileList_Empty() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(10L)).willReturn(Optional.of(testDiagnostic));
+            given(evidenceFileRepository.findByDiagnosticId(10L)).willReturn(List.of());
+
+            // when
+            List<EvidenceFileDto> result = fileService.getFileList(1L, 10L);
+
+            // then
+            assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
     @DisplayName("파일 업로드 테스트")
     class UploadFileTest {
 
@@ -182,6 +221,26 @@ class FileServiceTest {
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.FILE_SIZE_EXCEEDED);
+                    });
+        }
+
+        @Test
+        @DisplayName("제출된 진단에 파일 업로드 시 실패")
+        void uploadFile_SubmittedDiagnostic_ThrowsException() {
+            // given
+            MockMultipartFile file = new MockMultipartFile(
+                    "file", "test.pdf", "application/pdf", "test content".getBytes());
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(10L)).willReturn(Optional.of(testDiagnostic));
+            given(testDiagnostic.getStatus()).willReturn(DiagnosticStatus.SUBMITTED);
+
+            // when & then
+            assertThatThrownBy(() -> fileService.uploadFile(1L, 10L, file))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_INVALID_STATE_TRANSITION);
                     });
         }
 
