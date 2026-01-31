@@ -1,5 +1,6 @@
 package com.smartchain.platform.domain.diagnostic.repository;
 
+import com.smartchain.platform.domain.diagnostic.entity.Campaign;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
@@ -52,6 +53,8 @@ public interface DiagnosticRepository extends JpaRepository<Diagnostic, Long> {
     Page<Diagnostic> findByDomainOrderByCreatedAtDesc(Domain domain, Pageable pageable);
 
     List<Diagnostic> findByDomain(Domain domain);
+
+    List<Diagnostic> findByCampaign(Campaign campaign);
 
     // 도메인 기반 권한 조회 (DRAFTER: 본인 기안만)
     @Query("SELECT d FROM Diagnostic d WHERE d.domain IN :domains AND d.drafterId = :drafterId ORDER BY d.createdAt DESC")
