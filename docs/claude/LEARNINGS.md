@@ -1,5 +1,41 @@
 # Claude Code Learnings
 
+## 2026-02-01: 파일 목록 조회 500 에러 및 삭제 409 에러 (#60)
+
+### 원인
+- `GET /api/v1/diagnostics/{id}/files` 파일 목록 조회 엔드포인트가 미구현되어 500 (S001) 발생
+- `uploadFile()`에서 진단 상태(SUBMITTED+) 검증이 누락되어 제출된 진단에도 업로드 허용
+- 업로드는 되지만 삭제 시 `isSubmittedOrLater()` 검증에 걸려 409 (BIZ_001) 발생
+
+### 해결
+- `FileController`에 `GET /api/v1/diagnostics/{diagnosticId}/files` 엔드포인트 추가
+- `FileService.getFileList()` 메서드 추가 (EvidenceFileDto 리스트 반환)
+- `FileService.uploadFile()`에 `isSubmittedOrLater()` 검증 추가 (WRITING/RETURNED만 허용)
+- 테스트 3건 추가: 파일 목록 조회 성공, 빈 목록 반환, 제출된 진단 업로드 차단
+
+### 재발 방지
+- 프론트엔드가 호출하는 API 엔드포인트와 백엔드 구현 1:1 대조 필수
+- 파일 업로드/삭제 등 상태 의존 API는 동일한 상태 검증 로직 적용
+- `FileServiceTest`에서 상태별 업로드/삭제 시나리오 검증
+
+### 검증 방법
+```bash
+./gradlew test --tests "FileServiceTest"
+./gradlew build
+```
+
+### 관련 커밋
+- (이 PR에 포함)
+
+### 생성/수정 파일
+```
+src/main/java/.../file/controller/FileController.java (파일 목록 조회 엔드포인트 추가)
+src/main/java/.../file/service/FileService.java (getFileList, 업로드 상태 검증 추가)
+src/test/java/.../file/service/FileServiceTest.java (테스트 3건 추가)
+```
+
+---
+
 ## 2026-01-30: SlotResult DTO에 extras 필드 누락 (#72)
 
 ### 원인
