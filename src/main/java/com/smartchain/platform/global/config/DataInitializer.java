@@ -178,7 +178,38 @@ public class DataInitializer implements CommandLineRunner {
                 .periodEndDate(LocalDate.of(2026, 12, 31))
                 .deadline(LocalDate.of(2026, 3, 31))
                 .build());
-        log.info("Campaign created: 2026년 ESG 공급망 진단");
+
+        Campaign campaign2026Safety = campaignRepository.save(Campaign.builder()
+                .campaignCode("CAMP-2026-002")
+                .ownerCompanyId(ownerCompany.getCompanyId())
+                .title("2026년 상반기 안전보건 점검")
+                .content("2026년 상반기 협력사 안전보건 관리 현황 점검")
+                .periodStartDate(LocalDate.of(2026, 1, 1))
+                .periodEndDate(LocalDate.of(2026, 6, 30))
+                .deadline(LocalDate.of(2026, 2, 28))
+                .build());
+
+        Campaign campaign2026Compliance = campaignRepository.save(Campaign.builder()
+                .campaignCode("CAMP-2026-003")
+                .ownerCompanyId(ownerCompany.getCompanyId())
+                .title("2026년 하도급 컴플라이언스 점검")
+                .content("2026년도 협력사 하도급 계약 및 법규 준수 현황 점검")
+                .periodStartDate(LocalDate.of(2026, 3, 1))
+                .periodEndDate(LocalDate.of(2026, 5, 31))
+                .deadline(LocalDate.of(2026, 4, 30))
+                .build());
+
+        Campaign campaign2025 = campaignRepository.save(Campaign.builder()
+                .campaignCode("CAMP-2025-001")
+                .ownerCompanyId(ownerCompany.getCompanyId())
+                .title("2025년 ESG 공급망 진단")
+                .content("2025년도 협력사 ESG 경영 현황 진단 및 평가 (완료)")
+                .periodStartDate(LocalDate.of(2025, 1, 1))
+                .periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2025, 3, 31))
+                .build());
+
+        log.info("Campaigns created: 4 campaigns (2026 ESG, 2026 Safety, 2026 Compliance, 2025 ESG)");
 
         // 6. Diagnostic 생성
         Diagnostic diagnostic1 = diagnosticRepository.save(Diagnostic.builder()

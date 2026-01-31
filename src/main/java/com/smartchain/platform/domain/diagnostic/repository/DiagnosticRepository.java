@@ -1,5 +1,6 @@
 package com.smartchain.platform.domain.diagnostic.repository;
 
+import com.smartchain.platform.domain.diagnostic.entity.Campaign;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.global.enums.DiagnosticStatus;
@@ -47,4 +48,6 @@ public interface DiagnosticRepository extends JpaRepository<Diagnostic, Long> {
 
     @Query("SELECT MAX(d.diagnosticId) FROM Diagnostic d")
     Long findMaxDiagnosticId();
+
+    List<Diagnostic> findByCampaign(Campaign campaign);
 }
