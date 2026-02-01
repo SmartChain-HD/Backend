@@ -1,5 +1,30 @@
 # Claude Code Learnings
 
+## 2026-02-01: GUEST RBAC 차단 (#84)
+
+### 원인
+- SecurityConfig에서 `.anyRequest().permitAll()` 설정으로 모든 요청 허용
+- JWT 토큰이 있어도 Spring Security 컨텍스트에 인증 정보가 설정되지 않음
+- GUEST 사용자가 보호된 리소스(diagnostics, approvals 등)에 접근 가능
+
+### 해결
+- `JwtAuthenticationFilter` 신규 생성: JWT에서 role 추출 → `ROLE_` prefix로 SimpleGrantedAuthority 설정
+- SecurityConfig 전면 개편: 보호 대상 경로에 `hasAnyRole("DRAFTER", "APPROVER", "REVIEWER")` 적용
+- 공개 경로(auth, roles, swagger, health)는 permitAll 유지
+- 401/403 시 표준 ErrorResponse JSON 반환 (AuthenticationEntryPoint, AccessDeniedHandler)
+
+### 재발방지
+- 새 컨트롤러 추가 시 SecurityConfig의 보호 경로 목록에 반드시 추가
+- DomainAuthorizationTest 통합 테스트로 역할별 접근 제어 검증
+
+### 검증방법
+- `./gradlew test --tests "DomainAuthorizationTest"` (GUEST 차단 + 역할 불일치 테스트 통과)
+
+### 관련커밋
+- feature/84-guest-rbac-blocking 브랜치
+
+---
+
 ## 2026-02-01: 도메인-역할 멤버십 조회 API (#81)
 
 ### 원인
