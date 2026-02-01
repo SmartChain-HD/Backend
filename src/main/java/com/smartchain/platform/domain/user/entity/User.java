@@ -72,6 +72,10 @@ public class User extends BaseTimeEntity {
         this.lastLoginAt = LocalDateTime.now();
     }
 
+    public void verifyEmail() {
+        this.emailVerified = true;
+    }
+
     public void changeRole(Role newRole) {
         this.role = newRole;
     }
