@@ -8,13 +8,14 @@
 - dev 환경에서 data.sql이 실행되지 않아 기존 데이터 보정 불가
 
 ### 해결
-- data.sql에 `UPDATE "User" SET email_verified = true WHERE email_verified = false` 추가
+- data.sql에 `UPDATE "user" SET email_verified = true WHERE email_verified = false` 추가
 - dev 프로파일에 `sql.init.mode: always` + `defer-datasource-initialization: true` 설정 추가
 - 서버 기동 시 자동으로 기존 계정의 이메일 인증 상태 활성화
 
 ### 재발방지
 - User 엔티티에 새 boolean 필드 추가 시 기존 데이터 마이그레이션 SQL 필수
 - data.sql의 UPDATE문은 멱등(idempotent)하게 작성 (WHERE 조건으로 중복 실행 안전)
+- `@Table(name = "\"User\"")` → Hibernate는 소문자 `"user"`로 생성함. data.sql에서도 `"user"` 사용 필수
 
 ### 검증방법
 - 서버 재기동 후 테스트 계정으로 로그인 시 A005 에러 없이 정상 응답 확인
