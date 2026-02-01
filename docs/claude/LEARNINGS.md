@@ -1,5 +1,35 @@
 # Claude Code Learnings
 
+## 2026-02-02: 테스트 계정 email_verified 미활성화로 로그인 실패 (#106)
+
+### 원인
+- User 엔티티의 `emailVerified` 기본값이 `false`
+- email_verified 컬럼 추가 이전에 생성된 기존 계정들이 모두 미인증 상태
+- dev 환경에서 data.sql이 실행되지 않아 기존 데이터 보정 불가
+
+### 해결
+- data.sql에 `UPDATE "User" SET email_verified = true WHERE email_verified = false` 추가
+- dev 프로파일에 `sql.init.mode: always` + `defer-datasource-initialization: true` 설정 추가
+- 서버 기동 시 자동으로 기존 계정의 이메일 인증 상태 활성화
+
+### 재발방지
+- User 엔티티에 새 boolean 필드 추가 시 기존 데이터 마이그레이션 SQL 필수
+- data.sql의 UPDATE문은 멱등(idempotent)하게 작성 (WHERE 조건으로 중복 실행 안전)
+
+### 검증방법
+- 서버 재기동 후 테스트 계정으로 로그인 시 A005 에러 없이 정상 응답 확인
+
+### 관련커밋
+- fix/106-email-verified-activation 브랜치
+
+### 생성/수정 파일
+```
+src/main/resources/data.sql (UPDATE문 추가)
+src/main/resources/application.yaml (dev 프로파일 sql.init 설정 추가)
+```
+
+---
+
 ## 2026-02-02: 특수문자(!) 포함 비밀번호 로그인 500 에러 (#104)
 
 ### 원인
