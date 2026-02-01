@@ -19,6 +19,7 @@ import com.smartchain.platform.dto.auth.register.RegisterResponse;
 import com.smartchain.platform.dto.auth.token.TokenRefreshRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshResponse;
 import com.smartchain.platform.global.error.CustomException;
+import com.smartchain.platform.global.enums.UserStatus;
 import com.smartchain.platform.global.error.ErrorCode;
 import com.smartchain.platform.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -116,10 +117,21 @@ public class AuthService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        // 3. 마지막 로그인 시간 업데이트
+        // 3. 계정 상태 검증
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new CustomException(ErrorCode.ACCOUNT_DISABLED);
+        }
+        if (user.isLocked()) {
+            throw new CustomException(ErrorCode.ACCOUNT_LOCKED);
+        }
+        if (!user.isEmailVerified()) {
+            throw new CustomException(ErrorCode.ACCOUNT_NOT_VERIFIED);
+        }
+
+        // 4. 마지막 로그인 시간 업데이트
         user.updateLastLoginAt();
 
-        // 4. 토큰 생성
+        // 5. 토큰 생성
         String roleCode = user.getRole() != null ? user.getRole().getCode() : GUEST_ROLE_CODE;
         String accessToken = jwtTokenProvider.createAccessToken(
                 user.getUserId(), user.getEmail(), roleCode);
@@ -127,7 +139,7 @@ public class AuthService {
 
         log.info("User logged in: userId={}, email={}", user.getUserId(), user.getEmail());
 
-        // 5. 응답 생성
+        // 6. 응답 생성
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)

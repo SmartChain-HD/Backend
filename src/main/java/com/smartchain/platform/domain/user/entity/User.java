@@ -42,6 +42,12 @@ public class User extends BaseTimeEntity {
 
     private LocalDateTime lastLoginAt;
 
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
+    @Column(nullable = false)
+    private boolean locked = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserStatus status = UserStatus.ACTIVE;
@@ -50,13 +56,16 @@ public class User extends BaseTimeEntity {
     private List<UserDomainRole> domainRoles = new ArrayList<>();
 
     @Builder
-    public User(String name, String email, String userPassword, Company company, Role role) {
+    public User(String name, String email, String userPassword, Company company, Role role,
+                Boolean emailVerified, Boolean locked, UserStatus status) {
         this.name = name;
         this.email = email;
         this.userPassword = userPassword;
         this.company = company;
         this.role = role;
-        this.status = UserStatus.ACTIVE;
+        this.emailVerified = emailVerified != null ? emailVerified : false;
+        this.locked = locked != null ? locked : false;
+        this.status = status != null ? status : UserStatus.ACTIVE;
     }
 
     public void updateLastLoginAt() {
