@@ -6,6 +6,7 @@ import com.smartchain.platform.dto.job.JobRetryResponse;
 import com.smartchain.platform.dto.job.JobStatusResponse;
 import com.smartchain.platform.global.enums.JobStatus;
 import com.smartchain.platform.global.enums.JobType;
+import com.smartchain.platform.global.enums.PipelinePhase;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +51,7 @@ class JobServiceTest {
         lenient().when(testJob.getMessage()).thenReturn("파일 파싱 중...");
         lenient().when(testJob.getRequesterId()).thenReturn(userId);
         lenient().when(testJob.getStartedAt()).thenReturn(LocalDateTime.now());
+        lenient().when(testJob.getCurrentPhase()).thenReturn(PipelinePhase.VALIDATION);
     }
 
     @Nested
@@ -144,6 +146,46 @@ class JobServiceTest {
             assertThat(response.getError()).isNotNull();
             assertThat(response.getError().getCode()).isEqualTo("SYS_003");
             assertThat(response.getError().isRetryable()).isTrue();
+        }
+
+        @Test
+        @DisplayName("파이프라인 단계 정보가 포함된 작업 상태 조회")
+        void getJobStatus_WithPipelineInfo_Success() {
+            // given
+            when(testJob.getCurrentPhase()).thenReturn(PipelinePhase.VALIDATION);
+            given(asyncJobRepository.findByJobId(jobId)).willReturn(Optional.of(testJob));
+
+            // when
+            JobStatusResponse response = jobService.getJobStatus(userId, jobId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getPipeline()).isNotNull();
+            assertThat(response.getPipeline().getCurrentPhase()).isEqualTo("VALIDATION");
+            assertThat(response.getPipeline().getPhaseDescription()).isEqualTo("검증 중");
+            assertThat(response.getPipeline().getPhaseOrder()).isEqualTo(2);
+            assertThat(response.getPipeline().getTotalPhases()).isEqualTo(4);
+        }
+
+        @Test
+        @DisplayName("파이프라인 완료 단계 조회")
+        void getJobStatus_CompletedPipeline_Success() {
+            // given
+            when(testJob.getStatus()).thenReturn(JobStatus.SUCCEEDED);
+            when(testJob.getCurrentPhase()).thenReturn(PipelinePhase.COMPLETED);
+            when(testJob.getCompletedAt()).thenReturn(LocalDateTime.now());
+            when(testJob.getResultUrl()).thenReturn("/diagnostics/1/files/102/parsing-result");
+
+            given(asyncJobRepository.findByJobId(jobId)).willReturn(Optional.of(testJob));
+
+            // when
+            JobStatusResponse response = jobService.getJobStatus(userId, jobId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getPipeline()).isNotNull();
+            assertThat(response.getPipeline().getCurrentPhase()).isEqualTo("COMPLETED");
+            assertThat(response.getPipeline().getPhaseDescription()).isEqualTo("완료");
         }
     }
 
