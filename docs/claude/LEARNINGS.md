@@ -23,6 +23,43 @@
 
 ---
 
+## 2026-02-01: 권한요청 알림 이벤트 생성 (#89)
+
+### 원인
+- RoleRequestService에서 권한요청 생성/승인/반려 시 알림 생성 로직 없음
+- NotificationService 주입 안 됨
+- NotificationType에 ROLE_REQUEST_CREATED, ROLE_REQUEST_REJECTED 부재
+
+### 해결
+- NotificationType enum에 `ROLE_REQUEST_CREATED`, `ROLE_REQUEST_REJECTED` 추가
+- UserRepository에 `findAllByRoleCode()` 메서드 추가 (REVIEWER 목록 조회용)
+- RoleRequestService에 NotificationService 주입
+- `createRoleRequest()`: 권한요청 생성 후 모든 REVIEWER에게 알림 발송
+- `processRoleRequest()`: 승인 시 ROLE_APPROVED, 반려 시 ROLE_REQUEST_REJECTED 알림 생성
+
+### 재발 방지
+- 이벤트 기반 알림 생성이 필요한 서비스에서 NotificationService 주입 확인
+- 새 알림 유형 추가 시 NotificationType enum과 테스트 동시 업데이트
+- 트랜잭션 내 알림 생성의 원자성 보장 확인
+
+### 검증 방법
+```bash
+./gradlew test --tests "RoleRequestServiceTest"
+```
+
+### 관련 커밋
+- c39a4ac
+
+### 생성/수정 파일
+```
+src/main/java/.../global/enums/NotificationType.java (ROLE_REQUEST_CREATED, ROLE_REQUEST_REJECTED 추가)
+src/main/java/.../domain/user/repository/UserRepository.java (findAllByRoleCode 추가)
+src/main/java/.../domain/role/service/RoleRequestService.java (알림 생성 로직 추가)
+src/test/java/.../domain/role/service/RoleRequestServiceTest.java (알림 테스트 3건 추가)
+```
+
+---
+
 ## 2026-02-01: 기안 생성 화면 뒤로가기 시 403 발생 (#91)
 
 ### 원인

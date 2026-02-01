@@ -1,5 +1,7 @@
 package com.smartchain.platform.domain.role.service;
 
+import com.smartchain.platform.domain.notification.entity.Notification;
+import com.smartchain.platform.domain.notification.service.NotificationService;
 import com.smartchain.platform.domain.role.repository.RoleRequestRepository;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
@@ -12,6 +14,7 @@ import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
 import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
+import com.smartchain.platform.global.enums.NotificationType;
 import com.smartchain.platform.dto.role.approval.RoleApprovalDetailResponse;
 import com.smartchain.platform.dto.role.approval.RoleApprovalListResponse;
 import com.smartchain.platform.dto.role.approval.RoleDecisionRequest;
@@ -42,12 +45,17 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
+import static org.mockito.hamcrest.MockitoHamcrest.argThat;
+import static org.hamcrest.Matchers.containsString;
+
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class RoleRequestServiceTest {
 
     @InjectMocks
@@ -70,6 +78,9 @@ class RoleRequestServiceTest {
 
     @Mock
     private UserDomainRoleRepository userDomainRoleRepository;
+
+    @Mock
+    private NotificationService notificationService;
 
     @Mock
     private User testUser;
@@ -166,6 +177,7 @@ class RoleRequestServiceTest {
             when(savedRequest.getStatus()).thenReturn(RequestStatus.PENDING);
             when(savedRequest.getRequestedRole()).thenReturn("DRAFTER");
             when(savedRequest.getCreatedAt()).thenReturn(null);
+            when(savedRequest.getDomain()).thenReturn(testDomain);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
             given(domainRepository.findById(1L)).willReturn(Optional.of(testDomain));
@@ -173,6 +185,7 @@ class RoleRequestServiceTest {
             given(roleRequestRepository.existsByUserAndDomainAndStatus(testUser, testDomain, RequestStatus.PENDING)).willReturn(false);
             given(companyRepository.findById(10L)).willReturn(Optional.of(testCompany));
             given(roleRequestRepository.save(any(RoleRequest.class))).willReturn(savedRequest);
+            given(userRepository.findAllByRoleCode("REVIEWER")).willReturn(Collections.emptyList());
 
             // when
             RoleRequestResponse response = roleRequestService.createRoleRequest(1L, createDto);
@@ -185,6 +198,7 @@ class RoleRequestServiceTest {
             assertThat(response.getCompanyId()).isEqualTo(10L);
 
             verify(roleRequestRepository).save(any(RoleRequest.class));
+            verify(userRepository).findAllByRoleCode("REVIEWER");
         }
 
         @Test
@@ -451,11 +465,17 @@ class RoleRequestServiceTest {
             when(reviewerUser.getName()).thenReturn("리뷰어");
             when(reviewerUser.getRole()).thenReturn(reviewerRole);
 
+            User requestUser = mock(User.class);
+            when(requestUser.getUserId()).thenReturn(3L);
+
             RoleRequest roleRequest = mock(RoleRequest.class);
             when(roleRequest.getRequestId()).thenReturn(1L);
             when(roleRequest.isPending()).thenReturn(true);
             when(roleRequest.getStatus()).thenReturn(RequestStatus.APPROVED);
             when(roleRequest.getDecidedAt()).thenReturn(LocalDateTime.now());
+            when(roleRequest.getDomain()).thenReturn(null); // no domain = no UserDomainRole creation
+            when(roleRequest.getUser()).thenReturn(requestUser);
+            when(roleRequest.getRequestedRole()).thenReturn("DRAFTER");
 
             RoleDecisionRequest decisionRequest = RoleDecisionRequest.builder()
                     .decision("APPROVED")
@@ -472,6 +492,7 @@ class RoleRequestServiceTest {
             assertThat(response.getStatus()).isEqualTo("APPROVED");
             assertThat(response.getMessage()).isEqualTo("권한 요청이 승인되었습니다");
             verify(roleRequest).approve(reviewerUser);
+            verify(notificationService).createNotification(eq(requestUser), eq(NotificationType.ROLE_APPROVED), anyString(), anyString(), isNull());
         }
 
         @Test
@@ -495,6 +516,7 @@ class RoleRequestServiceTest {
 
             Domain esgDomain = mock(Domain.class);
             when(esgDomain.getDomainId()).thenReturn(1L);
+            when(esgDomain.getName()).thenReturn("ESG 실사");
 
             RoleRequest roleRequest = mock(RoleRequest.class);
             when(roleRequest.getRequestId()).thenReturn(1L);
@@ -560,11 +582,18 @@ class RoleRequestServiceTest {
             when(reviewerUser.getName()).thenReturn("리뷰어");
             when(reviewerUser.getRole()).thenReturn(reviewerRole);
 
+            User requestUser = mock(User.class);
+            when(requestUser.getUserId()).thenReturn(3L);
+
             RoleRequest roleRequest = mock(RoleRequest.class);
             when(roleRequest.getRequestId()).thenReturn(1L);
             when(roleRequest.isPending()).thenReturn(true);
             when(roleRequest.getStatus()).thenReturn(RequestStatus.REJECTED);
             when(roleRequest.getDecidedAt()).thenReturn(LocalDateTime.now());
+            when(roleRequest.getUser()).thenReturn(requestUser);
+            when(roleRequest.getDomain()).thenReturn(testDomain);
+            when(roleRequest.getRequestedRole()).thenReturn("DRAFTER");
+            when(roleRequest.getRejectReason()).thenReturn("정보 부족");
 
             RoleDecisionRequest decisionRequest = RoleDecisionRequest.builder()
                     .decision("REJECTED")
@@ -582,6 +611,148 @@ class RoleRequestServiceTest {
             assertThat(response.getStatus()).isEqualTo("REJECTED");
             assertThat(response.getMessage()).isEqualTo("권한 요청이 반려되었습니다");
             verify(roleRequest).reject(reviewerUser, "정보 부족");
+            verify(notificationService).createNotification(eq(requestUser), eq(NotificationType.ROLE_REQUEST_REJECTED), anyString(), anyString(), isNull());
+        }
+    }
+
+    @Nested
+    @DisplayName("권한 요청 알림 생성 테스트")
+    class RoleRequestNotificationTest {
+
+        @Test
+        @DisplayName("권한 요청 생성 시 모든 REVIEWER에게 알림 생성")
+        void createRoleRequest_NotifiesAllReviewers() {
+            // given
+            RoleRequestCreateDto createDto = RoleRequestCreateDto.builder()
+                    .requestedRole("DRAFTER")
+                    .domainId(1L)
+                    .companyId(10L)
+                    .reason("ESG 담당자 지정")
+                    .build();
+
+            RoleRequest savedRequest = mock(RoleRequest.class);
+            when(savedRequest.getRequestId()).thenReturn(1L);
+            when(savedRequest.getStatus()).thenReturn(RequestStatus.PENDING);
+            when(savedRequest.getRequestedRole()).thenReturn("DRAFTER");
+            when(savedRequest.getCreatedAt()).thenReturn(null);
+            when(savedRequest.getDomain()).thenReturn(testDomain);
+
+            User reviewer1 = mock(User.class);
+            User reviewer2 = mock(User.class);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+            given(domainRepository.findById(1L)).willReturn(Optional.of(testDomain));
+            given(userDomainRoleRepository.existsByUserUserIdAndDomainDomainId(1L, 1L)).willReturn(false);
+            given(roleRequestRepository.existsByUserAndDomainAndStatus(testUser, testDomain, RequestStatus.PENDING)).willReturn(false);
+            given(companyRepository.findById(10L)).willReturn(Optional.of(testCompany));
+            given(roleRequestRepository.save(any(RoleRequest.class))).willReturn(savedRequest);
+            given(userRepository.findAllByRoleCode("REVIEWER")).willReturn(List.of(reviewer1, reviewer2));
+
+            // when
+            roleRequestService.createRoleRequest(1L, createDto);
+
+            // then
+            verify(notificationService, times(2)).createNotification(
+                    any(User.class),
+                    eq(NotificationType.ROLE_REQUEST_CREATED),
+                    eq("새로운 권한 요청"),
+                    anyString(),
+                    anyString()
+            );
+        }
+
+        @Test
+        @DisplayName("권한 요청 승인 시 요청자에게 승인 알림 생성")
+        void processRoleRequest_Approve_NotifiesRequester() {
+            // given
+            Role reviewerRoleMock = mock(Role.class);
+            when(reviewerRoleMock.getCode()).thenReturn("REVIEWER");
+
+            User reviewerUserMock = mock(User.class);
+            when(reviewerUserMock.getUserId()).thenReturn(2L);
+            when(reviewerUserMock.getName()).thenReturn("리뷰어");
+            when(reviewerUserMock.getRole()).thenReturn(reviewerRoleMock);
+
+            User requestUser = mock(User.class);
+            when(requestUser.getUserId()).thenReturn(3L);
+
+            RoleRequest roleRequest = mock(RoleRequest.class);
+            when(roleRequest.getRequestId()).thenReturn(1L);
+            when(roleRequest.isPending()).thenReturn(true);
+            when(roleRequest.getStatus()).thenReturn(RequestStatus.APPROVED);
+            when(roleRequest.getDecidedAt()).thenReturn(LocalDateTime.now());
+            when(roleRequest.getUser()).thenReturn(requestUser);
+            when(roleRequest.getDomain()).thenReturn(testDomain);
+            when(roleRequest.getRequestedRole()).thenReturn("DRAFTER");
+
+            Role drafterRole = mock(Role.class);
+
+            RoleDecisionRequest decisionRequest = RoleDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .build();
+
+            given(userRepository.findById(2L)).willReturn(Optional.of(reviewerUserMock));
+            given(roleRequestRepository.findById(1L)).willReturn(Optional.of(roleRequest));
+            given(roleRepository.findByCode("DRAFTER")).willReturn(Optional.of(drafterRole));
+            given(userDomainRoleRepository.save(any(UserDomainRole.class))).willAnswer(i -> i.getArgument(0));
+
+            // when
+            roleRequestService.processRoleRequest(2L, 1L, decisionRequest);
+
+            // then
+            verify(notificationService).createNotification(
+                    eq(requestUser),
+                    eq(NotificationType.ROLE_APPROVED),
+                    eq("권한 요청이 승인되었습니다"),
+                    anyString(),
+                    isNull()
+            );
+        }
+
+        @Test
+        @DisplayName("권한 요청 반려 시 요청자에게 반려 알림 생성")
+        void processRoleRequest_Reject_NotifiesRequester() {
+            // given
+            Role reviewerRoleMock = mock(Role.class);
+            when(reviewerRoleMock.getCode()).thenReturn("REVIEWER");
+
+            User reviewerUserMock = mock(User.class);
+            when(reviewerUserMock.getUserId()).thenReturn(2L);
+            when(reviewerUserMock.getName()).thenReturn("리뷰어");
+            when(reviewerUserMock.getRole()).thenReturn(reviewerRoleMock);
+
+            User requestUser = mock(User.class);
+            when(requestUser.getUserId()).thenReturn(3L);
+
+            RoleRequest roleRequest = mock(RoleRequest.class);
+            when(roleRequest.getRequestId()).thenReturn(1L);
+            when(roleRequest.isPending()).thenReturn(true);
+            when(roleRequest.getStatus()).thenReturn(RequestStatus.REJECTED);
+            when(roleRequest.getDecidedAt()).thenReturn(LocalDateTime.now());
+            when(roleRequest.getUser()).thenReturn(requestUser);
+            when(roleRequest.getDomain()).thenReturn(testDomain);
+            when(roleRequest.getRequestedRole()).thenReturn("DRAFTER");
+            when(roleRequest.getRejectReason()).thenReturn("정보 부족");
+
+            RoleDecisionRequest decisionRequest = RoleDecisionRequest.builder()
+                    .decision("REJECTED")
+                    .rejectReason("정보 부족")
+                    .build();
+
+            given(userRepository.findById(2L)).willReturn(Optional.of(reviewerUserMock));
+            given(roleRequestRepository.findById(1L)).willReturn(Optional.of(roleRequest));
+
+            // when
+            roleRequestService.processRoleRequest(2L, 1L, decisionRequest);
+
+            // then
+            verify(notificationService).createNotification(
+                    eq(requestUser),
+                    eq(NotificationType.ROLE_REQUEST_REJECTED),
+                    eq("권한 요청이 반려되었습니다"),
+                    argThat(containsString("정보 부족")),
+                    isNull()
+            );
         }
     }
 }
