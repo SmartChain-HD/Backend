@@ -16,6 +16,7 @@ public class DiagnosticSubmitResponse {
     private String previousStatus;
     private String newStatus;            // SUBMITTED
     private LocalDateTime submittedAt;
-    private Long approvalId;             // v3.0: 생성된 결재 ID
+    private Long approvalId;             // v3.0: 생성된 결재 ID (ESG)
+    private Long reviewId;               // v3.1: 생성된 심사 ID (SAFETY/COMPLIANCE)
     private String message;
 }
