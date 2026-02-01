@@ -40,6 +40,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // 통계용 카운트
     long countByStatus(UserStatus status);
 
+    // 역할별 사용자 목록 조회 (알림 발송용)
+    @Query("SELECT u FROM User u WHERE u.role.code = :roleCode")
+    java.util.List<User> findAllByRoleCode(@Param("roleCode") String roleCode);
+
     @Query("SELECT COUNT(u) FROM User u WHERE u.lastLoginAt >= :since")
     long countByLastLoginAtAfter(@Param("since") LocalDateTime since);
 }
