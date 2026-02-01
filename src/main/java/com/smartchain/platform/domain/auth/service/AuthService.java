@@ -227,6 +227,10 @@ public class AuthService {
         // 4. 인증 완료 처리
         verificationCode.markAsVerified();
 
+        // 5. 사용자 이메일 인증 상태 업데이트
+        userRepository.findByEmail(request.getEmail())
+                .ifPresent(User::verifyEmail);
+
         log.info("Email verified: email={}", request.getEmail());
 
         return EmailVerificationResponse.builder()

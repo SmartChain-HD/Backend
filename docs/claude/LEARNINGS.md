@@ -1,5 +1,38 @@
 # Claude Code Learnings
 
+## 2026-02-02: 이메일 인증 완료 후 User.emailVerified 미업데이트 (#109)
+
+### 원인
+- `AuthService.verifyEmail()`에서 `EmailVerificationCode.markAsVerified()`만 호출
+- User 엔티티의 `emailVerified` 필드를 `true`로 변경하는 로직이 누락됨
+- User 엔티티에 `emailVerified`를 변경하는 메서드 자체가 없었음
+- 결과: 이메일 인증을 완료해도 로그인 시 A005 에러 발생
+
+### 해결
+- `User.verifyEmail()` 메서드 추가
+- `AuthService.verifyEmail()`에서 User 조회 후 `user.verifyEmail()` 호출
+- 기존 계정 보정용 data.sql UPDATE 유지
+
+### 재발방지
+- 인증/상태 변경 플로우 구현 시 관련된 모든 엔티티의 상태가 업데이트되는지 확인
+- `EmailVerificationCode`와 `User.emailVerified`는 별개 엔티티이므로 양쪽 모두 처리 필수
+
+### 검증방법
+```bash
+./gradlew test --tests "AuthServiceTest"
+```
+
+### 관련커밋
+- fix/109-email-verified-not-updated 브랜치
+
+### 생성/수정 파일
+```
+src/main/java/.../domain/user/entity/User.java (verifyEmail() 메서드 추가)
+src/main/java/.../domain/auth/service/AuthService.java (verifyEmail에서 User 상태 업데이트)
+```
+
+---
+
 ## 2026-02-02: 테스트 계정 email_verified 미활성화로 로그인 실패 (#106)
 
 ### 원인
