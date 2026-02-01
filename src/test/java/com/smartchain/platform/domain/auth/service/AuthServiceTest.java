@@ -15,6 +15,7 @@ import com.smartchain.platform.dto.auth.register.RegisterResponse;
 import com.smartchain.platform.dto.auth.register.TermsAgreementRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshResponse;
+import com.smartchain.platform.global.enums.UserStatus;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import com.smartchain.platform.global.security.JwtTokenProvider;
@@ -206,6 +207,7 @@ class AuthServiceTest {
                     .email("test@test.com")
                     .userPassword("encodedPassword")
                     .role(guestRole)
+                    .emailVerified(true)
                     .build();
 
             given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(user));
@@ -250,6 +252,93 @@ class AuthServiceTest {
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.INVALID_CREDENTIALS);
+                    });
+        }
+
+        @Test
+        @DisplayName("비활성화된 계정 로그인 시 ACCOUNT_DISABLED")
+        void login_DisabledAccount_ThrowsException() {
+            // given
+            LoginRequest request = LoginRequest.builder()
+                    .email("test@test.com")
+                    .password("Password123!")
+                    .build();
+
+            User user = User.builder()
+                    .name("홍길동")
+                    .email("test@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .status(UserStatus.INACTIVE)
+                    .build();
+
+            given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(user));
+            given(passwordEncoder.matches("Password123!", "encodedPassword")).willReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> authService.login(request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_DISABLED);
+                    });
+        }
+
+        @Test
+        @DisplayName("잠긴 계정 로그인 시 ACCOUNT_LOCKED")
+        void login_LockedAccount_ThrowsException() {
+            // given
+            LoginRequest request = LoginRequest.builder()
+                    .email("test@test.com")
+                    .password("Password123!")
+                    .build();
+
+            User user = User.builder()
+                    .name("홍길동")
+                    .email("test@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .locked(true)
+                    .build();
+
+            given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(user));
+            given(passwordEncoder.matches("Password123!", "encodedPassword")).willReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> authService.login(request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_LOCKED);
+                    });
+        }
+
+        @Test
+        @DisplayName("이메일 미인증 계정 로그인 시 ACCOUNT_NOT_VERIFIED")
+        void login_UnverifiedAccount_ThrowsException() {
+            // given
+            LoginRequest request = LoginRequest.builder()
+                    .email("test@test.com")
+                    .password("Password123!")
+                    .build();
+
+            User user = User.builder()
+                    .name("홍길동")
+                    .email("test@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .emailVerified(false)
+                    .build();
+
+            given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(user));
+            given(passwordEncoder.matches("Password123!", "encodedPassword")).willReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> authService.login(request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_NOT_VERIFIED);
                     });
         }
     }

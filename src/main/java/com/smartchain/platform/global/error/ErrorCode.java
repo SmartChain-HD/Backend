@@ -23,6 +23,9 @@ public enum ErrorCode {
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A001", "유효하지 않은 토큰입니다"),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A002", "만료된 토큰입니다"),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "A003", "이메일 또는 비밀번호가 올바르지 않습니다"),
+    ACCOUNT_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "A005", "이메일 인증이 완료되지 않은 계정입니다"),
+    ACCOUNT_LOCKED(HttpStatus.FORBIDDEN, "A006", "계정이 잠겨 있습니다"),
+    ACCOUNT_DISABLED(HttpStatus.FORBIDDEN, "A007", "비활성화된 계정입니다"),
 
     // 403 Forbidden
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "A004", "접근 권한이 없습니다"),
