@@ -290,6 +290,153 @@ class DiagnosticServiceTest {
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_RESOURCE);
                     });
         }
+
+        @Test
+        @DisplayName("APPROVER가 같은 회사 기안 상세 조회 성공")
+        void getDiagnosticDetail_AsApprover_SameCompany_Success() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            when(esgDomain.getDomainId()).thenReturn(1L);
+            when(esgDomain.getCode()).thenReturn("ESG");
+            when(esgDomain.getName()).thenReturn("ESG 실사");
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            when(diagnostic.getCompany()).thenReturn(testCompany);
+            when(diagnostic.getDomain()).thenReturn(esgDomain);
+            when(diagnostic.getDrafterId()).thenReturn(1L); // 다른 사용자가 작성
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.SUBMITTED);
+            when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            when(diagnostic.getQualitativeProgress()).thenReturn(100);
+            when(diagnostic.getQuantitativeProgress()).thenReturn(100);
+            when(diagnostic.getOverallProgress()).thenReturn(100);
+            when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            when(approverUser.hasAnyRoleInDomain("ESG", "DRAFTER", "APPROVER", "REVIEWER")).thenReturn(true);
+            when(approverUser.hasRoleInDomain("ESG", "DRAFTER")).thenReturn(false);
+            when(approverUser.hasRoleInDomain("ESG", "APPROVER")).thenReturn(true);
+
+            given(userRepository.findById(2L)).willReturn(Optional.of(approverUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when
+            DiagnosticDetailResponse response = diagnosticService.getDiagnosticDetail(2L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getStatus()).isEqualTo("SUBMITTED");
+        }
+
+        @Test
+        @DisplayName("APPROVER가 다른 회사 기안 조회 시 403")
+        void getDiagnosticDetail_AsApprover_DifferentCompany_ThrowsException() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            when(esgDomain.getCode()).thenReturn("ESG");
+
+            Company otherCompany = mock(Company.class);
+            when(otherCompany.getCompanyId()).thenReturn(999L);
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDomain()).thenReturn(esgDomain);
+            when(diagnostic.getCompany()).thenReturn(otherCompany);
+
+            when(approverUser.hasAnyRoleInDomain("ESG", "DRAFTER", "APPROVER", "REVIEWER")).thenReturn(true);
+            when(approverUser.hasRoleInDomain("ESG", "DRAFTER")).thenReturn(false);
+            when(approverUser.hasRoleInDomain("ESG", "APPROVER")).thenReturn(true);
+
+            given(userRepository.findById(2L)).willReturn(Optional.of(approverUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.getDiagnosticDetail(2L, 1L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_RESOURCE);
+                    });
+        }
+
+        @Test
+        @DisplayName("REVIEWER가 도메인 내 기안 상세 조회 성공")
+        void getDiagnosticDetail_AsReviewer_Success() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            when(esgDomain.getDomainId()).thenReturn(1L);
+            when(esgDomain.getCode()).thenReturn("ESG");
+            when(esgDomain.getName()).thenReturn("ESG 실사");
+
+            Company otherCompany = mock(Company.class);
+            when(otherCompany.getCompanyId()).thenReturn(999L);
+            when(otherCompany.getName()).thenReturn("다른회사");
+
+            User reviewerUser = mock(User.class);
+            lenient().when(reviewerUser.getUserId()).thenReturn(3L);
+            lenient().when(reviewerUser.getName()).thenReturn("수신자");
+            lenient().when(reviewerUser.getDomainRoles()).thenReturn(new ArrayList<>());
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            when(diagnostic.getCompany()).thenReturn(otherCompany);
+            when(diagnostic.getDomain()).thenReturn(esgDomain);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.REVIEWING);
+            when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            when(diagnostic.getQualitativeProgress()).thenReturn(100);
+            when(diagnostic.getQuantitativeProgress()).thenReturn(100);
+            when(diagnostic.getOverallProgress()).thenReturn(100);
+            when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            when(reviewerUser.hasAnyRoleInDomain("ESG", "DRAFTER", "APPROVER", "REVIEWER")).thenReturn(true);
+            when(reviewerUser.hasRoleInDomain("ESG", "DRAFTER")).thenReturn(false);
+            when(reviewerUser.hasRoleInDomain("ESG", "APPROVER")).thenReturn(false);
+
+            given(userRepository.findById(3L)).willReturn(Optional.of(reviewerUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when
+            DiagnosticDetailResponse response = diagnosticService.getDiagnosticDetail(3L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getStatus()).isEqualTo("REVIEWING");
+        }
+
+        @Test
+        @DisplayName("도메인 권한 없는 사용자가 상세 조회 시 403")
+        void getDiagnosticDetail_NoDomainRole_ThrowsException() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            when(esgDomain.getCode()).thenReturn("ESG");
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDomain()).thenReturn(esgDomain);
+
+            User noRoleUser = mock(User.class);
+            when(noRoleUser.getUserId()).thenReturn(99L);
+            when(noRoleUser.hasAnyRoleInDomain("ESG", "DRAFTER", "APPROVER", "REVIEWER")).thenReturn(false);
+
+            given(userRepository.findById(99L)).willReturn(Optional.of(noRoleUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.getDiagnosticDetail(99L, 1L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
+        }
     }
 
     @Nested

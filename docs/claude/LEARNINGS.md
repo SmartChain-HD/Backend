@@ -1,5 +1,38 @@
 # Claude Code Learnings
 
+## 2026-02-01: 도메인 상세 조회 API 권한 검증 테스트 보강 (#87)
+
+### 원인
+- 기안 상세 조회 API의 권한 검증 구현은 완료되어 있었으나 테스트 커버리지 부족
+- APPROVER(같은/다른 회사), REVIEWER, 도메인 권한 없는 사용자의 403/200 분기 테스트 미존재
+- DRAFTER 성공/실패와 404만 테스트되고 나머지 역할 시나리오 누락
+
+### 해결
+- APPROVER 같은 회사 상세 조회 성공 테스트 추가
+- APPROVER 다른 회사 상세 조회 403 테스트 추가
+- REVIEWER 도메인 내 상세 조회 성공 테스트 추가
+- 도메인 권한 없는 사용자 403 테스트 추가
+
+### 재발 방지
+- 상세 조회 API 권한 검증 시 모든 역할(DRAFTER/APPROVER/REVIEWER) + 무권한 시나리오 테스트 필수
+- 역할별 접근 범위: DRAFTER=본인, APPROVER=같은 회사, REVIEWER=도메인 전체
+
+### 검증 방법
+```bash
+./gradlew test --tests "DiagnosticServiceTest"
+```
+
+### 관련 커밋
+- (이 PR에 포함)
+
+### 생성/수정 파일
+```
+src/test/java/.../diagnostic/service/DiagnosticServiceTest.java (테스트 4건 추가)
+docs/claude/LEARNINGS.md (엔트리 추가)
+```
+
+---
+
 ## 2026-02-01: 레거시 DRAFTER 리스트 조회 범위 오류 (#86)
 
 ### 원인
