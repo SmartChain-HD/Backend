@@ -1,5 +1,37 @@
 # Claude Code Learnings
 
+## 2026-02-02: 특수문자(!) 포함 비밀번호 로그인 500 에러 (#104)
+
+### 원인
+- 클라이언트가 `!` 등 특수문자를 `\!`로 이스케이프하여 JSON 전송
+- Jackson 기본 설정에서 비표준 이스케이프 시퀀스(`\!`)를 파싱하지 못함
+- `JsonMappingException: Unrecognized character escape '!'` 발생하여 500 반환
+
+### 해결
+- `JacksonConfig` 설정 클래스 추가
+- `Jackson2ObjectMapperBuilderCustomizer`로 `ALLOW_BACKSLASH_ESCAPING_ANY_CHARACTER` 활성화
+- Spring Boot 기본 ObjectMapper 설정 유지하면서 기능만 추가
+
+### 재발방지
+- 외부 클라이언트 입력을 받는 JSON 파서는 관대한(lenient) 설정 고려
+- 특수문자 포함 비밀번호 테스트 케이스 필수
+
+### 검증방법
+```bash
+./gradlew test --tests "JacksonConfigTest"
+```
+
+### 관련커밋
+- fix/104-login-special-char-500 브랜치
+
+### 생성/수정 파일
+```
+src/main/java/.../global/config/JacksonConfig.java (신규)
+src/test/java/.../global/config/JacksonConfigTest.java (신규)
+```
+
+---
+
 ## 2026-02-01: 도메인별 워크플로우 분기 구현 (#78)
 
 ### 원인
