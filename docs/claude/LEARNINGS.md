@@ -1,5 +1,44 @@
 # Claude Code Learnings
 
+## 2026-02-01: 기안 목록 조회 필터링(status, keyword) 미구현
+
+### 원인
+- Controller에 `keyword` 파라미터 자체가 없어 검색 기능 불가
+- 프론트엔드가 `status`(단수)로 보내지만 백엔드는 `statuses`(복수)로 받아 매칭 실패
+- Repository 복합 쿼리에서 빈 리스트 IN 절 문제 잔존 (boolean 플래그 미적용)
+- 기존 if/else if 구조로 status + keyword + deadline 동시 필터링 불가
+
+### 해결
+- Controller에 `keyword`, `status`(alias) 파라미터 추가
+- Repository에 `findByFilters()` 통합 쿼리 추가 (boolean 플래그로 빈 IN 절 회피)
+- Repository에 `findByCompanyAndFilters()` 레거시 통합 쿼리 추가
+- Service의 if/else if 분기를 단일 통합 쿼리 호출로 교체
+- keyword는 title, diagnosticCode, company.name에 LIKE 검색
+
+### 재발 방지
+- 새 필터 파라미터 추가 시 프론트엔드 파라미터명과 1:1 대조
+- JPQL IN 절에는 항상 boolean 플래그 패턴 사용
+- 필터 조건은 if/else 분기 대신 단일 쿼리에 optional 조건으로 통합
+
+### 검증 방법
+```bash
+./gradlew test --tests "DiagnosticServiceTest"
+./gradlew build
+```
+
+### 관련 커밋
+- (이 PR에 포함)
+
+### 생성/수정 파일
+```
+src/main/java/.../diagnostic/controller/DiagnosticController.java (keyword, status 파라미터 추가)
+src/main/java/.../diagnostic/service/DiagnosticService.java (통합 필터링 로직)
+src/main/java/.../diagnostic/repository/DiagnosticRepository.java (findByFilters, findByCompanyAndFilters 추가)
+src/test/java/.../diagnostic/service/DiagnosticServiceTest.java (keyword, status 필터 테스트 추가)
+```
+
+---
+
 ## 2026-02-01: 파일 목록 조회 500 에러 및 삭제 409 에러 (#60)
 
 ### 원인

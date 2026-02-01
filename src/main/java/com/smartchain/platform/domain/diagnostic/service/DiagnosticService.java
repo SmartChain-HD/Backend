@@ -73,12 +73,19 @@ public class DiagnosticService {
             "COMPLETED", "완료"
     );
 
-    public DiagnosticListResponse getDiagnosticList(Long userId, String domainCode, String statuses, LocalDate deadlineFrom,
+    public DiagnosticListResponse getDiagnosticList(Long userId, String domainCode, String statuses,
+                                                     String keyword, LocalDate deadlineFrom,
                                                      LocalDate deadlineTo, int page, int size) {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         Company userCompany = currentUser.getCompany();
+
+        // 공통 필터 파라미터 준비
+        List<DiagnosticStatus> statusList = (statuses != null && !statuses.isEmpty())
+                ? parseStatuses(statuses) : Collections.emptyList();
+        boolean hasStatuses = !statusList.isEmpty();
+        String trimmedKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
 
         // 도메인별 역할 분류
         List<Domain> reviewerDomains = new ArrayList<>();
@@ -98,7 +105,8 @@ public class DiagnosticService {
         // 도메인 역할이 없으면 레거시 로직 사용
         boolean hasDomainRoles = !reviewerDomains.isEmpty() || !approverDomains.isEmpty() || !drafterDomains.isEmpty();
         if (!hasDomainRoles) {
-            return getDiagnosticListLegacy(currentUser, userCompany, domainCode, statuses, deadlineFrom, deadlineTo, page, size);
+            return getDiagnosticListLegacy(currentUser, userCompany, domainCode, hasStatuses, statusList,
+                    trimmedKeyword, deadlineFrom, deadlineTo, page, size);
         }
 
         // domainCode 파라미터가 있으면 해당 도메인으로 필터링
@@ -108,101 +116,60 @@ public class DiagnosticService {
             drafterDomains = drafterDomains.stream().filter(d -> d.getCode().equals(domainCode)).toList();
         }
 
-        // 빈 리스트를 placeholder 도메인으로 대체 (JPQL IN 절 처리)
-        if (reviewerDomains.isEmpty()) {
-            reviewerDomains = Collections.emptyList();
-        }
-        if (approverDomains.isEmpty()) {
-            approverDomains = Collections.emptyList();
-        }
-        if (drafterDomains.isEmpty()) {
-            drafterDomains = Collections.emptyList();
+        boolean hasReviewer = !reviewerDomains.isEmpty();
+        boolean hasApprover = !approverDomains.isEmpty();
+        boolean hasDrafter = !drafterDomains.isEmpty();
+
+        // 모든 도메인 리스트가 비어있으면 빈 결과 반환
+        if (!hasReviewer && !hasApprover && !hasDrafter) {
+            return buildEmptyResponse(page, size);
         }
 
         Pageable pageable = PageRequest.of(page, size);
-        Page<Diagnostic> diagnosticPage;
 
-        // APPROVER 권한 검증을 위한 회사 정보 (없으면 빈 회사로 처리)
-        Company companyForQuery = userCompany != null ? userCompany : null;
+        Page<Diagnostic> diagnosticPage = diagnosticRepository.findByFilters(
+                hasReviewer ? reviewerDomains : Collections.singletonList(null),
+                hasApprover ? approverDomains : Collections.singletonList(null),
+                hasDrafter ? drafterDomains : Collections.singletonList(null),
+                hasReviewer, hasApprover, hasDrafter,
+                userCompany, userId,
+                hasStatuses, hasStatuses ? statusList : Collections.singletonList(DiagnosticStatus.WRITING),
+                trimmedKeyword, deadlineFrom, deadlineTo,
+                pageable);
 
-        if (statuses != null && !statuses.isEmpty()) {
-            List<DiagnosticStatus> statusList = parseStatuses(statuses);
-            diagnosticPage = diagnosticRepository.findByUserDomainRolesAndStatusIn(
-                    reviewerDomains, approverDomains, drafterDomains,
-                    companyForQuery, userId, statusList, pageable);
-        } else if (deadlineFrom != null && deadlineTo != null) {
-            diagnosticPage = diagnosticRepository.findByUserDomainRolesAndDeadlineBetween(
-                    reviewerDomains, approverDomains, drafterDomains,
-                    companyForQuery, userId, deadlineFrom, deadlineTo, pageable);
-        } else {
-            diagnosticPage = diagnosticRepository.findByUserDomainRoles(
-                    reviewerDomains, approverDomains, drafterDomains,
-                    companyForQuery, userId, pageable);
-        }
-
-        List<DiagnosticListItemDto> content = diagnosticPage.getContent().stream()
-                .map(this::mapToListItemDto)
-                .toList();
-
-        PageDto pageDto = PageDto.builder()
-                .number(diagnosticPage.getNumber())
-                .size(diagnosticPage.getSize())
-                .totalElements(diagnosticPage.getTotalElements())
-                .totalPages(diagnosticPage.getTotalPages())
-                .build();
-
-        return DiagnosticListResponse.builder()
-                .content(content)
-                .page(pageDto)
-                .build();
+        return buildListResponse(diagnosticPage);
     }
 
     /**
      * 레거시: 도메인 역할이 없는 사용자용 기안 목록 조회
      */
     private DiagnosticListResponse getDiagnosticListLegacy(User currentUser, Company userCompany,
-                                                            String domainCode, String statuses, LocalDate deadlineFrom,
-                                                            LocalDate deadlineTo, int page, int size) {
+                                                            String domainCode, boolean hasStatuses,
+                                                            List<DiagnosticStatus> statusList, String keyword,
+                                                            LocalDate deadlineFrom, LocalDate deadlineTo,
+                                                            int page, int size) {
         validateAccessRole(currentUser);
 
         if (userCompany == null) {
             throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
         }
 
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Diagnostic> diagnosticPage;
-
-        // domainCode 필터가 있으면 도메인별 조회
+        Domain domain = null;
+        boolean hasDomain = false;
         if (domainCode != null && !domainCode.isEmpty()) {
-            Domain domain = domainRepository.findByCode(domainCode)
+            domain = domainRepository.findByCode(domainCode)
                     .orElseThrow(() -> new CustomException(ErrorCode.DOMAIN_NOT_FOUND));
-            diagnosticPage = diagnosticRepository.findByDomainOrderByCreatedAtDesc(domain, pageable);
-        } else if (statuses != null && !statuses.isEmpty()) {
-            List<DiagnosticStatus> statusList = parseStatuses(statuses);
-            diagnosticPage = diagnosticRepository.findByCompanyAndStatusInOrderByCreatedAtDesc(
-                    userCompany, statusList, pageable);
-        } else if (deadlineFrom != null && deadlineTo != null) {
-            diagnosticPage = diagnosticRepository.findByCompanyAndDeadlineBetweenOrderByCreatedAtDesc(
-                    userCompany, deadlineFrom, deadlineTo, pageable);
-        } else {
-            diagnosticPage = diagnosticRepository.findByCompanyOrderByCreatedAtDesc(userCompany, pageable);
+            hasDomain = true;
         }
 
-        List<DiagnosticListItemDto> content = diagnosticPage.getContent().stream()
-                .map(this::mapToListItemDto)
-                .toList();
+        Pageable pageable = PageRequest.of(page, size);
 
-        PageDto pageDto = PageDto.builder()
-                .number(diagnosticPage.getNumber())
-                .size(diagnosticPage.getSize())
-                .totalElements(diagnosticPage.getTotalElements())
-                .totalPages(diagnosticPage.getTotalPages())
-                .build();
+        Page<Diagnostic> diagnosticPage = diagnosticRepository.findByCompanyAndFilters(
+                userCompany, hasDomain, domain,
+                hasStatuses, hasStatuses ? statusList : Collections.singletonList(DiagnosticStatus.WRITING),
+                keyword, deadlineFrom, deadlineTo, pageable);
 
-        return DiagnosticListResponse.builder()
-                .content(content)
-                .page(pageDto)
-                .build();
+        return buildListResponse(diagnosticPage);
     }
 
     public DiagnosticDetailResponse getDiagnosticDetail(Long userId, Long diagnosticId) {
@@ -556,6 +523,38 @@ public class DiagnosticService {
                 throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
             }
         }
+    }
+
+    private DiagnosticListResponse buildListResponse(Page<Diagnostic> diagnosticPage) {
+        List<DiagnosticListItemDto> content = diagnosticPage.getContent().stream()
+                .map(this::mapToListItemDto)
+                .toList();
+
+        PageDto pageDto = PageDto.builder()
+                .number(diagnosticPage.getNumber())
+                .size(diagnosticPage.getSize())
+                .totalElements(diagnosticPage.getTotalElements())
+                .totalPages(diagnosticPage.getTotalPages())
+                .build();
+
+        return DiagnosticListResponse.builder()
+                .content(content)
+                .page(pageDto)
+                .build();
+    }
+
+    private DiagnosticListResponse buildEmptyResponse(int page, int size) {
+        PageDto pageDto = PageDto.builder()
+                .number(page)
+                .size(size)
+                .totalElements(0)
+                .totalPages(0)
+                .build();
+
+        return DiagnosticListResponse.builder()
+                .content(Collections.emptyList())
+                .page(pageDto)
+                .build();
     }
 
     private List<DiagnosticStatus> parseStatuses(String statuses) {

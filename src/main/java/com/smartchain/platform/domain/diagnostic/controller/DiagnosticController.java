@@ -37,7 +37,7 @@ public class DiagnosticController {
     private final AiAnalysisJobService aiAnalysisJobService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Operation(summary = "기안 목록 조회", description = "기안 목록을 조회합니다. DRAFTER는 본인 기안만, APPROVER는 소속 회사 전체 기안을 조회합니다. domainCode로 특정 도메인 필터링 가능합니다.")
+    @Operation(summary = "기안 목록 조회", description = "기안 목록을 조회합니다. DRAFTER는 본인 기안만, APPROVER는 소속 회사 전체 기안을 조회합니다. domainCode, status, keyword로 필터링 가능합니다.")
     @GetMapping
     public ResponseEntity<BaseResponse<DiagnosticListResponse>> getDiagnosticList(
             HttpServletRequest request,
@@ -45,6 +45,10 @@ public class DiagnosticController {
             @RequestParam(required = false) String domainCode,
             @Parameter(description = "상태 필터 (쉼표로 구분, 예: WRITING,SUBMITTED)")
             @RequestParam(required = false) String statuses,
+            @Parameter(description = "상태 필터 (statuses의 alias)")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "검색 키워드 (제목, 기안코드, 회사명)")
+            @RequestParam(required = false) String keyword,
             @Parameter(description = "마감일 시작")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deadlineFrom,
             @Parameter(description = "마감일 종료")
@@ -52,7 +56,9 @@ public class DiagnosticController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Long userId = extractUserIdFromRequest(request);
-        DiagnosticListResponse response = diagnosticService.getDiagnosticList(userId, domainCode, statuses, deadlineFrom, deadlineTo, page, size);
+        // status를 statuses의 alias로 지원
+        String effectiveStatuses = statuses != null ? statuses : status;
+        DiagnosticListResponse response = diagnosticService.getDiagnosticList(userId, domainCode, effectiveStatuses, keyword, deadlineFrom, deadlineTo, page, size);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 
