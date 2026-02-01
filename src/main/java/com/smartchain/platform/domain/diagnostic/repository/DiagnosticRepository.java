@@ -121,7 +121,27 @@ public interface DiagnosticRepository extends JpaRepository<Diagnostic, Long> {
             @Param("deadlineTo") LocalDate deadlineTo,
             Pageable pageable);
 
-    // 레거시 통합 필터링 (도메인 역할 없는 사용자용)
+    // 레거시 DRAFTER용 통합 필터링 (본인 기안만 조회)
+    @Query("SELECT d FROM Diagnostic d LEFT JOIN d.company c WHERE " +
+           "d.drafterId = :drafterId " +
+           "AND (:hasDomain = false OR d.domain = :domain) " +
+           "AND (:hasStatuses = false OR d.status IN :statuses) " +
+           "AND (:keyword IS NULL OR d.title LIKE %:keyword% OR d.diagnosticCode LIKE %:keyword% OR c.name LIKE %:keyword%) " +
+           "AND (:deadlineFrom IS NULL OR d.deadline >= :deadlineFrom) " +
+           "AND (:deadlineTo IS NULL OR d.deadline <= :deadlineTo) " +
+           "ORDER BY d.createdAt DESC")
+    Page<Diagnostic> findByDrafterIdAndFilters(
+            @Param("drafterId") Long drafterId,
+            @Param("hasDomain") boolean hasDomain,
+            @Param("domain") Domain domain,
+            @Param("hasStatuses") boolean hasStatuses,
+            @Param("statuses") List<DiagnosticStatus> statuses,
+            @Param("keyword") String keyword,
+            @Param("deadlineFrom") LocalDate deadlineFrom,
+            @Param("deadlineTo") LocalDate deadlineTo,
+            Pageable pageable);
+
+    // 레거시 통합 필터링 (도메인 역할 없는 APPROVER용 — 회사 전체)
     @Query("SELECT d FROM Diagnostic d LEFT JOIN d.company c WHERE " +
            "d.company = :company " +
            "AND (:hasDomain = false OR d.domain = :domain) " +

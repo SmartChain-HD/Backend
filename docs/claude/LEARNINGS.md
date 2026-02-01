@@ -1,5 +1,36 @@
 # Claude Code Learnings
 
+## 2026-02-01: 레거시 DRAFTER 리스트 조회 범위 오류 (#86)
+
+### 원인
+- 레거시 `getDiagnosticListLegacy()`에서 DRAFTER도 `findByCompanyAndFilters`로 회사 전체 건을 조회
+- 이슈 #86 AC: 기안자는 본인 작성 건만 조회해야 함
+
+### 해결
+- `findByDrafterIdAndFilters` 레포지토리 메서드 추가 (drafterId 기반 필터)
+- 레거시 로직에서 DRAFTER/APPROVER 분기: DRAFTER → drafterId 기반, APPROVER → company 기반
+
+### 재발 방지
+- 역할별 조회 범위 원칙: DRAFTER=본인, APPROVER=회사, REVIEWER=전체
+- 새 필터 쿼리 추가 시 역할 분기를 반드시 점검
+
+### 검증 방법
+```bash
+./gradlew test --tests "DiagnosticServiceTest"
+```
+
+### 관련 커밋
+- (이슈 #86)
+
+### 생성/수정 파일
+```
+DiagnosticRepository.java (findByDrafterIdAndFilters 추가)
+DiagnosticService.java (레거시 DRAFTER 분기)
+DiagnosticServiceTest.java (도메인 역할별 테스트 5건 추가)
+```
+
+---
+
 ## 2026-02-01: GUEST RBAC 차단 (#84)
 
 ### 원인
