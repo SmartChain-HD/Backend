@@ -4,9 +4,12 @@ import com.smartchain.platform.domain.auth.entity.EmailVerificationCode;
 import com.smartchain.platform.domain.auth.repository.EmailVerificationCodeRepository;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
+import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.auth.common.CompanyInfoDto;
+import com.smartchain.platform.dto.auth.common.DomainRoleDto;
 import com.smartchain.platform.dto.auth.common.RoleInfoDto;
 import com.smartchain.platform.dto.auth.common.UserInfoDto;
 import com.smartchain.platform.dto.auth.email.*;
@@ -31,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -42,6 +46,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final UserDomainRoleRepository userDomainRoleRepository;
     private final EmailVerificationCodeRepository verificationCodeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -295,6 +300,8 @@ public class AuthService {
                     .build());
         }
 
+        builder.domainRoles(buildDomainRoleDtos(user.getUserId()));
+
         return builder.build();
     }
 
@@ -327,6 +334,20 @@ public class AuthService {
                     .build());
         }
 
+        builder.domainRoles(buildDomainRoleDtos(user.getUserId()));
+
         return builder.build();
+    }
+
+    private List<DomainRoleDto> buildDomainRoleDtos(Long userId) {
+        List<UserDomainRole> domainRoles = userDomainRoleRepository.findByUserIdWithDomainAndRole(userId);
+        return domainRoles.stream()
+                .map(udr -> DomainRoleDto.builder()
+                        .domainCode(udr.getDomain().getCode())
+                        .domainName(udr.getDomain().getName())
+                        .roleCode(udr.getRole().getCode())
+                        .roleName(udr.getRole().getName())
+                        .build())
+                .toList();
     }
 }

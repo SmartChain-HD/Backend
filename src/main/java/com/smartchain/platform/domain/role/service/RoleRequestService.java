@@ -473,6 +473,14 @@ public class RoleRequestService {
                         roleRequest.getUser().getUserId(),
                         roleRequest.getDomain().getDomainId(),
                         roleRequest.getRequestedRole());
+
+                // GUEST인 경우 전역 역할도 업그레이드
+                User requestUser = roleRequest.getUser();
+                if (requestUser.getRole() != null && "GUEST".equals(requestUser.getRole().getCode())) {
+                    requestUser.changeRole(role);
+                    log.info("User global role upgraded from GUEST to {}: userId={}",
+                            roleRequest.getRequestedRole(), requestUser.getUserId());
+                }
             }
 
             message = "권한 요청이 승인되었습니다";

@@ -5,6 +5,7 @@ import com.smartchain.platform.domain.auth.repository.EmailVerificationCodeRepos
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
+import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.auth.email.*;
 import com.smartchain.platform.dto.auth.login.LoginRequest;
@@ -30,6 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -50,6 +52,9 @@ class AuthServiceTest {
 
     @Mock
     private RoleRepository roleRepository;
+
+    @Mock
+    private UserDomainRoleRepository userDomainRoleRepository;
 
     @Mock
     private EmailVerificationCodeRepository verificationCodeRepository;
@@ -215,6 +220,7 @@ class AuthServiceTest {
             given(jwtTokenProvider.createAccessToken(any(), anyString(), anyString())).willReturn("accessToken");
             given(jwtTokenProvider.createRefreshToken(any())).willReturn("refreshToken");
             given(jwtTokenProvider.getAccessTokenValidityInSeconds()).willReturn(3600L);
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any())).willReturn(Collections.emptyList());
 
             // when
             LoginResponse response = authService.login(request);
@@ -557,6 +563,7 @@ class AuthServiceTest {
                     .build();
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any())).willReturn(Collections.emptyList());
 
             // when
             MyInfoResponse response = authService.getMyInfo(1L);

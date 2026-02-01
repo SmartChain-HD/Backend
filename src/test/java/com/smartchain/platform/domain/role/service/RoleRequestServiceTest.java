@@ -6,6 +6,7 @@ import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.RoleRequest;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
 import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
@@ -412,6 +413,56 @@ class RoleRequestServiceTest {
             assertThat(response.getStatus()).isEqualTo("APPROVED");
             assertThat(response.getMessage()).isEqualTo("권한 요청이 승인되었습니다");
             verify(roleRequest).approve(reviewerUser);
+        }
+
+        @Test
+        @DisplayName("승인 시 UserDomainRole 생성 및 GUEST→요청역할 전역 역할 업그레이드")
+        void processRoleRequest_Approve_CreatesDomainRoleAndUpgradesGlobalRole() {
+            // given
+            when(reviewerRole.getCode()).thenReturn("REVIEWER");
+            when(reviewerUser.getUserId()).thenReturn(2L);
+            when(reviewerUser.getName()).thenReturn("리뷰어");
+            when(reviewerUser.getRole()).thenReturn(reviewerRole);
+
+            Role guestRole = mock(Role.class);
+            when(guestRole.getCode()).thenReturn("GUEST");
+
+            Role drafterRole = mock(Role.class);
+            lenient().when(drafterRole.getCode()).thenReturn("DRAFTER");
+
+            User requestUser = mock(User.class);
+            when(requestUser.getUserId()).thenReturn(3L);
+            when(requestUser.getRole()).thenReturn(guestRole);
+
+            Domain esgDomain = mock(Domain.class);
+            when(esgDomain.getDomainId()).thenReturn(1L);
+
+            RoleRequest roleRequest = mock(RoleRequest.class);
+            when(roleRequest.getRequestId()).thenReturn(1L);
+            when(roleRequest.isPending()).thenReturn(true);
+            when(roleRequest.getStatus()).thenReturn(RequestStatus.APPROVED);
+            when(roleRequest.getDecidedAt()).thenReturn(LocalDateTime.now());
+            when(roleRequest.getDomain()).thenReturn(esgDomain);
+            when(roleRequest.getUser()).thenReturn(requestUser);
+            when(roleRequest.getRequestedRole()).thenReturn("DRAFTER");
+
+            RoleDecisionRequest decisionRequest = RoleDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .build();
+
+            given(userRepository.findById(2L)).willReturn(Optional.of(reviewerUser));
+            given(roleRequestRepository.findById(1L)).willReturn(Optional.of(roleRequest));
+            given(roleRepository.findByCode("DRAFTER")).willReturn(Optional.of(drafterRole));
+            given(userDomainRoleRepository.save(any(UserDomainRole.class))).willAnswer(i -> i.getArgument(0));
+
+            // when
+            RoleDecisionResponse response = roleRequestService.processRoleRequest(2L, 1L, decisionRequest);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getStatus()).isEqualTo("APPROVED");
+            verify(userDomainRoleRepository).save(any(UserDomainRole.class));
+            verify(requestUser).changeRole(drafterRole);
         }
 
         @Test

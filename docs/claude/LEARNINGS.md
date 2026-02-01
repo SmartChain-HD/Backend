@@ -1,5 +1,43 @@
 # Claude Code Learnings
 
+## 2026-02-01: 권한요청 승인 후에도 게스트 유지 (#83)
+
+### 원인
+- RoleRequestService 승인 시 UserDomainRole은 생성하지만 User의 전역 역할(role)을 GUEST에서 변경하지 않음
+- JWT 토큰이 전역 역할만 포함하므로 재로그인해도 GUEST로 표시
+- 로그인/me 응답에 도메인 역할 정보 미포함
+
+### 해결
+- 승인 시 전역 역할이 GUEST이면 요청된 역할로 업그레이드 (`user.changeRole(role)`)
+- DomainRoleDto 신규 생성, UserInfoDto/MyInfoResponse에 domainRoles 필드 추가
+- AuthService의 buildUserInfoDto()/getMyInfo()에서 UserDomainRoleRepository로 도메인 역할 조회 후 응답에 포함
+
+### 재발 방지
+- 권한 변경 시 전역 역할과 도메인 역할 동시 업데이트 확인
+- 응답 DTO에 도메인 역할 포함 여부 검증
+
+### 검증 방법
+```bash
+./gradlew test --tests "RoleRequestServiceTest"
+./gradlew test --tests "AuthServiceTest"
+```
+
+### 관련 커밋
+- (이 PR에 포함)
+
+### 생성/수정 파일
+```
+src/main/java/.../dto/auth/common/DomainRoleDto.java (신규)
+src/main/java/.../dto/auth/common/UserInfoDto.java (domainRoles 추가)
+src/main/java/.../dto/auth/myinfo/MyInfoResponse.java (domainRoles 추가)
+src/main/java/.../domain/auth/service/AuthService.java (도메인 역할 조회 로직)
+src/main/java/.../domain/role/service/RoleRequestService.java (전역 역할 업그레이드)
+src/test/java/.../domain/role/service/RoleRequestServiceTest.java (승인+역할 업그레이드 테스트)
+src/test/java/.../domain/auth/service/AuthServiceTest.java (mock 추가)
+```
+
+---
+
 ## 2026-02-01: 로그인 실패 사유별 에러코드 미분기 (#85)
 
 ### 원인
