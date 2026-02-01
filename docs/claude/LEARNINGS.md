@@ -1,5 +1,28 @@
 # Claude Code Learnings
 
+## 2026-02-01: 도메인-역할 멤버십 조회 API (#81)
+
+### 원인
+- 로그인 사용자의 도메인별 역할을 일관되게 조회하는 전용 API가 없었음
+- /me 응답에 domainRoles는 포함되지만, GUEST 사용자의 권한요청 상태 정보가 없었음
+
+### 해결
+- `GET /api/v1/auth/me/domains` 엔드포인트 추가
+- GUEST: 빈 domainRoles + roleRequestStatus(PENDING/NONE) 반환
+- 일반 사용자: domainRoles 목록 반환, roleRequestStatus는 null
+
+### 재발방지
+- 기존 buildDomainRoleDtos() 헬퍼를 재사용하여 중복 방지
+- GUEST 분기 처리 시 existsByUserAndStatus로 간결하게 확인
+
+### 검증방법
+- `./gradlew test --tests "AuthServiceTest"` (3개 테스트: 일반사용자/게스트PENDING/게스트NONE)
+
+### 관련커밋
+- feature/81-domain-membership-api 브랜치
+
+---
+
 ## 2026-02-01: 기안 생성 화면 뒤로가기 시 403 발생 (#91)
 
 ### 원인
