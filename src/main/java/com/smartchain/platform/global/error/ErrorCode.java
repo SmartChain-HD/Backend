@@ -65,6 +65,7 @@ public enum ErrorCode {
     DUPLICATE_ROLE_REQUEST(HttpStatus.CONFLICT, "R003", "이미 대기중인 권한 요청이 있습니다"),
     DUPLICATE_DOMAIN_ROLE(HttpStatus.CONFLICT, "R006", "해당 도메인에 이미 권한이 부여되어 있습니다"),
     INVALID_ROLE_REQUEST(HttpStatus.BAD_REQUEST, "R004", "유효하지 않은 권한입니다"),
+    APPROVER_ONLY_ESG(HttpStatus.BAD_REQUEST, "R007", "결재자(APPROVER) 역할은 ESG 도메인에서만 요청할 수 있습니다"),
     ALREADY_PROCESSED_REQUEST(HttpStatus.CONFLICT, "PERM_003", "이미 처리된 권한 요청입니다"),
     INVALID_DECISION(HttpStatus.BAD_REQUEST, "R005", "유효하지 않은 처리 결과입니다"),
     ALREADY_PROCESSED_APPROVAL(HttpStatus.CONFLICT, "AP002", "이미 처리된 결재 요청입니다"),

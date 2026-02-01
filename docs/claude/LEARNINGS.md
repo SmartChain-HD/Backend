@@ -33,6 +33,37 @@ src/test/java/.../domain/diagnostic/service/DiagnosticServiceTest.java (멱등 �
 
 ---
 
+## 2026-02-01: APPROVER 역할이 모든 도메인에서 요청 가능 (#82)
+
+### 원인
+- RoleRequestService.createRoleRequest()에 도메인-역할 정책 검증 없음
+- APPROVER는 ESG 도메인에서만 유효하지만 SAFETY/COMPLIANCE에서도 요청 가능
+
+### 해결
+- 도메인 조회 후 `APPROVER + !ESG` 조합 시 `APPROVER_ONLY_ESG` (R007) 에러 반환
+- ErrorCode에 `APPROVER_ONLY_ESG` 추가 (HttpStatus.BAD_REQUEST)
+
+### 재발 방지
+- 새 도메인-역할 정책 추가 시 createRoleRequest() 검증 로직 확인
+- 정책 변경 시 테스트 케이스 동시 업데이트
+
+### 검증 방법
+```bash
+./gradlew test --tests "RoleRequestServiceTest"
+```
+
+### 관련 커밋
+- (이 PR에 포함)
+
+### 생성/수정 파일
+```
+src/main/java/.../global/error/ErrorCode.java (APPROVER_ONLY_ESG 추가)
+src/main/java/.../domain/role/service/RoleRequestService.java (도메인-역할 정책 검증)
+src/test/java/.../domain/role/service/RoleRequestServiceTest.java (테스트 2건 추가)
+```
+
+---
+
 ## 2026-02-01: 권한요청 승인 후에도 게스트 유지 (#83)
 
 ### 원인

@@ -148,6 +148,11 @@ public class RoleRequestService {
         Domain domain = domainRepository.findById(request.getDomainId())
                 .orElseThrow(() -> new CustomException(ErrorCode.DOMAIN_NOT_FOUND));
 
+        // APPROVER는 ESG 도메인에서만 허용
+        if ("APPROVER".equals(request.getRequestedRole()) && !"ESG".equals(domain.getCode())) {
+            throw new CustomException(ErrorCode.APPROVER_ONLY_ESG);
+        }
+
         // 해당 도메인에 이미 권한이 있는지 확인
         if (userDomainRoleRepository.existsByUserUserIdAndDomainDomainId(userId, request.getDomainId())) {
             throw new CustomException(ErrorCode.DUPLICATE_DOMAIN_ROLE);
