@@ -1,5 +1,43 @@
 # Claude Code Learnings
 
+## 2026-02-01: 알림 조회/읽음처리 API 구현 (#90)
+
+### 원인
+- Issue #90 요구사항: 미읽음 개수 전용 API, 개별 읽음 처리 RESTful API, 전체 읽음 처리 명시적 API
+- 기존 `PATCH /read` API는 Request Body로 처리하여 RESTful 패턴 미준수
+- 헤더 배지용 미읽음 개수만 빠르게 조회하는 경량 API 부재
+
+### 해결
+- `GET /api/v1/notifications/unread-count` - 미읽음 개수만 반환하는 경량 API 추가
+- `PATCH /api/v1/notifications/{id}/read` - 개별 알림 읽음 처리 RESTful API 추가
+- `PATCH /api/v1/notifications/read-all` - 전체 읽음 처리 명시적 API 추가
+- `UnreadCountResponse` DTO 추가
+- `NOTIFICATION_NOT_FOUND` (N001) 에러코드 추가
+
+### 재발 방지
+- RESTful API 설계 시 개별 리소스 조작은 `/{id}/{action}` 경로 패턴 사용
+- 본인 리소스 검증 로직 필수 (`user.userId.equals(requestUserId)`)
+- 존재하지 않는 알림 접근 시 명확한 404 에러 반환
+
+### 검증 방법
+```bash
+./gradlew test --tests "NotificationServiceTest"
+```
+
+### 관련 커밋
+- 0dc1f34 (PR #99)
+
+### 생성/수정 파일
+```
+src/main/java/.../notification/controller/NotificationController.java (3개 엔드포인트 추가)
+src/main/java/.../notification/service/NotificationService.java (3개 서비스 메서드 추가)
+src/main/java/.../dto/notification/UnreadCountResponse.java (신규)
+src/main/java/.../global/error/ErrorCode.java (NOTIFICATION_NOT_FOUND 추가)
+src/test/java/.../notification/service/NotificationServiceTest.java (10개 테스트 추가)
+```
+
+---
+
 ## 2026-02-01: 도메인-역할 멤버십 조회 API (#81)
 
 ### 원인
