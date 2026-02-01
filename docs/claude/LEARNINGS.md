@@ -1,5 +1,40 @@
 # Claude Code Learnings
 
+## 2026-02-01: 로그인 실패 사유별 에러코드 미분기 (#85)
+
+### 원인
+- 로그인 시 비밀번호 검증만 수행하고 계정 상태(비활성화, 잠김, 이메일 미인증) 검증 없음
+- User 엔티티에 `emailVerified`, `locked` 필드 부재
+- ErrorCode에 `ACCOUNT_NOT_VERIFIED`, `ACCOUNT_LOCKED`, `ACCOUNT_DISABLED` 부재
+
+### 해결
+- User 엔티티에 `emailVerified`(boolean), `locked`(boolean) 필드 추가
+- ErrorCode에 A005(ACCOUNT_NOT_VERIFIED), A006(ACCOUNT_LOCKED), A007(ACCOUNT_DISABLED) 추가
+- AuthService.login()에 비밀번호 검증 후 계정 상태 검증 분기 추가
+- 보안 고려: 사용자 미존재/비밀번호 오류 모두 INVALID_CREDENTIALS 반환 (이메일 존재 여부 미노출)
+
+### 재발 방지
+- 새 계정 상태 추가 시 login() 검증 분기와 ErrorCode 동시 업데이트
+- 보안: 인증 실패 시 구체적 사유 노출 최소화 원칙 유지
+
+### 검증 방법
+```bash
+./gradlew test --tests "AuthServiceTest"
+```
+
+### 관련 커밋
+- acab7c4
+
+### 생성/수정 파일
+```
+src/main/java/.../global/error/ErrorCode.java (A005, A006, A007 추가)
+src/main/java/.../domain/user/entity/User.java (emailVerified, locked 필드 추가)
+src/main/java/.../domain/auth/service/AuthService.java (계정 상태 검증 분기 추가)
+src/test/java/.../domain/auth/service/AuthServiceTest.java (로그인 실패 테스트 3건 추가)
+```
+
+---
+
 ## 2026-02-01: 기안 목록 조회 필터링(status, keyword) 미구현
 
 ### 원인
