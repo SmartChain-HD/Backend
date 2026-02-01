@@ -16,7 +16,8 @@
       "Bash(gh pr merge:*)",
       "Bash(git fetch:*)",
       "Bash(git merge:*)",
-      "Bash(gh issue view:*)"
+      "Bash(gh issue view:*)",
+      "Bash(find:*)"
     ]
   }
 }
