@@ -5,6 +5,7 @@ import com.smartchain.platform.dto.auth.email.*;
 import com.smartchain.platform.dto.auth.login.LoginRequest;
 import com.smartchain.platform.dto.auth.login.LoginResponse;
 import com.smartchain.platform.dto.auth.logout.LogoutRequest;
+import com.smartchain.platform.dto.auth.myinfo.MyDomainResponse;
 import com.smartchain.platform.dto.auth.myinfo.MyInfoResponse;
 import com.smartchain.platform.dto.auth.register.RegisterRequest;
 import com.smartchain.platform.dto.auth.register.RegisterResponse;
@@ -94,6 +95,14 @@ public class AuthController {
     public ResponseEntity<BaseResponse<MyInfoResponse>> getMyInfo(HttpServletRequest request) {
         Long userId = extractUserIdFromRequest(request);
         MyInfoResponse response = authService.getMyInfo(userId);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    @Operation(summary = "내 도메인 역할 조회", description = "현재 로그인된 사용자의 도메인별 역할 목록을 조회합니다. 게스트인 경우 권한요청 상태를 포함합니다.")
+    @GetMapping("/me/domains")
+    public ResponseEntity<BaseResponse<MyDomainResponse>> getMyDomains(HttpServletRequest request) {
+        Long userId = extractUserIdFromRequest(request);
+        MyDomainResponse response = authService.getMyDomains(userId);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 

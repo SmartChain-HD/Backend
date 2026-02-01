@@ -2,6 +2,7 @@ package com.smartchain.platform.domain.auth.service;
 
 import com.smartchain.platform.domain.auth.entity.EmailVerificationCode;
 import com.smartchain.platform.domain.auth.repository.EmailVerificationCodeRepository;
+import com.smartchain.platform.domain.role.repository.RoleRequestRepository;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.entity.UserDomainRole;
@@ -16,12 +17,14 @@ import com.smartchain.platform.dto.auth.email.*;
 import com.smartchain.platform.dto.auth.login.LoginRequest;
 import com.smartchain.platform.dto.auth.login.LoginResponse;
 import com.smartchain.platform.dto.auth.logout.LogoutRequest;
+import com.smartchain.platform.dto.auth.myinfo.MyDomainResponse;
 import com.smartchain.platform.dto.auth.myinfo.MyInfoResponse;
 import com.smartchain.platform.dto.auth.register.RegisterRequest;
 import com.smartchain.platform.dto.auth.register.RegisterResponse;
 import com.smartchain.platform.dto.auth.token.TokenRefreshRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshResponse;
 import com.smartchain.platform.global.error.CustomException;
+import com.smartchain.platform.global.enums.RequestStatus;
 import com.smartchain.platform.global.enums.UserStatus;
 import com.smartchain.platform.global.error.ErrorCode;
 import com.smartchain.platform.global.security.JwtTokenProvider;
@@ -47,6 +50,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final UserDomainRoleRepository userDomainRoleRepository;
+    private final RoleRequestRepository roleRequestRepository;
     private final EmailVerificationCodeRepository verificationCodeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -303,6 +307,26 @@ public class AuthService {
         builder.domainRoles(buildDomainRoleDtos(user.getUserId()));
 
         return builder.build();
+    }
+
+    public MyDomainResponse getMyDomains(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        String globalRole = user.getRole() != null ? user.getRole().getCode() : GUEST_ROLE_CODE;
+        List<DomainRoleDto> domainRoles = buildDomainRoleDtos(userId);
+
+        String roleRequestStatus = null;
+        if (GUEST_ROLE_CODE.equals(globalRole)) {
+            boolean hasPending = roleRequestRepository.existsByUserAndStatus(user, RequestStatus.PENDING);
+            roleRequestStatus = hasPending ? "PENDING" : "NONE";
+        }
+
+        return MyDomainResponse.builder()
+                .globalRole(globalRole)
+                .domainRoles(domainRoles)
+                .roleRequestStatus(roleRequestStatus)
+                .build();
     }
 
     private String generateVerificationCode() {

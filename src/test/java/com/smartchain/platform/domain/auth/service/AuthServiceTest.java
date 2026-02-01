@@ -2,20 +2,25 @@ package com.smartchain.platform.domain.auth.service;
 
 import com.smartchain.platform.domain.auth.entity.EmailVerificationCode;
 import com.smartchain.platform.domain.auth.repository.EmailVerificationCodeRepository;
+import com.smartchain.platform.domain.role.repository.RoleRequestRepository;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
 import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.auth.email.*;
 import com.smartchain.platform.dto.auth.login.LoginRequest;
 import com.smartchain.platform.dto.auth.login.LoginResponse;
+import com.smartchain.platform.dto.auth.myinfo.MyDomainResponse;
 import com.smartchain.platform.dto.auth.myinfo.MyInfoResponse;
 import com.smartchain.platform.dto.auth.register.RegisterRequest;
 import com.smartchain.platform.dto.auth.register.RegisterResponse;
 import com.smartchain.platform.dto.auth.register.TermsAgreementRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshResponse;
+import com.smartchain.platform.global.enums.RequestStatus;
 import com.smartchain.platform.global.enums.UserStatus;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
@@ -32,6 +37,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,6 +61,9 @@ class AuthServiceTest {
 
     @Mock
     private UserDomainRoleRepository userDomainRoleRepository;
+
+    @Mock
+    private RoleRequestRepository roleRequestRepository;
 
     @Mock
     private EmailVerificationCodeRepository verificationCodeRepository;
@@ -588,6 +597,110 @@ class AuthServiceTest {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND);
                     });
+        }
+    }
+
+    @Nested
+    @DisplayName("내 도메인 역할 조회 테스트")
+    class GetMyDomainsTest {
+
+        @Test
+        @DisplayName("일반 사용자: 도메인 역할 목록 반환")
+        void getMyDomains_WithDomainRoles_Success() {
+            // given
+            Role drafterRole = new Role("기안자", "DRAFTER");
+            User user = User.builder()
+                    .name("홍길동")
+                    .email("test@test.com")
+                    .userPassword("encodedPassword")
+                    .role(drafterRole)
+                    .build();
+
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+            lenient().when(esgDomain.getName()).thenReturn("ESG 실사");
+
+            Role mockDrafterRole = mock(Role.class);
+            lenient().when(mockDrafterRole.getCode()).thenReturn("DRAFTER");
+            lenient().when(mockDrafterRole.getName()).thenReturn("기안자");
+
+            Domain safetyDomain = mock(Domain.class);
+            lenient().when(safetyDomain.getCode()).thenReturn("SAFETY");
+            lenient().when(safetyDomain.getName()).thenReturn("안전보건");
+
+            UserDomainRole udr1 = mock(UserDomainRole.class);
+            lenient().when(udr1.getDomain()).thenReturn(esgDomain);
+            lenient().when(udr1.getRole()).thenReturn(mockDrafterRole);
+
+            UserDomainRole udr2 = mock(UserDomainRole.class);
+            lenient().when(udr2.getDomain()).thenReturn(safetyDomain);
+            lenient().when(udr2.getRole()).thenReturn(mockDrafterRole);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any()))
+                    .willReturn(List.of(udr1, udr2));
+
+            // when
+            MyDomainResponse response = authService.getMyDomains(1L);
+
+            // then
+            assertThat(response.getGlobalRole()).isEqualTo("DRAFTER");
+            assertThat(response.getDomainRoles()).hasSize(2);
+            assertThat(response.getDomainRoles().get(0).getDomainCode()).isEqualTo("ESG");
+            assertThat(response.getDomainRoles().get(1).getDomainCode()).isEqualTo("SAFETY");
+            assertThat(response.getRoleRequestStatus()).isNull();
+        }
+
+        @Test
+        @DisplayName("게스트 사용자: 빈 목록 + 권한요청 상태 PENDING")
+        void getMyDomains_Guest_PendingRequest() {
+            // given
+            User user = User.builder()
+                    .name("게스트")
+                    .email("guest@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any()))
+                    .willReturn(Collections.emptyList());
+            given(roleRequestRepository.existsByUserAndStatus(user, RequestStatus.PENDING))
+                    .willReturn(true);
+
+            // when
+            MyDomainResponse response = authService.getMyDomains(1L);
+
+            // then
+            assertThat(response.getGlobalRole()).isEqualTo("GUEST");
+            assertThat(response.getDomainRoles()).isEmpty();
+            assertThat(response.getRoleRequestStatus()).isEqualTo("PENDING");
+        }
+
+        @Test
+        @DisplayName("게스트 사용자: 빈 목록 + 권한요청 없음 NONE")
+        void getMyDomains_Guest_NoRequest() {
+            // given
+            User user = User.builder()
+                    .name("게스트")
+                    .email("guest@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any()))
+                    .willReturn(Collections.emptyList());
+            given(roleRequestRepository.existsByUserAndStatus(user, RequestStatus.PENDING))
+                    .willReturn(false);
+
+            // when
+            MyDomainResponse response = authService.getMyDomains(1L);
+
+            // then
+            assertThat(response.getGlobalRole()).isEqualTo("GUEST");
+            assertThat(response.getDomainRoles()).isEmpty();
+            assertThat(response.getRoleRequestStatus()).isEqualTo("NONE");
         }
     }
 }
