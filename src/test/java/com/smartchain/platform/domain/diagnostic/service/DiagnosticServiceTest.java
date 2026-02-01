@@ -48,6 +48,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -151,11 +152,11 @@ class DiagnosticServiceTest {
             Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
-            given(diagnosticRepository.findByCompanyOrderByCreatedAtDesc(eq(testCompany), any()))
+            given(diagnosticRepository.findByCompanyAndFilters(eq(testCompany), eq(false), any(), eq(false), any(), any(), any(), any(), any()))
                     .willReturn(diagnosticPage);
 
             // when
-            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, null, null, 0, 10);
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, null, null, null, 0, 10);
 
             // then
             assertThat(response).isNotNull();
@@ -187,11 +188,11 @@ class DiagnosticServiceTest {
             Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
 
             given(userRepository.findById(2L)).willReturn(Optional.of(approverUser));
-            given(diagnosticRepository.findByCompanyOrderByCreatedAtDesc(eq(testCompany), any()))
+            given(diagnosticRepository.findByCompanyAndFilters(eq(testCompany), eq(false), any(), eq(false), any(), any(), any(), any(), any()))
                     .willReturn(diagnosticPage);
 
             // when
-            DiagnosticListResponse response = diagnosticService.getDiagnosticList(2L, null, null, null, null, 0, 10);
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(2L, null, null, null, null, null, 0, 10);
 
             // then
             assertThat(response).isNotNull();
@@ -209,7 +210,7 @@ class DiagnosticServiceTest {
             given(userRepository.findById(99L)).willReturn(Optional.of(guestUser));
 
             // when & then
-            assertThatThrownBy(() -> diagnosticService.getDiagnosticList(99L, null, null, null, null, 0, 10))
+            assertThatThrownBy(() -> diagnosticService.getDiagnosticList(99L, null, null, null, null, null, 0, 10))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
@@ -617,11 +618,11 @@ class DiagnosticServiceTest {
 
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
             given(domainRepository.findByCode("ENV")).willReturn(Optional.of(envDomain));
-            given(diagnosticRepository.findByDomainOrderByCreatedAtDesc(eq(envDomain), any()))
+            given(diagnosticRepository.findByCompanyAndFilters(eq(testCompany), eq(true), eq(envDomain), eq(false), any(), any(), any(), any(), any()))
                     .willReturn(diagnosticPage);
 
             // when
-            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, "ENV", null, null, null, 0, 10);
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, "ENV", null, null, null, null, 0, 10);
 
             // then
             assertThat(response).isNotNull();
@@ -629,7 +630,6 @@ class DiagnosticServiceTest {
             assertThat(response.getContent().get(0).getDomain()).isNotNull();
             assertThat(response.getContent().get(0).getDomain().getCode()).isEqualTo("ENV");
             assertThat(response.getContent().get(0).getDomain().getName()).isEqualTo("환경");
-            verify(diagnosticRepository).findByDomainOrderByCreatedAtDesc(eq(envDomain), any());
         }
 
         @Test
@@ -676,6 +676,77 @@ class DiagnosticServiceTest {
         }
 
         @Test
+        @DisplayName("keyword 필터로 기안 목록 검색 성공 (레거시)")
+        void getDiagnosticList_WithKeywordFilter_Legacy_Success() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            lenient().when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnostic.getTitle()).thenReturn("2026년 ESG 자가진단");
+            lenient().when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            lenient().when(diagnostic.getCompany()).thenReturn(testCompany);
+            lenient().when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            lenient().when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            lenient().when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            lenient().when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            lenient().when(diagnostic.getQualitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getQuantitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getOverallProgress()).thenReturn(0);
+            lenient().when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findByCompanyAndFilters(
+                    eq(testCompany), eq(false), any(), eq(false), any(),
+                    eq("ESG"), any(), any(), any()))
+                    .willReturn(diagnosticPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, "ESG", null, null, 0, 10);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getContent()).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("status 필터로 기안 목록 조회 성공 (레거시)")
+        void getDiagnosticList_WithStatusFilter_Legacy_Success() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            lenient().when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnostic.getTitle()).thenReturn("2026년 ESG 자가진단");
+            lenient().when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            lenient().when(diagnostic.getCompany()).thenReturn(testCompany);
+            lenient().when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            lenient().when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            lenient().when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            lenient().when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            lenient().when(diagnostic.getQualitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getQuantitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getOverallProgress()).thenReturn(0);
+            lenient().when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findByCompanyAndFilters(
+                    eq(testCompany), eq(false), any(), eq(true), any(),
+                    any(), any(), any(), any()))
+                    .willReturn(diagnosticPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, "WRITING", null, null, null, 0, 10);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getContent()).hasSize(1);
+            assertThat(response.getContent().get(0).getStatus()).isEqualTo("WRITING");
+        }
+
+        @Test
         @DisplayName("존재하지 않는 domainCode 필터 시 DOMAIN_NOT_FOUND")
         void getDiagnosticList_InvalidDomainCode_ThrowsException() {
             // given
@@ -683,7 +754,7 @@ class DiagnosticServiceTest {
             given(domainRepository.findByCode("INVALID")).willReturn(Optional.empty());
 
             // when & then
-            assertThatThrownBy(() -> diagnosticService.getDiagnosticList(1L, "INVALID", null, null, null, 0, 10))
+            assertThatThrownBy(() -> diagnosticService.getDiagnosticList(1L, "INVALID", null, null, null, null, 0, 10))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;

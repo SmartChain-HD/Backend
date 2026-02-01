@@ -76,50 +76,68 @@ public interface DiagnosticRepository extends JpaRepository<Diagnostic, Long> {
             @Param("domains") List<Domain> domains,
             Pageable pageable);
 
-    // 도메인 기반 복합 조회 (여러 역할의 도메인을 한번에 처리)
+    // 도메인 기반 복합 조회 (여러 역할의 도메인을 한번에 처리) — 레거시 호환용
     @Query("SELECT DISTINCT d FROM Diagnostic d WHERE " +
-           "(d.domain IN :reviewerDomains) OR " +
-           "(d.domain IN :approverDomains AND d.company = :company) OR " +
-           "(d.domain IN :drafterDomains AND d.drafterId = :drafterId) " +
+           "(:hasReviewer = true AND d.domain IN :reviewerDomains) OR " +
+           "(:hasApprover = true AND d.domain IN :approverDomains AND d.company = :company) OR " +
+           "(:hasDrafter = true AND d.domain IN :drafterDomains AND d.drafterId = :drafterId) " +
            "ORDER BY d.createdAt DESC")
     Page<Diagnostic> findByUserDomainRoles(
             @Param("reviewerDomains") List<Domain> reviewerDomains,
             @Param("approverDomains") List<Domain> approverDomains,
             @Param("drafterDomains") List<Domain> drafterDomains,
+            @Param("hasReviewer") boolean hasReviewer,
+            @Param("hasApprover") boolean hasApprover,
+            @Param("hasDrafter") boolean hasDrafter,
             @Param("company") Company company,
             @Param("drafterId") Long drafterId,
             Pageable pageable);
 
-    // 상태 필터 포함 도메인 기반 복합 조회
-    @Query("SELECT DISTINCT d FROM Diagnostic d WHERE " +
-           "d.status IN :statuses AND (" +
-           "(d.domain IN :reviewerDomains) OR " +
-           "(d.domain IN :approverDomains AND d.company = :company) OR " +
-           "(d.domain IN :drafterDomains AND d.drafterId = :drafterId)) " +
+    // 통합 필터링 쿼리 (status + keyword + domain 권한 + deadline)
+    @Query("SELECT DISTINCT d FROM Diagnostic d LEFT JOIN d.company c WHERE " +
+           "(" +
+           "  (:hasReviewer = true AND d.domain IN :reviewerDomains) OR " +
+           "  (:hasApprover = true AND d.domain IN :approverDomains AND d.company = :company) OR " +
+           "  (:hasDrafter = true AND d.domain IN :drafterDomains AND d.drafterId = :drafterId)" +
+           ") " +
+           "AND (:hasStatuses = false OR d.status IN :statuses) " +
+           "AND (:keyword IS NULL OR d.title LIKE %:keyword% OR d.diagnosticCode LIKE %:keyword% OR c.name LIKE %:keyword%) " +
+           "AND (:deadlineFrom IS NULL OR d.deadline >= :deadlineFrom) " +
+           "AND (:deadlineTo IS NULL OR d.deadline <= :deadlineTo) " +
            "ORDER BY d.createdAt DESC")
-    Page<Diagnostic> findByUserDomainRolesAndStatusIn(
+    Page<Diagnostic> findByFilters(
             @Param("reviewerDomains") List<Domain> reviewerDomains,
             @Param("approverDomains") List<Domain> approverDomains,
             @Param("drafterDomains") List<Domain> drafterDomains,
+            @Param("hasReviewer") boolean hasReviewer,
+            @Param("hasApprover") boolean hasApprover,
+            @Param("hasDrafter") boolean hasDrafter,
             @Param("company") Company company,
             @Param("drafterId") Long drafterId,
+            @Param("hasStatuses") boolean hasStatuses,
             @Param("statuses") List<DiagnosticStatus> statuses,
+            @Param("keyword") String keyword,
+            @Param("deadlineFrom") LocalDate deadlineFrom,
+            @Param("deadlineTo") LocalDate deadlineTo,
             Pageable pageable);
 
-    // 기한 필터 포함 도메인 기반 복합 조회
-    @Query("SELECT DISTINCT d FROM Diagnostic d WHERE " +
-           "d.deadline BETWEEN :fromDate AND :toDate AND (" +
-           "(d.domain IN :reviewerDomains) OR " +
-           "(d.domain IN :approverDomains AND d.company = :company) OR " +
-           "(d.domain IN :drafterDomains AND d.drafterId = :drafterId)) " +
+    // 레거시 통합 필터링 (도메인 역할 없는 사용자용)
+    @Query("SELECT d FROM Diagnostic d LEFT JOIN d.company c WHERE " +
+           "d.company = :company " +
+           "AND (:hasDomain = false OR d.domain = :domain) " +
+           "AND (:hasStatuses = false OR d.status IN :statuses) " +
+           "AND (:keyword IS NULL OR d.title LIKE %:keyword% OR d.diagnosticCode LIKE %:keyword% OR c.name LIKE %:keyword%) " +
+           "AND (:deadlineFrom IS NULL OR d.deadline >= :deadlineFrom) " +
+           "AND (:deadlineTo IS NULL OR d.deadline <= :deadlineTo) " +
            "ORDER BY d.createdAt DESC")
-    Page<Diagnostic> findByUserDomainRolesAndDeadlineBetween(
-            @Param("reviewerDomains") List<Domain> reviewerDomains,
-            @Param("approverDomains") List<Domain> approverDomains,
-            @Param("drafterDomains") List<Domain> drafterDomains,
+    Page<Diagnostic> findByCompanyAndFilters(
             @Param("company") Company company,
-            @Param("drafterId") Long drafterId,
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate,
+            @Param("hasDomain") boolean hasDomain,
+            @Param("domain") Domain domain,
+            @Param("hasStatuses") boolean hasStatuses,
+            @Param("statuses") List<DiagnosticStatus> statuses,
+            @Param("keyword") String keyword,
+            @Param("deadlineFrom") LocalDate deadlineFrom,
+            @Param("deadlineTo") LocalDate deadlineTo,
             Pageable pageable);
 }
