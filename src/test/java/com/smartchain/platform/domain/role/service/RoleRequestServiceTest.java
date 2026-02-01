@@ -258,6 +258,65 @@ class RoleRequestServiceTest {
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.COMPANY_NOT_FOUND);
                     });
         }
+        @Test
+        @DisplayName("SAFETY 도메인에서 APPROVER 요청 시 실패")
+        void createRoleRequest_ApproverNonEsg_ThrowsException() {
+            // given
+            Domain safetyDomain = mock(Domain.class);
+            lenient().when(safetyDomain.getDomainId()).thenReturn(2L);
+            when(safetyDomain.getCode()).thenReturn("SAFETY");
+
+            RoleRequestCreateDto createDto = RoleRequestCreateDto.builder()
+                    .requestedRole("APPROVER")
+                    .domainId(2L)
+                    .companyId(10L)
+                    .reason("안전보건 결재자 요청")
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+            given(domainRepository.findById(2L)).willReturn(Optional.of(safetyDomain));
+
+            // when & then
+            assertThatThrownBy(() -> roleRequestService.createRoleRequest(1L, createDto))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.APPROVER_ONLY_ESG);
+                    });
+        }
+
+        @Test
+        @DisplayName("ESG 도메인에서 APPROVER 요청 시 정상 처리")
+        void createRoleRequest_ApproverEsg_Success() {
+            // given
+            RoleRequestCreateDto createDto = RoleRequestCreateDto.builder()
+                    .requestedRole("APPROVER")
+                    .domainId(1L)
+                    .companyId(10L)
+                    .reason("ESG 결재자 요청")
+                    .build();
+
+            RoleRequest savedRequest = mock(RoleRequest.class);
+            when(savedRequest.getRequestId()).thenReturn(1L);
+            when(savedRequest.getStatus()).thenReturn(RequestStatus.PENDING);
+            when(savedRequest.getRequestedRole()).thenReturn("APPROVER");
+            when(savedRequest.getCreatedAt()).thenReturn(null);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+            given(domainRepository.findById(1L)).willReturn(Optional.of(testDomain));
+            given(userDomainRoleRepository.existsByUserUserIdAndDomainDomainId(1L, 1L)).willReturn(false);
+            given(roleRequestRepository.existsByUserAndDomainAndStatus(testUser, testDomain, RequestStatus.PENDING)).willReturn(false);
+            given(companyRepository.findById(10L)).willReturn(Optional.of(testCompany));
+            given(roleRequestRepository.save(any(RoleRequest.class))).willReturn(savedRequest);
+
+            // when
+            RoleRequestResponse response = roleRequestService.createRoleRequest(1L, createDto);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getRequestedRole()).isEqualTo("APPROVER");
+            verify(roleRequestRepository).save(any(RoleRequest.class));
+        }
     }
 
     @Nested
