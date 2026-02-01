@@ -1,5 +1,44 @@
 # Claude Code Learnings
 
+## 2026-02-01: 업로드 처리 파이프라인 단계 정보 누락 (#88)
+
+### 원인
+- AsyncJob 엔티티에 현재 처리 단계(phase) 필드가 없어 파이프라인 진행 상황 추적 불가
+- JobStatusResponse에 단계 정보 미포함으로 FE에서 OCR→검증→메트릭 단계 표시 불가
+- 기존 progress/message 필드만으로는 현재 단계와 전체 단계 수 파악 어려움
+
+### 해결
+- `PipelinePhase` enum 추가: QUEUED, OCR, VALIDATION, METRICS, COMPLETED
+- `AsyncJob.currentPhase` 필드 추가 및 상태 전환 메서드 구현
+- `JobStatusResponse.PipelineInfo` 추가: currentPhase, phaseDescription, phaseOrder, totalPhases
+- `advancePhase()`, `advanceToNextPhase()` 메서드로 단계 전환 관리
+
+### 재발 방지
+- 새 파이프라인 단계 추가 시 PipelinePhase enum과 순서(order) 동시 업데이트
+- AI 콜백에서 advancePhase() 호출하여 실제 진행 상태 반영
+- 단계별 진행률은 totalPhases 기준으로 자동 계산
+
+### 검증 방법
+```bash
+./gradlew test --tests "PipelinePhaseTest"
+./gradlew test --tests "JobServiceTest"
+```
+
+### 관련 커밋
+- 61e118e
+
+### 생성/수정 파일
+```
+src/main/java/.../global/enums/PipelinePhase.java (신규)
+src/main/java/.../domain/job/entity/AsyncJob.java (currentPhase 필드, 메서드 추가)
+src/main/java/.../domain/job/service/JobService.java (PipelineInfo 빌드 로직)
+src/main/java/.../dto/job/JobStatusResponse.java (PipelineInfo 내부 클래스 추가)
+src/test/java/.../global/enums/PipelinePhaseTest.java (신규)
+src/test/java/.../domain/job/service/JobServiceTest.java (파이프라인 테스트 2건 추가)
+```
+
+---
+
 ## 2026-02-01: 로그인 실패 사유별 에러코드 미분기 (#85)
 
 ### 원인
