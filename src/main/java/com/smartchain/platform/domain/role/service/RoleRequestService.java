@@ -1,5 +1,6 @@
 package com.smartchain.platform.domain.role.service;
 
+import com.smartchain.platform.domain.notification.service.NotificationService;
 import com.smartchain.platform.domain.role.repository.RoleRequestRepository;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
@@ -12,6 +13,7 @@ import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
 import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
+import com.smartchain.platform.global.enums.NotificationType;
 import com.smartchain.platform.dto.role.approval.RoleApprovalDetailResponse;
 import com.smartchain.platform.dto.role.approval.RoleApprovalItemDto;
 import com.smartchain.platform.dto.role.approval.RoleApprovalListResponse;
@@ -59,6 +61,7 @@ public class RoleRequestService {
     private final RoleRepository roleRepository;
     private final DomainRepository domainRepository;
     private final UserDomainRoleRepository userDomainRoleRepository;
+    private final NotificationService notificationService;
 
     private static final List<String> REQUESTABLE_ROLES = Arrays.asList("DRAFTER", "APPROVER", "REVIEWER");
 
@@ -174,6 +177,9 @@ public class RoleRequestService {
 
         log.info("Role request created: userId={}, requestedRole={}, domainId={}, companyId={}",
                 userId, request.getRequestedRole(), request.getDomainId(), request.getCompanyId());
+
+        // REVIEWER들에게 권한 요청 알림 생성
+        notifyReviewersOfNewRoleRequest(user, savedRequest);
 
         return RoleRequestResponse.builder()
                 .accessRequestId(savedRequest.getRequestId())
@@ -485,11 +491,17 @@ public class RoleRequestService {
 
             message = "권한 요청이 승인되었습니다";
             log.info("Role request approved: requestId={}, approvedBy={}", accessRequestId, userId);
+
+            // 요청자에게 승인 알림 생성
+            notifyRequesterOfApproval(roleRequest);
         } else if ("REJECTED".equals(decision)) {
             roleRequest.reject(currentUser, request.getRejectReason());
             message = "권한 요청이 반려되었습니다";
             log.info("Role request rejected: requestId={}, rejectedBy={}, reason={}",
                     accessRequestId, userId, request.getRejectReason());
+
+            // 요청자에게 반려 알림 생성
+            notifyRequesterOfRejection(roleRequest);
         } else {
             throw new CustomException(ErrorCode.INVALID_DECISION);
         }
@@ -506,5 +518,68 @@ public class RoleRequestService {
                 .processedBy(processedByDto)
                 .message(message)
                 .build();
+    }
+
+    // ========== 알림 생성 헬퍼 메서드 ==========
+
+    private void notifyReviewersOfNewRoleRequest(User requester, RoleRequest roleRequest) {
+        List<User> reviewers = userRepository.findAllByRoleCode("REVIEWER");
+
+        String domainName = roleRequest.getDomain() != null ? roleRequest.getDomain().getName() : "";
+        String roleName = ROLE_NAME_MAP.getOrDefault(roleRequest.getRequestedRole(), roleRequest.getRequestedRole());
+        String title = "새로운 권한 요청";
+        String message = String.format("%s님이 %s 도메인의 %s 권한을 요청했습니다.",
+                requester.getName(), domainName, roleName);
+        String linkUrl = "/management/role-requests/" + roleRequest.getRequestId();
+
+        for (User reviewer : reviewers) {
+            notificationService.createNotification(
+                    reviewer,
+                    NotificationType.ROLE_REQUEST_CREATED,
+                    title,
+                    message,
+                    linkUrl
+            );
+        }
+
+        log.info("Role request notification sent to {} reviewers: requestId={}",
+                reviewers.size(), roleRequest.getRequestId());
+    }
+
+    private void notifyRequesterOfApproval(RoleRequest roleRequest) {
+        User requester = roleRequest.getUser();
+        String domainName = roleRequest.getDomain() != null ? roleRequest.getDomain().getName() : "";
+        String roleName = ROLE_NAME_MAP.getOrDefault(roleRequest.getRequestedRole(), roleRequest.getRequestedRole());
+
+        String title = "권한 요청이 승인되었습니다";
+        String message = String.format("%s 도메인의 %s 권한이 승인되었습니다.", domainName, roleName);
+
+        notificationService.createNotification(
+                requester,
+                NotificationType.ROLE_APPROVED,
+                title,
+                message,
+                null
+        );
+    }
+
+    private void notifyRequesterOfRejection(RoleRequest roleRequest) {
+        User requester = roleRequest.getUser();
+        String domainName = roleRequest.getDomain() != null ? roleRequest.getDomain().getName() : "";
+        String roleName = ROLE_NAME_MAP.getOrDefault(roleRequest.getRequestedRole(), roleRequest.getRequestedRole());
+
+        String title = "권한 요청이 반려되었습니다";
+        String message = String.format("%s 도메인의 %s 권한 요청이 반려되었습니다.", domainName, roleName);
+        if (roleRequest.getRejectReason() != null && !roleRequest.getRejectReason().isEmpty()) {
+            message += " 사유: " + roleRequest.getRejectReason();
+        }
+
+        notificationService.createNotification(
+                requester,
+                NotificationType.ROLE_REQUEST_REJECTED,
+                title,
+                message,
+                null
+        );
     }
 }
