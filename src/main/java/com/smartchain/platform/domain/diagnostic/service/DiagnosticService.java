@@ -5,6 +5,8 @@ import com.smartchain.platform.domain.approval.repository.ApprovalRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Campaign;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.entity.DiagnosticHistory;
+import com.smartchain.platform.domain.review.entity.Review;
+import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.diagnostic.repository.CampaignRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
@@ -42,6 +44,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -60,6 +63,7 @@ public class DiagnosticService {
     private final CampaignRepository campaignRepository;
     private final UserRepository userRepository;
     private final ApprovalRepository approvalRepository;
+    private final ReviewRepository reviewRepository;
     private final DomainRepository domainRepository;
 
     private static final List<String> ALLOWED_ROLES = Arrays.asList("DRAFTER", "APPROVER");
@@ -385,26 +389,64 @@ public class DiagnosticService {
                 .build();
         diagnosticHistoryRepository.save(history);
 
-        // Approval 레코드 자동 생성
-        Approval approval = Approval.builder()
-                .diagnostic(diagnostic)
-                .requester(currentUser)
-                .requestComment(request.getSubmitComment())
-                .deadline(diagnostic.getDeadline())
-                .build();
-        Approval savedApproval = approvalRepository.save(approval);
+        // 도메인별 워크플로우 분기
+        String domainCode = domain != null ? domain.getCode() : "ESG";
 
-        log.info("Diagnostic submitted: diagnosticId={}, submittedBy={}, approvalId={}",
-                diagnosticId, userId, savedApproval.getApprovalId());
+        if ("ESG".equals(domainCode)) {
+            // ESG: 결재자에게 결재 요청 (기안자 → 결재자 → 수신자)
+            Approval approval = Approval.builder()
+                    .diagnostic(diagnostic)
+                    .requester(currentUser)
+                    .requestComment(request.getSubmitComment())
+                    .deadline(diagnostic.getDeadline())
+                    .build();
+            Approval savedApproval = approvalRepository.save(approval);
 
-        return DiagnosticSubmitResponse.builder()
-                .diagnosticId(diagnostic.getDiagnosticId())
-                .previousStatus(previousStatus)
-                .newStatus(DiagnosticStatus.SUBMITTED.name())
-                .submittedAt(diagnostic.getSubmittedAt())
-                .approvalId(savedApproval.getApprovalId())
-                .message("기안이 제출되었습니다")
-                .build();
+            log.info("Diagnostic submitted (ESG → Approval): diagnosticId={}, submittedBy={}, approvalId={}",
+                    diagnosticId, userId, savedApproval.getApprovalId());
+
+            return DiagnosticSubmitResponse.builder()
+                    .diagnosticId(diagnostic.getDiagnosticId())
+                    .previousStatus(previousStatus)
+                    .newStatus(DiagnosticStatus.SUBMITTED.name())
+                    .submittedAt(diagnostic.getSubmittedAt())
+                    .approvalId(savedApproval.getApprovalId())
+                    .message("기안이 제출되었습니다")
+                    .build();
+        } else {
+            // SAFETY, COMPLIANCE: 결재 스킵, 수신자에게 직행 (기안자 → 수신자)
+            diagnostic.approve();
+
+            DiagnosticHistory approveHistory = DiagnosticHistory.builder()
+                    .diagnostic(diagnostic)
+                    .actor(currentUser)
+                    .action("AUTO_APPROVED")
+                    .previousStatus(DiagnosticStatus.SUBMITTED.name())
+                    .newStatus(DiagnosticStatus.APPROVED.name())
+                    .comment("결재 스킵 (도메인 정책: " + domainCode + ")")
+                    .build();
+            diagnosticHistoryRepository.save(approveHistory);
+
+            Review review = Review.builder()
+                    .diagnostic(diagnostic)
+                    .company(diagnostic.getCompany())
+                    .domain(domain)
+                    .submittedAt(diagnostic.getSubmittedAt())
+                    .build();
+            Review savedReview = reviewRepository.save(review);
+
+            log.info("Diagnostic submitted ({} → Review, approval skipped): diagnosticId={}, submittedBy={}, reviewId={}",
+                    domainCode, diagnosticId, userId, savedReview.getReviewId());
+
+            return DiagnosticSubmitResponse.builder()
+                    .diagnosticId(diagnostic.getDiagnosticId())
+                    .previousStatus(previousStatus)
+                    .newStatus(DiagnosticStatus.APPROVED.name())
+                    .submittedAt(diagnostic.getSubmittedAt())
+                    .reviewId(savedReview.getReviewId())
+                    .message("기안이 제출되었습니다 (심사 대기)")
+                    .build();
+        }
     }
 
     public AiAnalysisResponse getAiAnalysis(Long userId, Long diagnosticId) {

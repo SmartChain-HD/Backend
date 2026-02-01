@@ -1,5 +1,40 @@
 # Claude Code Learnings
 
+## 2026-02-01: 도메인별 워크플로우 분기 구현 (#78)
+
+### 원인
+- submitDiagnostic()에서 모든 도메인(ESG, SAFETY, COMPLIANCE)에 대해 동일하게 Approval 레코드 생성
+- 기획상 SAFETY/COMPLIANCE는 결재 단계 없이 수신자(REVIEWER)에게 직행해야 함
+- SAFETY/COMPLIANCE 진단 제출 시 결재 단계에 막혀 심사로 진행 불가
+
+### 해결
+- submitDiagnostic()에 도메인별 분기 추가: ESG → Approval 생성, SAFETY/COMPLIANCE → approve() + Review 생성
+- SAFETY/COMPLIANCE는 자동 승인(AUTO_APPROVED) 히스토리 기록 후 Review 레코드 생성
+- DiagnosticSubmitResponse에 reviewId 필드 추가 (SAFETY/COMPLIANCE 응답용)
+- 도메인이 null인 레거시 데이터는 ESG로 기본 처리
+
+### 재발 방지
+- 도메인별 워크플로우 차이: ESG=3단계(기안→결재→심사), SAFETY/COMPLIANCE=2단계(기안→심사)
+- 새 도메인 추가 시 submitDiagnostic()의 분기 로직 확인 필수
+
+### 검증 방법
+```bash
+./gradlew test --tests "DiagnosticServiceTest"
+```
+
+### 관련 커밋
+- (이 PR에 포함)
+
+### 생성/수정 파일
+```
+src/main/java/.../diagnostic/service/DiagnosticService.java (도메인별 분기, ReviewRepository 주입)
+src/main/java/.../dto/diagnostic/submit/DiagnosticSubmitResponse.java (reviewId 필드 추가)
+src/test/java/.../diagnostic/service/DiagnosticServiceTest.java (SAFETY/COMPLIANCE/ESG 제출 테스트 3건 추가)
+docs/claude/LEARNINGS.md (엔트리 추가)
+```
+
+---
+
 ## 2026-02-01: 도메인 상세 조회 API 권한 검증 테스트 보강 (#87)
 
 ### 원인

@@ -8,6 +8,8 @@ import com.smartchain.platform.domain.diagnostic.entity.DiagnosticHistory;
 import com.smartchain.platform.domain.diagnostic.repository.CampaignRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
+import com.smartchain.platform.domain.review.entity.Review;
+import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Role;
@@ -71,6 +73,9 @@ class DiagnosticServiceTest {
 
     @Mock
     private ApprovalRepository approvalRepository;
+
+    @Mock
+    private ReviewRepository reviewRepository;
 
     @Mock
     private DomainRepository domainRepository;
@@ -612,6 +617,140 @@ class DiagnosticServiceTest {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_INVALID_STATE_TRANSITION);
                     });
+        }
+
+        @Test
+        @DisplayName("SAFETY 도메인 제출 시 결재 스킵 → Review 생성")
+        void submitDiagnostic_Safety_SkipsApproval_CreatesReview() {
+            // given
+            Domain safetyDomain = mock(Domain.class);
+            when(safetyDomain.getCode()).thenReturn("SAFETY");
+
+            DiagnosticSubmitRequest request = DiagnosticSubmitRequest.builder()
+                    .submitComment("안전보건 제출합니다.")
+                    .build();
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.canSubmit()).thenReturn(true);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            when(diagnostic.getSubmittedAt()).thenReturn(LocalDateTime.now());
+            when(diagnostic.getDomain()).thenReturn(safetyDomain);
+            when(diagnostic.getCompany()).thenReturn(testCompany);
+
+            when(drafterUser.hasRoleInDomain("SAFETY", "DRAFTER")).thenReturn(true);
+
+            Review savedReview = mock(Review.class);
+            when(savedReview.getReviewId()).thenReturn(200L);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+            given(diagnosticHistoryRepository.save(any(DiagnosticHistory.class))).willReturn(null);
+            given(reviewRepository.save(any(Review.class))).willReturn(savedReview);
+
+            // when
+            DiagnosticSubmitResponse response = diagnosticService.submitDiagnostic(1L, 1L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getNewStatus()).isEqualTo("APPROVED");
+            assertThat(response.getReviewId()).isEqualTo(200L);
+            assertThat(response.getApprovalId()).isNull();
+
+            verify(diagnostic).submit();
+            verify(diagnostic).approve();
+            verify(reviewRepository).save(any(Review.class));
+            verify(approvalRepository, never()).save(any(Approval.class));
+            // 히스토리 2건: SUBMITTED + AUTO_APPROVED
+            verify(diagnosticHistoryRepository, times(2)).save(any(DiagnosticHistory.class));
+        }
+
+        @Test
+        @DisplayName("COMPLIANCE 도메인 제출 시 결재 스킵 → Review 생성")
+        void submitDiagnostic_Compliance_SkipsApproval_CreatesReview() {
+            // given
+            Domain complianceDomain = mock(Domain.class);
+            when(complianceDomain.getCode()).thenReturn("COMPLIANCE");
+
+            DiagnosticSubmitRequest request = DiagnosticSubmitRequest.builder()
+                    .submitComment("컴플라이언스 제출합니다.")
+                    .build();
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.canSubmit()).thenReturn(true);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            when(diagnostic.getSubmittedAt()).thenReturn(LocalDateTime.now());
+            when(diagnostic.getDomain()).thenReturn(complianceDomain);
+            when(diagnostic.getCompany()).thenReturn(testCompany);
+
+            when(drafterUser.hasRoleInDomain("COMPLIANCE", "DRAFTER")).thenReturn(true);
+
+            Review savedReview = mock(Review.class);
+            when(savedReview.getReviewId()).thenReturn(300L);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+            given(diagnosticHistoryRepository.save(any(DiagnosticHistory.class))).willReturn(null);
+            given(reviewRepository.save(any(Review.class))).willReturn(savedReview);
+
+            // when
+            DiagnosticSubmitResponse response = diagnosticService.submitDiagnostic(1L, 1L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getNewStatus()).isEqualTo("APPROVED");
+            assertThat(response.getReviewId()).isEqualTo(300L);
+            assertThat(response.getApprovalId()).isNull();
+
+            verify(diagnostic).approve();
+            verify(reviewRepository).save(any(Review.class));
+            verify(approvalRepository, never()).save(any(Approval.class));
+        }
+
+        @Test
+        @DisplayName("ESG 도메인 제출 시 Approval 생성 (기존 동작 유지)")
+        void submitDiagnostic_Esg_CreatesApproval() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            when(esgDomain.getCode()).thenReturn("ESG");
+
+            DiagnosticSubmitRequest request = DiagnosticSubmitRequest.builder()
+                    .submitComment("ESG 제출합니다.")
+                    .build();
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.canSubmit()).thenReturn(true);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            when(diagnostic.getSubmittedAt()).thenReturn(LocalDateTime.now());
+            when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            when(diagnostic.getDomain()).thenReturn(esgDomain);
+
+            when(drafterUser.hasRoleInDomain("ESG", "DRAFTER")).thenReturn(true);
+
+            Approval savedApproval = mock(Approval.class);
+            when(savedApproval.getApprovalId()).thenReturn(100L);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+            given(diagnosticHistoryRepository.save(any(DiagnosticHistory.class))).willReturn(null);
+            given(approvalRepository.save(any(Approval.class))).willReturn(savedApproval);
+
+            // when
+            DiagnosticSubmitResponse response = diagnosticService.submitDiagnostic(1L, 1L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getNewStatus()).isEqualTo("SUBMITTED");
+            assertThat(response.getApprovalId()).isEqualTo(100L);
+            assertThat(response.getReviewId()).isNull();
+
+            verify(approvalRepository).save(any(Approval.class));
+            verify(reviewRepository, never()).save(any(Review.class));
         }
 
         @Test
