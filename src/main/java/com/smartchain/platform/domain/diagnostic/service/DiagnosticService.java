@@ -163,11 +163,24 @@ public class DiagnosticService {
         }
 
         Pageable pageable = PageRequest.of(page, size);
+        String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
 
-        Page<Diagnostic> diagnosticPage = diagnosticRepository.findByCompanyAndFilters(
-                userCompany, hasDomain, domain,
-                hasStatuses, hasStatuses ? statusList : Collections.singletonList(DiagnosticStatus.WRITING),
-                keyword, deadlineFrom, deadlineTo, pageable);
+        Page<Diagnostic> diagnosticPage;
+        List<DiagnosticStatus> queryStatuses = hasStatuses ? statusList : Collections.singletonList(DiagnosticStatus.WRITING);
+
+        if ("DRAFTER".equals(userRoleCode)) {
+            // DRAFTER는 본인 기안만 조회
+            diagnosticPage = diagnosticRepository.findByDrafterIdAndFilters(
+                    currentUser.getUserId(), hasDomain, domain,
+                    hasStatuses, queryStatuses,
+                    keyword, deadlineFrom, deadlineTo, pageable);
+        } else {
+            // APPROVER는 회사 전체 건 조회
+            diagnosticPage = diagnosticRepository.findByCompanyAndFilters(
+                    userCompany, hasDomain, domain,
+                    hasStatuses, queryStatuses,
+                    keyword, deadlineFrom, deadlineTo, pageable);
+        }
 
         return buildListResponse(diagnosticPage);
     }

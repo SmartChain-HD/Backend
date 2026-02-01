@@ -47,8 +47,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -152,7 +151,7 @@ class DiagnosticServiceTest {
             Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
-            given(diagnosticRepository.findByCompanyAndFilters(eq(testCompany), eq(false), any(), eq(false), any(), any(), any(), any(), any()))
+            given(diagnosticRepository.findByDrafterIdAndFilters(eq(1L), eq(false), any(), eq(false), any(), any(), any(), any(), any()))
                     .willReturn(diagnosticPage);
 
             // when
@@ -621,7 +620,7 @@ class DiagnosticServiceTest {
 
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
             given(domainRepository.findByCode("ENV")).willReturn(Optional.of(envDomain));
-            given(diagnosticRepository.findByCompanyAndFilters(eq(testCompany), eq(true), eq(envDomain), eq(false), any(), any(), any(), any(), any()))
+            given(diagnosticRepository.findByDrafterIdAndFilters(eq(1L), eq(true), eq(envDomain), eq(false), any(), any(), any(), any(), any()))
                     .willReturn(diagnosticPage);
 
             // when
@@ -700,8 +699,8 @@ class DiagnosticServiceTest {
             Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
-            given(diagnosticRepository.findByCompanyAndFilters(
-                    eq(testCompany), eq(false), any(), eq(false), any(),
+            given(diagnosticRepository.findByDrafterIdAndFilters(
+                    eq(1L), eq(false), any(), eq(false), any(),
                     eq("ESG"), any(), any(), any()))
                     .willReturn(diagnosticPage);
 
@@ -735,8 +734,8 @@ class DiagnosticServiceTest {
             Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
-            given(diagnosticRepository.findByCompanyAndFilters(
-                    eq(testCompany), eq(false), any(), eq(true), any(),
+            given(diagnosticRepository.findByDrafterIdAndFilters(
+                    eq(1L), eq(false), any(), eq(true), any(),
                     any(), any(), any(), any()))
                     .willReturn(diagnosticPage);
 
@@ -747,6 +746,156 @@ class DiagnosticServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.getContent()).hasSize(1);
             assertThat(response.getContent().get(0).getStatus()).isEqualTo("WRITING");
+        }
+
+        @Test
+        @DisplayName("도메인 역할 DRAFTER는 본인 기안만 반환")
+        void getDiagnosticList_DomainDrafter_ReturnsOwnOnly() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getDomainId()).thenReturn(1L);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+            lenient().when(esgDomain.getName()).thenReturn("ESG 실사");
+
+            Role dRole = mock(Role.class);
+            lenient().when(dRole.getCode()).thenReturn("DRAFTER");
+            UserDomainRole udr = mock(UserDomainRole.class);
+            lenient().when(udr.getDomain()).thenReturn(esgDomain);
+            lenient().when(udr.getRole()).thenReturn(dRole);
+
+            User domainDrafter = mock(User.class);
+            lenient().when(domainDrafter.getUserId()).thenReturn(50L);
+            lenient().when(domainDrafter.getCompany()).thenReturn(testCompany);
+            lenient().when(domainDrafter.getDomainRoles()).thenReturn(List.of(udr));
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            lenient().when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnostic.getTitle()).thenReturn("테스트");
+            lenient().when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            lenient().when(diagnostic.getCompany()).thenReturn(testCompany);
+            lenient().when(diagnostic.getDomain()).thenReturn(esgDomain);
+            lenient().when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+            lenient().when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            lenient().when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            lenient().when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            lenient().when(diagnostic.getQualitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getQuantitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getOverallProgress()).thenReturn(0);
+            lenient().when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            Page<Diagnostic> page = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(50L)).willReturn(Optional.of(domainDrafter));
+            // findByFilters 호출 시 hasDrafter=true, drafterId=50L 전달 검증
+            given(diagnosticRepository.findByFilters(
+                    any(), any(), any(),
+                    eq(false), eq(false), eq(true),
+                    eq(testCompany), eq(50L),
+                    eq(false), any(), any(), any(), any(), any()))
+                    .willReturn(page);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(50L, null, null, null, null, null, 0, 10);
+
+            // then
+            assertThat(response.getContent()).hasSize(1);
+            // DRAFTER 도메인만 활성화되었는지 검증
+            verify(diagnosticRepository).findByFilters(
+                    any(), any(), any(),
+                    eq(false), eq(false), eq(true),
+                    eq(testCompany), eq(50L),
+                    eq(false), any(), any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("도메인 역할 REVIEWER는 해당 도메인 전체 건 반환")
+        void getDiagnosticList_DomainReviewer_ReturnsAll() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+
+            Role rRole = mock(Role.class);
+            lenient().when(rRole.getCode()).thenReturn("REVIEWER");
+            UserDomainRole udr = mock(UserDomainRole.class);
+            lenient().when(udr.getDomain()).thenReturn(esgDomain);
+            lenient().when(udr.getRole()).thenReturn(rRole);
+
+            User domainReviewer = mock(User.class);
+            lenient().when(domainReviewer.getUserId()).thenReturn(60L);
+            lenient().when(domainReviewer.getCompany()).thenReturn(null);
+            lenient().when(domainReviewer.getDomainRoles()).thenReturn(List.of(udr));
+
+            Page<Diagnostic> emptyPage = new PageImpl<>(Collections.emptyList(), PageRequest.of(0, 10), 0);
+
+            given(userRepository.findById(60L)).willReturn(Optional.of(domainReviewer));
+            given(diagnosticRepository.findByFilters(
+                    any(), any(), any(),
+                    eq(true), eq(false), eq(false),
+                    any(), eq(60L),
+                    eq(false), any(), any(), any(), any(), any()))
+                    .willReturn(emptyPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(60L, null, null, null, null, null, 0, 10);
+
+            // then
+            assertThat(response).isNotNull();
+            verify(diagnosticRepository).findByFilters(
+                    any(), any(), any(),
+                    eq(true), eq(false), eq(false),
+                    any(), eq(60L),
+                    eq(false), any(), any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("권한 없는 도메인 접근 시 빈 목록 반환")
+        void getDiagnosticList_NoDomainAccess_ReturnsEmpty() {
+            // given: ESG DRAFTER만 가진 사용자가 SAFETY 도메인 조회
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+
+            Role dRole = mock(Role.class);
+            lenient().when(dRole.getCode()).thenReturn("DRAFTER");
+            UserDomainRole udr = mock(UserDomainRole.class);
+            lenient().when(udr.getDomain()).thenReturn(esgDomain);
+            lenient().when(udr.getRole()).thenReturn(dRole);
+
+            User user = mock(User.class);
+            lenient().when(user.getUserId()).thenReturn(70L);
+            lenient().when(user.getCompany()).thenReturn(testCompany);
+            lenient().when(user.getDomainRoles()).thenReturn(List.of(udr));
+
+            given(userRepository.findById(70L)).willReturn(Optional.of(user));
+
+            // when — SAFETY 필터지만 ESG DRAFTER만 보유
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(70L, "SAFETY", null, null, null, null, 0, 10);
+
+            // then — 빈 결과, 쿼리 미실행
+            assertThat(response.getContent()).isEmpty();
+            assertThat(response.getPage().getTotalElements()).isEqualTo(0);
+            verifyNoInteractions(diagnosticRepository);
+        }
+
+        @Test
+        @DisplayName("레거시 DRAFTER는 본인 기안만 조회 (회사 전체X)")
+        void getDiagnosticList_LegacyDrafter_ReturnsOwnOnly() {
+            // given
+            Page<Diagnostic> emptyPage = new PageImpl<>(Collections.emptyList(), PageRequest.of(0, 10), 0);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findByDrafterIdAndFilters(
+                    eq(1L), eq(false), any(), eq(false), any(), any(), any(), any(), any()))
+                    .willReturn(emptyPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, null, null, null, 0, 10);
+
+            // then
+            assertThat(response).isNotNull();
+            verify(diagnosticRepository).findByDrafterIdAndFilters(
+                    eq(1L), eq(false), any(), eq(false), any(), any(), any(), any(), any());
+            verify(diagnosticRepository, never()).findByCompanyAndFilters(any(), anyBoolean(), any(), anyBoolean(), any(), any(), any(), any(), any());
         }
 
         @Test
