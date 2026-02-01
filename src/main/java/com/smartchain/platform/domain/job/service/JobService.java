@@ -5,6 +5,7 @@ import com.smartchain.platform.domain.job.repository.AsyncJobRepository;
 import com.smartchain.platform.dto.job.JobRetryResponse;
 import com.smartchain.platform.dto.job.JobStatusResponse;
 import com.smartchain.platform.global.enums.JobStatus;
+import com.smartchain.platform.global.enums.PipelinePhase;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -81,6 +82,17 @@ public class JobService {
                 .message(job.getMessage())
                 .startedAt(job.getStartedAt())
                 .estimatedCompletionAt(job.getEstimatedCompletionAt());
+
+        // 파이프라인 단계 정보 추가
+        PipelinePhase phase = job.getCurrentPhase();
+        if (phase != null) {
+            builder.pipeline(JobStatusResponse.PipelineInfo.builder()
+                    .currentPhase(phase.name())
+                    .phaseDescription(phase.getDescription())
+                    .phaseOrder(phase.getOrder())
+                    .totalPhases(PipelinePhase.values().length - 1)  // QUEUED 제외
+                    .build());
+        }
 
         if (job.getStatus() == JobStatus.SUCCEEDED) {
             builder.completedAt(job.getCompletedAt())

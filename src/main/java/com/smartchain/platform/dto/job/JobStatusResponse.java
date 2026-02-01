@@ -15,11 +15,21 @@ public class JobStatusResponse {
     private String status;
     private int progress;
     private String message;
+    private PipelineInfo pipeline;
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
     private LocalDateTime estimatedCompletionAt;
     private JobResultDto result;
     private JobErrorDto error;
+
+    @Getter
+    @Builder
+    public static class PipelineInfo {
+        private String currentPhase;
+        private String phaseDescription;
+        private int phaseOrder;
+        private int totalPhases;
+    }
 
     @Getter
     @Builder
