@@ -50,6 +50,7 @@ public enum ErrorCode {
     ROLE_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "R002", "권한 요청을 찾을 수 없습니다"),
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "RV001", "심사를 찾을 수 없습니다"),
     JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB001", "작업을 찾을 수 없습니다"),
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "알림을 찾을 수 없습니다"),
 
     // 422 Unprocessable Entity (Business Logic Errors)
     DIAGNOSTIC_CANNOT_SUBMIT(HttpStatus.UNPROCESSABLE_ENTITY, "D003", "제출할 수 없는 상태입니다"),

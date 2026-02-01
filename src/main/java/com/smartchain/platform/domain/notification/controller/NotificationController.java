@@ -4,6 +4,7 @@ import com.smartchain.platform.domain.notification.service.NotificationService;
 import com.smartchain.platform.dto.notification.NotificationListResponse;
 import com.smartchain.platform.dto.notification.NotificationReadRequest;
 import com.smartchain.platform.dto.notification.NotificationReadResponse;
+import com.smartchain.platform.dto.notification.UnreadCountResponse;
 import com.smartchain.platform.global.response.BaseResponse;
 import com.smartchain.platform.global.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,6 +47,32 @@ public class NotificationController {
             @RequestBody NotificationReadRequest readRequest) {
         Long userId = extractUserIdFromRequest(request);
         NotificationReadResponse response = notificationService.markAsRead(userId, readRequest);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    @Operation(summary = "미읽음 알림 개수 조회", description = "사용자의 읽지 않은 알림 개수를 조회합니다.")
+    @GetMapping("/unread-count")
+    public ResponseEntity<BaseResponse<UnreadCountResponse>> getUnreadCount(HttpServletRequest request) {
+        Long userId = extractUserIdFromRequest(request);
+        UnreadCountResponse response = notificationService.getUnreadCount(userId);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    @Operation(summary = "개별 알림 읽음 처리", description = "특정 알림을 읽음 상태로 변경합니다.")
+    @PatchMapping("/{notificationId}/read")
+    public ResponseEntity<BaseResponse<NotificationReadResponse>> markSingleAsRead(
+            HttpServletRequest request,
+            @Parameter(description = "알림 ID") @PathVariable Long notificationId) {
+        Long userId = extractUserIdFromRequest(request);
+        NotificationReadResponse response = notificationService.markSingleAsRead(userId, notificationId);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    @Operation(summary = "전체 알림 읽음 처리", description = "사용자의 모든 알림을 읽음 상태로 변경합니다.")
+    @PatchMapping("/read-all")
+    public ResponseEntity<BaseResponse<NotificationReadResponse>> markAllAsRead(HttpServletRequest request) {
+        Long userId = extractUserIdFromRequest(request);
+        NotificationReadResponse response = notificationService.markAllAsReadForUser(userId);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 

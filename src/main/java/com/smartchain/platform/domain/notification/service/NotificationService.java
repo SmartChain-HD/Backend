@@ -7,6 +7,9 @@ import com.smartchain.platform.dto.notification.NotificationItemDto;
 import com.smartchain.platform.dto.notification.NotificationListResponse;
 import com.smartchain.platform.dto.notification.NotificationReadRequest;
 import com.smartchain.platform.dto.notification.NotificationReadResponse;
+import com.smartchain.platform.dto.notification.UnreadCountResponse;
+import com.smartchain.platform.global.error.CustomException;
+import com.smartchain.platform.global.error.ErrorCode;
 import com.smartchain.platform.dto.review.common.PageDto;
 import com.smartchain.platform.global.enums.NotificationType;
 import lombok.RequiredArgsConstructor;
@@ -92,6 +95,49 @@ public class NotificationService {
         Notification saved = notificationRepository.save(notification);
         log.info("Notification created: userId={}, type={}, title={}", user.getUserId(), type, title);
         return saved;
+    }
+
+    public UnreadCountResponse getUnreadCount(Long userId) {
+        int unreadCount = notificationRepository.countByUserUserIdAndIsRead(userId, false);
+        return UnreadCountResponse.builder()
+                .unreadCount(unreadCount)
+                .build();
+    }
+
+    @Transactional
+    public NotificationReadResponse markSingleAsRead(Long userId, Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.NOTIFICATION_NOT_FOUND));
+
+        if (!notification.getUser().getUserId().equals(userId)) {
+            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+        }
+
+        int markedCount = 0;
+        if (!notification.isRead()) {
+            notification.markAsRead();
+            notificationRepository.save(notification);
+            markedCount = 1;
+            log.info("Notification marked as read: userId={}, notificationId={}", userId, notificationId);
+        }
+
+        int remainingUnread = notificationRepository.countByUserUserIdAndIsRead(userId, false);
+
+        return NotificationReadResponse.builder()
+                .markedCount(markedCount)
+                .remainingUnread(remainingUnread)
+                .build();
+    }
+
+    @Transactional
+    public NotificationReadResponse markAllAsReadForUser(Long userId) {
+        int markedCount = notificationRepository.markAllAsReadByUserId(userId);
+        log.info("All notifications marked as read: userId={}, count={}", userId, markedCount);
+
+        return NotificationReadResponse.builder()
+                .markedCount(markedCount)
+                .remainingUnread(0)
+                .build();
     }
 
     private NotificationItemDto mapToItemDto(Notification notification) {
