@@ -1,5 +1,38 @@
 # Claude Code Learnings
 
+## 2026-02-01: 기안 생성 화면 뒤로가기 시 403 발생 (#91)
+
+### 원인
+- submitDiagnostic()에서 권한 검증이 소유자/상태 검증보다 먼저 실행
+- 이미 제출된 기안 재요청 시 409 에러 → FE 뒤로가기 시 불필요한 에러
+- createDiagnostic()에서 회사 미지정 시 403(PERMISSION_DENIED_RESOURCE) → 400이 적절
+
+### 해결
+- submitDiagnostic() 검증 순서 변경: 소유자 → 상태(멱등) → 상태전이 → 권한
+- 이미 SUBMITTED인 기안 재요청 시 멱등 성공 응답 반환 (에러 대신)
+- COMPANY_NOT_ASSIGNED(U011, 400) ErrorCode 추가, createDiagnostic()에 적용
+
+### 재발 방지
+- API 검증 순서: 입력값 → 존재확인 → 소유자 → 상태 → 권한 순서 준수
+- 멱등성 필요한 API는 이미 완료된 상태에 대해 성공 응답 반환
+
+### 검증 방법
+```bash
+./gradlew test --tests "DiagnosticServiceTest"
+```
+
+### 관련 커밋
+- (이 PR에 포함)
+
+### 생성/수정 파일
+```
+src/main/java/.../global/error/ErrorCode.java (COMPANY_NOT_ASSIGNED 추가)
+src/main/java/.../domain/diagnostic/service/DiagnosticService.java (검증 순서 변경, 멱등 처리)
+src/test/java/.../domain/diagnostic/service/DiagnosticServiceTest.java (멱등 테스트 수정)
+```
+
+---
+
 ## 2026-02-01: 권한요청 승인 후에도 게스트 유지 (#83)
 
 ### 원인

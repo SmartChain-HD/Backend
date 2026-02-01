@@ -417,8 +417,8 @@ class DiagnosticServiceTest {
         }
 
         @Test
-        @DisplayName("이미 제출된 기안 재제출 시 실패 (BIZ_002)")
-        void submitDiagnostic_AlreadySubmitted_ThrowsException() {
+        @DisplayName("이미 제출된 기안 재제출 시 멱등 처리 (성공 응답 반환)")
+        void submitDiagnostic_AlreadySubmitted_IdempotentSuccess() {
             // given
             DiagnosticSubmitRequest request = DiagnosticSubmitRequest.builder()
                     .submitComment("제출합니다.")
@@ -427,17 +427,20 @@ class DiagnosticServiceTest {
             Diagnostic diagnostic = mock(Diagnostic.class);
             when(diagnostic.getDrafterId()).thenReturn(1L);
             when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.SUBMITTED);
+            when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            when(diagnostic.getSubmittedAt()).thenReturn(null);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
             given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
 
-            // when & then
-            assertThatThrownBy(() -> diagnosticService.submitDiagnostic(1L, 1L, request))
-                    .isInstanceOf(CustomException.class)
-                    .satisfies(ex -> {
-                        CustomException ce = (CustomException) ex;
-                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_ALREADY_SUBMITTED);
-                    });
+            // when
+            DiagnosticSubmitResponse response = diagnosticService.submitDiagnostic(1L, 1L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getNewStatus()).isEqualTo("SUBMITTED");
+            assertThat(response.getMessage()).isEqualTo("기안이 이미 제출되었습니다");
         }
 
         @Test
@@ -450,7 +453,7 @@ class DiagnosticServiceTest {
 
             Diagnostic diagnostic = mock(Diagnostic.class);
             when(diagnostic.getDrafterId()).thenReturn(1L);
-            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.APPROVED);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.APPROVED); // not SUBMITTED
             when(diagnostic.canSubmit()).thenReturn(false);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
