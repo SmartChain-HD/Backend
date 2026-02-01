@@ -18,6 +18,7 @@ public enum ErrorCode {
     VERIFICATION_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "U008", "인증 코드가 만료되었습니다"),
     INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "U009", "인증 코드가 올바르지 않습니다"),
     VERIFICATION_RATE_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "U010", "잠시 후 다시 시도해주세요"),
+    COMPANY_NOT_ASSIGNED(HttpStatus.BAD_REQUEST, "U011", "소속 회사가 지정되지 않았습니다"),
 
     // 401 Unauthorized
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A001", "유효하지 않은 토큰입니다"),

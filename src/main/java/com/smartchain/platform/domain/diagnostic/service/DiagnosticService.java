@@ -257,7 +257,7 @@ public class DiagnosticService {
 
         Company userCompany = currentUser.getCompany();
         if (userCompany == null) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
+            throw new CustomException(ErrorCode.COMPANY_NOT_ASSIGNED);
         }
 
         Campaign campaign = campaignRepository.findById(request.getCampaignId())
@@ -326,6 +326,28 @@ public class DiagnosticService {
         Diagnostic diagnostic = diagnosticRepository.findById(diagnosticId)
                 .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
 
+        // 본인 기안만 제출 가능 (소유자 검증 우선)
+        if (!diagnostic.getDrafterId().equals(userId)) {
+            throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
+        }
+
+        // 이미 제출된 기안: 멱등 처리 (재요청 시 기존 결과 반환)
+        if (diagnostic.getStatus() == DiagnosticStatus.SUBMITTED) {
+            log.info("Diagnostic already submitted (idempotent): diagnosticId={}, userId={}", diagnosticId, userId);
+            return DiagnosticSubmitResponse.builder()
+                    .diagnosticId(diagnostic.getDiagnosticId())
+                    .previousStatus(DiagnosticStatus.SUBMITTED.name())
+                    .newStatus(DiagnosticStatus.SUBMITTED.name())
+                    .submittedAt(diagnostic.getSubmittedAt())
+                    .message("기안이 이미 제출되었습니다")
+                    .build();
+        }
+
+        // 상태 전이 불가
+        if (!diagnostic.canSubmit()) {
+            throw new CustomException(ErrorCode.DIAGNOSTIC_INVALID_STATE_TRANSITION);
+        }
+
         // 도메인 기반 DRAFTER 권한 검증
         Domain domain = diagnostic.getDomain();
         if (domain != null) {
@@ -335,21 +357,6 @@ public class DiagnosticService {
             if (!"DRAFTER".equals(userRoleCode)) {
                 throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
             }
-        }
-
-        // 본인 기안만 제출 가능
-        if (!diagnostic.getDrafterId().equals(userId)) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
-        }
-
-        // BIZ_002: 이미 제출된 기안
-        if (diagnostic.getStatus() == DiagnosticStatus.SUBMITTED) {
-            throw new CustomException(ErrorCode.DIAGNOSTIC_ALREADY_SUBMITTED);
-        }
-
-        // BIZ_001: 상태 전이 불가
-        if (!diagnostic.canSubmit()) {
-            throw new CustomException(ErrorCode.DIAGNOSTIC_INVALID_STATE_TRANSITION);
         }
 
         String previousStatus = diagnostic.getStatus().name();
