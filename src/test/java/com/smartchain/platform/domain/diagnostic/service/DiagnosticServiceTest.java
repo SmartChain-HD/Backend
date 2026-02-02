@@ -464,7 +464,7 @@ class DiagnosticServiceTest {
 
             given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
             given(campaignRepository.findById(100L)).willReturn(Optional.of(testCampaign));
-            given(diagnosticRepository.findMaxDiagnosticId()).willReturn(0L);
+            given(diagnosticRepository.getNextDiagnosticCodeSequence()).willReturn(1L);
             given(diagnosticRepository.save(any(Diagnostic.class))).willReturn(savedDiagnostic);
             given(diagnosticHistoryRepository.save(any(DiagnosticHistory.class))).willReturn(null);
 
