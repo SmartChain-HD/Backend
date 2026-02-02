@@ -54,6 +54,7 @@ public class AuthService {
     private final EmailVerificationCodeRepository verificationCodeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final EmailService emailService;
 
     private static final String GUEST_ROLE_CODE = "GUEST";
     private static final int VERIFICATION_CODE_LENGTH = 6;
@@ -196,9 +197,8 @@ public class AuthService {
 
         verificationCodeRepository.save(verificationCode);
 
-        // TODO: 실제 이메일 발송 로직 구현 (Spring Mail 또는 외부 서비스 연동)
-        // 개발 환경에서는 로그로 코드 출력
-        log.info("Verification code sent: email={}, code={}", email, code);
+        // 이메일 발송 (프로파일에 따라 실제 발송 또는 로깅)
+        emailService.sendVerificationCode(email, code, VERIFICATION_CODE_EXPIRY_MINUTES);
 
         return SendVerificationResponse.builder()
                 .email(email)
