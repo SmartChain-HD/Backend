@@ -44,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -73,6 +74,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
+
+    @Mock
+    private EmailService emailService;
 
     private Role guestRole;
 
@@ -422,6 +426,7 @@ class AuthServiceTest {
             assertThat(response.getEmail()).isEqualTo("test@test.com");
             assertThat(response.getExpiresInSeconds()).isEqualTo(300);
             verify(verificationCodeRepository).save(any(EmailVerificationCode.class));
+            verify(emailService).sendVerificationCode(eq("test@test.com"), anyString(), eq(5));
         }
 
         @Test

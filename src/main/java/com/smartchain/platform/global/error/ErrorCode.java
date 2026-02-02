@@ -82,6 +82,7 @@ public enum ErrorCode {
     FILE_UPLOAD_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S002", "파일 업로드에 실패했습니다"),
     AI_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S003", "AI 서비스 연동에 실패했습니다"),
     FILE_PARSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SYS_003", "파일 파싱에 실패했습니다"),
+    EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S004", "이메일 발송에 실패했습니다"),
 
     // 503 Service Unavailable - AI Service
     AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI001", "AI 서비스에 연결할 수 없습니다"),

@@ -201,3 +201,14 @@ azure:
 logging:
   level:
     com.smartchain.platform: INFO
+
+# 이메일 설정 (SMTP)
+spring.mail:
+  host: ${MAIL_HOST:smtp.gmail.com}
+  port: ${MAIL_PORT:587}
+  username: ${MAIL_USERNAME}
+  password: ${MAIL_PASSWORD}
+  properties:
+    mail.smtp.auth: true
+    mail.smtp.starttls.enable: true
+    mail.smtp.starttls.required: true
