@@ -635,8 +635,7 @@ public class DiagnosticService {
 
     private String generateDiagnosticCode() {
         int year = Year.now().getValue();
-        Long maxId = diagnosticRepository.findMaxDiagnosticId();
-        long sequence = (maxId != null ? maxId : 0L) + 1;
+        long sequence = diagnosticRepository.getNextDiagnosticCodeSequence();
         return String.format("DG-%d-%05d", year, sequence);
     }
 

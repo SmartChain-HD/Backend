@@ -1,5 +1,42 @@
 # Claude Code Learnings
 
+## 2026-02-02: diagnostic_code 중복 키 제약 조건 위반 (동시 요청 race condition)
+
+### 원인
+- `generateDiagnosticCode()`가 `MAX(diagnosticId)`를 조회하여 시퀀스 번호 생성
+- 동시 요청 시 두 트랜잭션이 같은 max ID를 읽어 동일한 코드 생성
+- `diagnostic_diagnostic_code_key` unique 제약 조건 위반으로 `ConstraintViolationException` 발생
+
+### 해결
+- PostgreSQL 시퀀스 `diagnostic_code_seq` 도입 (`nextval`은 트랜잭션 격리 수준과 무관하게 원자적)
+- `DiagnosticRepository.getNextDiagnosticCodeSequence()` 네이티브 쿼리로 시퀀스 조회
+- `data.sql`에서 시퀀스 생성 및 기존 데이터 기반 시작값 동기화
+- 테스트용 `schema.sql` 추가 (H2 호환)
+
+### 재발방지
+- 유니크 코드 생성 시 애플리케이션 레벨 MAX+1 패턴 대신 DB 시퀀스 사용
+- 네이티브 쿼리 사용 시 테스트 환경(H2)에서도 해당 DB 객체가 존재하는지 확인
+
+### 검증방법
+```bash
+./gradlew test
+```
+
+### 관련커밋
+- fix/109-email-verified-not-updated 브랜치 (diagnostic_code 중복 수정 포함)
+
+### 생성/수정 파일
+```
+src/main/java/.../diagnostic/repository/DiagnosticRepository.java (findMaxDiagnosticId → getNextDiagnosticCodeSequence)
+src/main/java/.../diagnostic/service/DiagnosticService.java (generateDiagnosticCode 시퀀스 기반으로 변경)
+src/main/resources/data.sql (시퀀스 생성 SQL 추가)
+src/test/resources/schema.sql (신규 - H2 테스트용 시퀀스)
+src/test/resources/application-test.yaml (sql.init.mode: always, defer-datasource-initialization: true)
+src/test/java/.../diagnostic/service/DiagnosticServiceTest.java (mock 메서드명 변경)
+```
+
+---
+
 ## 2026-02-02: 이메일 인증 완료 후 User.emailVerified 미업데이트 (#109)
 
 ### 원인

@@ -47,8 +47,8 @@ public interface DiagnosticRepository extends JpaRepository<Diagnostic, Long> {
     @Query("SELECT COUNT(d) FROM Diagnostic d WHERE d.company = :company")
     long countByCompany(@Param("company") Company company);
 
-    @Query("SELECT MAX(d.diagnosticId) FROM Diagnostic d")
-    Long findMaxDiagnosticId();
+    @Query(value = "SELECT nextval('diagnostic_code_seq')", nativeQuery = true)
+    Long getNextDiagnosticCodeSequence();
 
     Page<Diagnostic> findByDomainOrderByCreatedAtDesc(Domain domain, Pageable pageable);
 

@@ -6,7 +6,9 @@ spring:
     driver-class-name: org.h2.Driver
   sql:
     init:
-      mode: never
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations:
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -15,7 +17,7 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
-    defer-datasource-initialization: false
+    defer-datasource-initialization: true
   h2:
     console:
       enabled: false
