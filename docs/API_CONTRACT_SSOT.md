@@ -1,7 +1,7 @@
 # API Contract - Single Source of Truth (SSOT)
 
-> **버전**: 2.3
-> **최종 수정**: 2026-01-30
+> **버전**: 2.4
+> **최종 수정**: 2026-02-02
 > **목적**: 백엔드/프론트엔드 간 API 계약의 단일 진실 공급원
 
 ---
@@ -109,6 +109,7 @@ interface PageDto {
 | `C` | 회사 (Company) |
 | `D` | 진단 (Diagnostic) |
 | `E` | 증빙파일 (Evidence) |
+| `DOM` | 서비스 도메인 (Domain) |
 | `PERM` | 권한 에러 (Permission) |
 | `S` | 서버 에러 (Server) |
 
@@ -138,6 +139,7 @@ interface PageDto {
 | 코드 | 메시지 | 대응 방법 |
 |------|--------|----------|
 | `A004` | 접근 권한이 없습니다 | 권한 안내 |
+| `DOM002` | 해당 도메인에 대한 접근 권한이 없습니다 | 도메인 권한 요청 유도 |
 | `PERM_001` | 해당 리소스에 대한 접근 권한이 없습니다 | 권한 요청 유도 |
 | `PERM_002` | 해당 작업을 수행할 권한이 없습니다 | 권한 안내 |
 
@@ -149,6 +151,7 @@ interface PageDto {
 | `R002` | 권한 요청을 찾을 수 없습니다 | 목록으로 이동 |
 | `C001` | 회사를 찾을 수 없습니다 | 목록으로 이동 |
 | `D001` | 진단을 찾을 수 없습니다 | 목록으로 이동 |
+| `DOM001` | 도메인을 찾을 수 없습니다 | 유효한 도메인 코드 사용 |
 
 #### 409 Conflict
 | 코드 | 메시지 | 대응 방법 |
@@ -312,6 +315,14 @@ interface DomainInfoDto {
   name: string;
   description?: string;
 }
+
+interface DomainResponse {
+  id: number;
+  code: string;
+  name: string;
+  description?: string;
+  active: boolean;
+}
 ```
 
 ### 4.6 진단 정보 (도메인 포함)
@@ -331,6 +342,25 @@ interface DiagnosticCreateRequest {
   periodStartDate: string;    // "2026-01-01"
   periodEndDate: string;
   deadline?: string;
+}
+```
+
+### 4.7 캠페인 정보
+
+```typescript
+interface CampaignSimpleDto {
+  campaignId: number;
+  campaignName: string;
+  year: number;
+}
+
+interface CampaignDetailResponse {
+  campaignId: number;
+  campaignName: string;
+  year: number;
+  startDate: string;
+  endDate: string;
+  description?: string;
 }
 ```
 
@@ -374,10 +404,11 @@ const formatDate = (isoString: string): string => {
 | 권한 요청 | `accessRequestId` | number |
 | 역할 | `roleId` | number |
 | 진단 | `diagnosticId` | number |
-| 증빙파일 | `evidenceId` | number |
+| 증빙파일 | `evidenceId` / `fileId` | number |
 | 캠페인 | `campaignId` | number |
 | 결재 | `approvalId` | number |
 | 심사 | `reviewId` | number |
+| 알림 | `notificationId` | number |
 
 ---
 
@@ -576,12 +607,12 @@ history 조회 → DB에서 전체 이력 반환 (AI 서비스 호출 없음)
 
 ## 9. NULL 처리 규칙
 
-### 8.1 응답에서 NULL 필드
+### 9.1 응답에서 NULL 필드
 
 - `@JsonInclude(JsonInclude.Include.NON_NULL)` 적용
 - NULL 값은 응답에서 **제외됨**
 
-### 8.2 프론트엔드 처리
+### 9.2 프론트엔드 처리
 
 ```typescript
 // Optional chaining 사용

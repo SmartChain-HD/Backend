@@ -1,7 +1,7 @@
 # SmartChain API 명세서
 
-> 버전: 2.2
-> 최종 수정: 2026-01-29
+> 버전: 2.3
+> 최종 수정: 2026-02-02
 > Base URL: `http://localhost:8080`
 > 인증: Bearer Token (JWT)
 
@@ -9,15 +9,17 @@
 
 ## 목차
 1. [인증 (Auth)](#1-인증-auth)
-2. [진단/기안 (Diagnostic)](#2-진단기안-diagnostic)
-3. [결재 (Approval)](#3-결재-approval)
-4. [심사 (Review)](#4-심사-review)
-5. [권한 (Role)](#5-권한-role)
-6. [파일 (File)](#6-파일-file)
-7. [비동기 작업 (Job)](#7-비동기-작업-job)
-8. [알림 (Notification)](#8-알림-notification)
-9. [관리 (Management)](#9-관리-management)
-10. [AI 서비스](#10-ai-서비스)
+2. [도메인 (Domain)](#2-도메인-domain)
+3. [캠페인 (Campaign)](#3-캠페인-campaign)
+4. [진단/기안 (Diagnostic)](#4-진단기안-diagnostic)
+5. [결재 (Approval)](#5-결재-approval)
+6. [심사 (Review)](#6-심사-review)
+7. [권한 (Role)](#7-권한-role)
+8. [파일 (File)](#8-파일-file)
+9. [비동기 작업 (Job)](#9-비동기-작업-job)
+10. [알림 (Notification)](#10-알림-notification)
+11. [관리 (Management)](#11-관리-management)
+12. [AI 서비스](#12-ai-서비스)
 
 ---
 
@@ -245,11 +247,140 @@ GET /api/v1/auth/me
 
 ---
 
-## 2. 진단/기안 (Diagnostic)
+### 1.9 내 도메인 역할 조회
+```
+GET /api/v1/auth/me/domains
+```
+
+**Response:**
+```json
+{
+  "domainRoles": [
+    { "domainCode": "ESG", "domainName": "ESG 실사", "roleCode": "APPROVER", "roleName": "결재자" },
+    { "domainCode": "SAFETY", "domainName": "안전보건", "roleCode": "DRAFTER", "roleName": "기안자" }
+  ],
+  "pendingRequest": {
+    "accessRequestId": 1,
+    "requestedDomainCode": "COMPLIANCE",
+    "requestedRole": "DRAFTER",
+    "status": "PENDING"
+  }
+}
+```
+
+> **Note**: 게스트인 경우 대기중인 권한 요청 상태(`pendingRequest`)가 포함됩니다.
+
+---
+
+## 2. 도메인 (Domain)
+
+> 공개 API - 인증 불필요
+
+### 2.1 도메인 목록 조회
+```
+GET /api/v1/domains
+```
+
+**Query Parameters:**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| includeInactive | boolean | N | true 시 비활성 도메인 포함 (기본: false) |
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "code": "ESG",
+    "name": "ESG 실사",
+    "description": "ESG 증빙 자동 파싱 및 AI 리포트 생성",
+    "active": true
+  },
+  {
+    "id": 2,
+    "code": "SAFETY",
+    "name": "안전보건",
+    "description": "AI 기반 현장 안전점검(TBM) 자동 검증",
+    "active": true
+  },
+  {
+    "id": 3,
+    "code": "COMPLIANCE",
+    "name": "컴플라이언스",
+    "description": "LLM 기반 하도급 계약서 자동 검토",
+    "active": true
+  }
+]
+```
+
+---
+
+### 2.2 도메인 상세 조회
+```
+GET /api/v1/domains/{code}
+```
+
+**Response:**
+```json
+{
+  "id": 1,
+  "code": "ESG",
+  "name": "ESG 실사",
+  "description": "ESG 증빙 자동 파싱 및 AI 리포트 생성",
+  "active": true
+}
+```
+
+---
+
+## 3. 캠페인 (Campaign)
+
+### 3.1 캠페인 목록 조회
+```
+GET /api/v1/campaigns
+```
+
+**Response:**
+```json
+{
+  "campaigns": [
+    {
+      "campaignId": 1,
+      "campaignName": "2026년 ESG 공급망 실사",
+      "year": 2026,
+      "startDate": "2026-01-01",
+      "endDate": "2026-12-31"
+    }
+  ]
+}
+```
+
+---
+
+### 3.2 캠페인 상세 조회
+```
+GET /api/v1/campaigns/{campaignId}
+```
+
+**Response:**
+```json
+{
+  "campaignId": 1,
+  "campaignName": "2026년 ESG 공급망 실사",
+  "year": 2026,
+  "startDate": "2026-01-01",
+  "endDate": "2026-12-31",
+  "description": "2026년도 ESG 공급망 실사 캠페인"
+}
+```
+
+---
+
+## 4. 진단/기안 (Diagnostic)
 
 > 권한: DRAFTER, APPROVER
 
-### 2.1 기안 목록 조회
+### 4.1 기안 목록 조회
 ```
 GET /api/v1/diagnostics
 ```
@@ -259,6 +390,8 @@ GET /api/v1/diagnostics
 |---------|------|------|------|
 | domainCode | string | N | 도메인 필터 (ESG, SAFETY, COMPLIANCE) |
 | statuses | string | N | 상태 필터 (쉼표 구분, 예: WRITING,SUBMITTED) |
+| status | string | N | 상태 필터 (statuses의 alias) |
+| keyword | string | N | 검색 키워드 (제목, 기안코드, 회사명) |
 | deadlineFrom | date | N | 마감일 시작 (yyyy-MM-dd) |
 | deadlineTo | date | N | 마감일 종료 |
 | page | int | N | 페이지 번호 (기본: 0) |
@@ -274,14 +407,14 @@ GET /api/v1/diagnostics
 
 ---
 
-### 2.2 기안 상세 조회
+### 4.2 기안 상세 조회
 ```
 GET /api/v1/diagnostics/{diagnosticId}
 ```
 
 ---
 
-### 2.3 기안 생성
+### 4.3 기안 생성
 ```
 POST /api/v1/diagnostics
 ```
@@ -301,7 +434,7 @@ POST /api/v1/diagnostics
 
 ---
 
-### 2.4 기안 제출
+### 4.4 기안 제출
 ```
 POST /api/v1/diagnostics/{diagnosticId}/submit
 ```
@@ -316,25 +449,47 @@ POST /api/v1/diagnostics/{diagnosticId}/submit
 
 ---
 
-### 2.5 AI 분석 결과 조회
+### 4.5 AI 분석 요청 (비동기)
+```
+POST /api/v1/diagnostics/{diagnosticId}/ai-analysis
+```
+
+**Query Parameters:**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| analysisType | string | N | 분석 유형 (ESG, COMPLIANCE, SAFETY). 기본값: ESG |
+
+**Response:** `202 Accepted`
+```json
+{
+  "jobId": "job_ai_analysis_abc123",
+  "jobType": "AI_ANALYSIS",
+  "status": "PENDING",
+  "message": "AI 분석이 시작되었습니다"
+}
+```
+
+---
+
+### 4.6 AI 분석 결과 조회
 ```
 GET /api/v1/diagnostics/{diagnosticId}/ai-analysis
 ```
 
 ---
 
-### 2.6 기안 이력 조회
+### 4.7 기안 이력 조회
 ```
 GET /api/v1/diagnostics/{diagnosticId}/history
 ```
 
 ---
 
-## 3. 결재 (Approval)
+## 5. 결재 (Approval)
 
 > 권한: APPROVER
 
-### 3.1 결재 대기 목록 조회
+### 5.1 결재 대기 목록 조회
 ```
 GET /api/v1/approvals
 ```
@@ -351,14 +506,14 @@ GET /api/v1/approvals
 
 ---
 
-### 3.2 결재 상세 조회
+### 5.2 결재 상세 조회
 ```
 GET /api/v1/approvals/{approvalId}
 ```
 
 ---
 
-### 3.3 결재 처리 (승인/반려)
+### 5.3 결재 처리 (승인/반려)
 ```
 PATCH /api/v1/approvals/{approvalId}
 ```
@@ -383,18 +538,18 @@ PATCH /api/v1/approvals/{approvalId}
 
 ---
 
-### 3.4 원청 제출
+### 5.4 원청 제출
 ```
 POST /api/v1/approvals/{approvalId}/submit-to-reviewer
 ```
 
 ---
 
-## 4. 심사 (Review)
+## 6. 심사 (Review)
 
 > 권한: REVIEWER
 
-### 4.1 대시보드 조회
+### 6.1 대시보드 조회
 ```
 GET /api/v1/reviews/dashboard
 ```
@@ -402,13 +557,14 @@ GET /api/v1/reviews/dashboard
 **Query Parameters:**
 | 파라미터 | 타입 | 필수 | 설명 |
 |---------|------|------|------|
+| domainCode | string | N | 도메인 필터 (ESG, SAFETY, COMPLIANCE) |
 | campaignId | long | N | 캠페인 ID 필터 |
 | fromDate | string | N | 기간 시작 (yyyy-MM-dd) |
 | toDate | string | N | 기간 종료 |
 
 ---
 
-### 4.2 심사 대상 목록 조회
+### 6.2 심사 대상 목록 조회
 ```
 GET /api/v1/reviews
 ```
@@ -421,20 +577,20 @@ GET /api/v1/reviews
 | riskLevel | string | N | HIGH, MEDIUM, LOW |
 | companyId | long | N | 협력사 ID 필터 |
 | page | int | N | 페이지 번호 |
-| size | int | N | 페이지 크기 |
+| size | int | N | 페이지 크기 (기본: 20) |
 
 > **Note**: 사용자는 자신이 REVIEWER 역할을 가진 도메인의 심사만 조회할 수 있습니다.
 
 ---
 
-### 4.3 심사 상세 조회
+### 6.3 심사 상세 조회
 ```
 GET /api/v1/reviews/{reviewId}
 ```
 
 ---
 
-### 4.4 심사 결과 입력
+### 6.4 심사 결과 입력
 ```
 PATCH /api/v1/reviews/{reviewId}
 ```
@@ -453,7 +609,7 @@ PATCH /api/v1/reviews/{reviewId}
 
 ---
 
-### 4.5 보고서 생성 (비동기)
+### 6.5 보고서 생성 (비동기)
 ```
 POST /api/v1/reviews/{reviewId}/report
 ```
@@ -468,7 +624,7 @@ POST /api/v1/reviews/{reviewId}/report
 
 ---
 
-### 4.6 일괄 보고서 생성
+### 6.6 일괄 보고서 생성
 ```
 POST /api/v1/reviews/bulk-report
 ```
@@ -482,7 +638,7 @@ POST /api/v1/reviews/bulk-report
 
 ---
 
-### 4.7 CSV/Excel 내보내기
+### 6.7 CSV/Excel 내보내기
 ```
 POST /api/v1/reviews/export
 ```
@@ -497,9 +653,9 @@ POST /api/v1/reviews/export
 
 ---
 
-## 5. 권한 (Role)
+## 7. 권한 (Role)
 
-### 5.1 권한 요청 페이지 정보 조회
+### 7.1 권한 요청 페이지 정보 조회
 ```
 GET /api/v1/roles/request-page
 ```
@@ -525,7 +681,7 @@ GET /api/v1/roles/request-page
 
 ---
 
-### 5.2 권한 요청 생성
+### 7.2 권한 요청 생성
 ```
 POST /api/v1/roles/requests
 ```
@@ -544,14 +700,14 @@ POST /api/v1/roles/requests
 
 ---
 
-### 5.3 내 권한 요청 상태 조회
+### 7.3 내 권한 요청 상태 조회
 ```
 GET /api/v1/roles/requests/my
 ```
 
 ---
 
-### 5.4 권한 요청 목록 조회 (관리자)
+### 7.4 권한 요청 목록 조회 (관리자)
 ```
 GET /api/v1/roles/requests
 ```
@@ -568,14 +724,14 @@ GET /api/v1/roles/requests
 
 ---
 
-### 5.5 권한 요청 상세 조회
+### 7.5 권한 요청 상세 조회
 ```
 GET /api/v1/roles/requests/{accessRequestId}
 ```
 
 ---
 
-### 5.6 권한 요청 승인/반려
+### 7.6 권한 요청 승인/반려
 ```
 PATCH /api/v1/roles/requests/{accessRequestId}
 ```
@@ -589,9 +745,29 @@ PATCH /api/v1/roles/requests/{accessRequestId}
 
 ---
 
-## 6. 파일 (File)
+## 8. 파일 (File)
 
-### 6.1 파일 업로드
+### 8.1 파일 목록 조회
+```
+GET /api/v1/diagnostics/{diagnosticId}/files
+```
+
+**Response:**
+```json
+[
+  {
+    "fileId": 1,
+    "fileName": "evidence.pdf",
+    "fileSize": 1024000,
+    "uploadedAt": "2026-01-20T10:30:00",
+    "status": "PARSED"
+  }
+]
+```
+
+---
+
+### 8.2 파일 업로드
 ```
 POST /api/v1/diagnostics/{diagnosticId}/files
 Content-Type: multipart/form-data
@@ -612,14 +788,14 @@ Content-Type: multipart/form-data
 
 ---
 
-### 6.2 파싱 결과 조회
+### 8.3 파싱 결과 조회
 ```
 GET /api/v1/diagnostics/{diagnosticId}/files/{fileId}/parsing-result
 ```
 
 ---
 
-### 6.3 파일 다운로드 URL 발급
+### 8.4 파일 다운로드 URL 발급
 ```
 GET /api/v1/files/{fileId}/download-url
 ```
@@ -634,23 +810,23 @@ GET /api/v1/files/{fileId}/download-url
 
 ---
 
-### 6.4 파일 삭제
+### 8.5 파일 삭제
 ```
 DELETE /api/v1/files/{fileId}
 ```
 
 ---
 
-### 6.5 데이터 패키지 다운로드 URL 발급
+### 8.6 데이터 패키지 다운로드 URL 발급
 ```
 GET /api/v1/files/diagnostics/{diagnosticId}/package-url
 ```
 
 ---
 
-## 7. 비동기 작업 (Job)
+## 9. 비동기 작업 (Job)
 
-### 7.1 작업 상태 조회
+### 9.1 작업 상태 조회
 ```
 GET /api/v1/jobs/{jobId}
 ```
@@ -675,16 +851,16 @@ GET /api/v1/jobs/{jobId}
 
 ---
 
-### 7.2 작업 재시도
+### 9.2 작업 재시도
 ```
 POST /api/v1/jobs/{jobId}/retry
 ```
 
 ---
 
-## 8. 알림 (Notification)
+## 10. 알림 (Notification)
 
-### 8.1 알림 목록 조회
+### 10.1 알림 목록 조회
 ```
 GET /api/v1/notifications
 ```
@@ -698,7 +874,21 @@ GET /api/v1/notifications
 
 ---
 
-### 8.2 알림 읽음 처리
+### 10.2 미읽음 알림 개수 조회
+```
+GET /api/v1/notifications/unread-count
+```
+
+**Response:**
+```json
+{
+  "unreadCount": 5
+}
+```
+
+---
+
+### 10.3 알림 읽음 처리 (선택)
 ```
 PATCH /api/v1/notifications/read
 ```
@@ -719,25 +909,48 @@ PATCH /api/v1/notifications/read
 
 ---
 
-## 9. 관리 (Management)
-
-> 권한: REVIEWER
-
-### 9.1 권한 대시보드 조회
+### 10.4 개별 알림 읽음 처리
 ```
-GET /api/v1/management/permissions/dashboard
+PATCH /api/v1/notifications/{notificationId}/read
 ```
 
 ---
 
-### 9.2 권한 요청 처리
+### 10.5 전체 알림 읽음 처리
+```
+PATCH /api/v1/notifications/read-all
+```
+
+---
+
+## 11. 관리 (Management)
+
+> 권한: REVIEWER
+
+### 11.1 권한 대시보드 조회
+```
+GET /api/v1/management/permissions/dashboard
+```
+
+**Query Parameters:**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| companyId | long | N | 회사 ID 필터 |
+| requestedRole | string | N | 요청 역할 필터 (DRAFTER, APPROVER, REVIEWER) |
+| status | string | N | 상태 필터 (PENDING, APPROVED, REJECTED) |
+| page | int | N | 페이지 번호 (기본: 0) |
+| size | int | N | 페이지 크기 (기본: 10) |
+
+---
+
+### 11.2 권한 요청 처리
 ```
 PATCH /api/v1/management/permissions/{accessRequestId}
 ```
 
 ---
 
-### 9.3 사용자 관리 목록 조회
+### 11.3 사용자 관리 목록 조회
 ```
 GET /api/v1/management/users
 ```
@@ -750,11 +963,11 @@ GET /api/v1/management/users
 | companyId | long | N | 회사 ID 필터 |
 | keyword | string | N | 이름/이메일 검색 |
 | page | int | N | 페이지 번호 |
-| size | int | N | 페이지 크기 |
+| size | int | N | 페이지 크기 (기본: 20) |
 
 ---
 
-### 9.4 사용자 역할 변경
+### 11.4 사용자 역할 변경
 ```
 PATCH /api/v1/management/users/{userId}/role
 ```
@@ -768,7 +981,7 @@ PATCH /api/v1/management/users/{userId}/role
 
 ---
 
-### 9.5 사용자 상태 변경
+### 11.5 사용자 상태 변경
 ```
 PATCH /api/v1/management/users/{userId}/status
 ```
@@ -782,7 +995,7 @@ PATCH /api/v1/management/users/{userId}/status
 
 ---
 
-### 9.6 협력사 목록 조회
+### 11.6 협력사 목록 조회
 ```
 GET /api/v1/management/companies
 ```
@@ -794,11 +1007,11 @@ GET /api/v1/management/companies
 | industryCode | string | N | 업종 코드 |
 | keyword | string | N | 회사명 검색 |
 | page | int | N | 페이지 번호 |
-| size | int | N | 페이지 크기 |
+| size | int | N | 페이지 크기 (기본: 20) |
 
 ---
 
-### 9.7 협력사 등록
+### 11.7 협력사 등록
 ```
 POST /api/v1/management/companies
 ```
@@ -820,7 +1033,7 @@ POST /api/v1/management/companies
 
 ---
 
-### 9.8 활동 로그 조회
+### 11.8 활동 로그 조회
 ```
 GET /api/v1/management/activity-logs
 ```
@@ -837,7 +1050,7 @@ GET /api/v1/management/activity-logs
 
 ---
 
-### 9.9 활동 로그 내보내기
+### 11.9 활동 로그 내보내기
 ```
 POST /api/v1/management/activity-logs/export
 ```
@@ -853,11 +1066,11 @@ POST /api/v1/management/activity-logs/export
 
 ---
 
-## 10. AI 서비스
+## 12. AI 서비스
 
 각 도메인별 AI 서비스 엔드포인트입니다.
 
-### 10.1 ESG 도메인 - 증빙 파싱
+### 12.1 ESG 도메인 - 증빙 파싱
 
 #### 증빙 파일 AI 파싱 요청
 ```
@@ -901,7 +1114,7 @@ POST /api/v1/ai/esg/report
 
 ---
 
-### 10.2 SAFETY 도메인 - TBM 영상 분석
+### 12.2 SAFETY 도메인 - TBM 영상 분석
 
 #### TBM 영상 업로드 및 분석 요청
 ```
@@ -947,7 +1160,7 @@ GET /api/v1/ai/safety/tbm/{jobId}
 
 ---
 
-### 10.3 COMPLIANCE 도메인 - 계약서 검토
+### 12.3 COMPLIANCE 도메인 - 계약서 검토
 
 #### 하도급 계약서 업로드
 ```
@@ -1007,7 +1220,7 @@ GET /api/v1/ai/compliance/contract/{contractId}/result
 
 ---
 
-### 10.4 AI Run API (공통)
+### 12.4 AI Run API (공통)
 
 > 기획서 기반 공통 AI Run API - 모든 도메인(ESG, SAFETY, COMPLIANCE)에서 동일한 인터페이스 사용
 
@@ -1085,6 +1298,46 @@ GET /api/v1/ai/run/diagnostics/{diagnosticId}/result
 
 ---
 
+#### AI Run 결과 상세 조회
+```
+GET /api/v1/ai/run/diagnostics/{diagnosticId}/result/detail
+```
+
+결과를 슬롯별로 파싱하여 구조화된 형태로 조회
+
+**Response:**
+```json
+{
+  "id": 1,
+  "diagnosticId": 1,
+  "domainCode": "ESG",
+  "packageId": "PKG_1_202601_1",
+  "riskLevel": "MEDIUM",
+  "verdict": "NEED_FIX",
+  "whySummary": "에너지 사용량 증빙 확인 완료, 화학물질 MSDS 미제출",
+  "slotResults": [
+    {
+      "slotName": "esg.energy.electricity.usage",
+      "verdict": "VALID",
+      "reasons": ["전기 사용량 데이터 확인 완료"],
+      "fileIds": ["1"],
+      "fileNames": ["electricity_usage_2026.xlsx"]
+    }
+  ],
+  "clarifications": [
+    {
+      "slotName": "esg.hazmat.msds",
+      "message": "MSDS 파일이 누락되었습니다",
+      "fileIds": []
+    }
+  ],
+  "extras": {},
+  "analyzedAt": "2026-01-28T10:30:00"
+}
+```
+
+---
+
 #### AI Run 이력 조회
 ```
 GET /api/v1/ai/run/diagnostics/{diagnosticId}/history
@@ -1120,7 +1373,7 @@ GET /api/v1/ai/run/diagnostics/{diagnosticId}/history
 
 ---
 
-### 10.5 AI 작업 공통
+### 12.5 AI 작업 공통
 
 #### AI 작업 상태 조회
 ```

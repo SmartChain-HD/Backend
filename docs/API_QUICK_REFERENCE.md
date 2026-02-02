@@ -1,7 +1,7 @@
 # API 빠른 참조표
 
-> **버전**: 2.4
-> **최종 수정**: 2026-01-30
+> **버전**: 2.5
+> **최종 수정**: 2026-02-02
 > 프론트엔드 개발용 API 요약
 
 ---
@@ -30,6 +30,30 @@ GET /api/v1/reviews?domainCode=COMPLIANCE
 | POST | `/api/v1/auth/refresh` | 토큰 갱신 |
 | POST | `/api/v1/auth/logout` | 로그아웃 |
 | GET | `/api/v1/auth/me` | 내 정보 조회 |
+| GET | `/api/v1/auth/me/domains` | 내 도메인 역할 조회 |
+
+---
+
+## 도메인 (공개)
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/v1/domains` | 도메인 목록 조회 |
+| GET | `/api/v1/domains/{code}` | 도메인 상세 조회 |
+
+**Query Parameters (목록 조회):**
+| 파라미터 | 타입 | 필수 | 설명 |
+|---------|------|------|------|
+| includeInactive | boolean | N | true 시 비활성 도메인 포함 |
+
+---
+
+## 캠페인 (공개)
+
+| Method | Endpoint | 설명 |
+|--------|----------|------|
+| GET | `/api/v1/campaigns` | 캠페인 목록 조회 |
+| GET | `/api/v1/campaigns/{campaignId}` | 캠페인 상세 조회 |
 
 ---
 
@@ -41,8 +65,10 @@ GET /api/v1/reviews?domainCode=COMPLIANCE
 | GET | `/api/v1/diagnostics/{id}` | 기안 상세 |
 | POST | `/api/v1/diagnostics` | 기안 생성 |
 | POST | `/api/v1/diagnostics/{id}/submit` | 기안 제출 |
-| GET | `/api/v1/diagnostics/{id}/ai-analysis` | AI 분석 결과 |
+| POST | `/api/v1/diagnostics/{id}/ai-analysis` | AI 분석 요청 (비동기) |
+| GET | `/api/v1/diagnostics/{id}/ai-analysis` | AI 분석 결과 조회 |
 | GET | `/api/v1/diagnostics/{id}/history` | 상태 이력 |
+| GET | `/api/v1/diagnostics/{id}/files` | 파일 목록 조회 |
 | POST | `/api/v1/diagnostics/{id}/files` | 파일 업로드 |
 
 ---
@@ -66,9 +92,9 @@ GET /api/v1/reviews?domainCode=COMPLIANCE
 | GET | `/api/v1/reviews` | 심사 목록 |
 | GET | `/api/v1/reviews/{id}` | 심사 상세 |
 | PATCH | `/api/v1/reviews/{id}` | 심사 결과 입력 |
-| POST | `/api/v1/reviews/{id}/report` | 보고서 생성 |
-| POST | `/api/v1/reviews/bulk-report` | 일괄 보고서 |
-| POST | `/api/v1/reviews/export` | Excel 내보내기 |
+| POST | `/api/v1/reviews/{id}/report` | 보고서 생성 (비동기) |
+| POST | `/api/v1/reviews/bulk-report` | 일괄 보고서 (비동기) |
+| POST | `/api/v1/reviews/export` | Excel 내보내기 (비동기) |
 
 ---
 
@@ -80,6 +106,7 @@ GET /api/v1/reviews?domainCode=COMPLIANCE
 | POST | `/api/v1/roles/requests` | 권한 요청 생성 |
 | GET | `/api/v1/roles/requests/my` | 내 요청 상태 |
 | GET | `/api/v1/roles/requests` | 요청 목록 (관리자) |
+| GET | `/api/v1/roles/requests/{id}` | 요청 상세 (관리자) |
 | PATCH | `/api/v1/roles/requests/{id}` | 요청 승인/반려 |
 
 ---
@@ -88,6 +115,7 @@ GET /api/v1/reviews?domainCode=COMPLIANCE
 
 | Method | Endpoint | 설명 |
 |--------|----------|------|
+| GET | `/api/v1/diagnostics/{id}/files` | 파일 목록 조회 |
 | POST | `/api/v1/diagnostics/{id}/files` | 업로드 (multipart) |
 | GET | `/api/v1/diagnostics/{id}/files/{fid}/parsing-result` | 파싱 결과 |
 | GET | `/api/v1/files/{id}/download-url` | 다운로드 URL |
@@ -110,7 +138,10 @@ GET /api/v1/reviews?domainCode=COMPLIANCE
 | Method | Endpoint | 설명 |
 |--------|----------|------|
 | GET | `/api/v1/notifications` | 알림 목록 |
-| PATCH | `/api/v1/notifications/read` | 읽음 처리 |
+| GET | `/api/v1/notifications/unread-count` | 미읽음 개수 조회 |
+| PATCH | `/api/v1/notifications/read` | 선택 읽음 처리 |
+| PATCH | `/api/v1/notifications/{id}/read` | 개별 읽음 처리 |
+| PATCH | `/api/v1/notifications/read-all` | 전체 읽음 처리 |
 
 ---
 
@@ -126,6 +157,7 @@ GET /api/v1/reviews?domainCode=COMPLIANCE
 | GET | `/api/v1/management/companies` | 협력사 목록 |
 | POST | `/api/v1/management/companies` | 협력사 등록 |
 | GET | `/api/v1/management/activity-logs` | 활동 로그 |
+| POST | `/api/v1/management/activity-logs/export` | 활동 로그 내보내기 |
 
 ---
 
@@ -207,7 +239,7 @@ PENDING → RUNNING → SUCCEEDED / FAILED
 ### 아키텍처 참고
 
 - `preview`/`submit`은 AI 서비스(Python FastAPI)로 프록시
-- `result`/`history`는 백엔드 DB 조회 (AI 서비스 호출 없음)
+- `result`/`result/detail`/`history`는 백엔드 DB 조회 (AI 서비스 호출 없음)
 
 ### AI Run 응답 스키마 (고정)
 
