@@ -1,5 +1,50 @@
 # Claude Code Learnings
 
+## 2026-02-02: 이메일 인증 코드 실제 발송 기능 구현 (#116)
+
+### 원인
+- AuthService.sendVerificationCode()에서 인증 코드 생성 및 DB 저장만 수행
+- 실제 이메일 발송 없이 로그로만 코드 출력 (`log.info("Verification code sent...")`)
+- spring-boot-starter-mail 의존성 없음, EmailService 구현체 부재
+
+### 해결
+- `spring-boot-starter-mail` 의존성 추가
+- `EmailService` 인터페이스 정의 + 프로파일별 구현체 분리
+  - `SmtpEmailService` (@Profile("dev")): 실제 SMTP 발송
+  - `LocalEmailService` (@Profile({"local", "test"})): 로깅만
+- `AuthService`에 `EmailService` 주입 및 `sendVerificationCode()` 호출
+- `ErrorCode.EMAIL_SEND_FAILED` (S004) 추가
+- `application.yaml` dev 프로파일에 SMTP 환경변수 설정 추가
+
+### 재발방지
+- 외부 서비스(이메일, SMS 등) 연동 시 인터페이스 + 프로파일별 구현체 분리 패턴 적용
+- 로컬/테스트 환경에서는 실제 외부 호출 없이 로깅으로 대체
+- 운영 환경 설정값은 환경변수로 주입 (민감정보 하드코딩 금지)
+
+### 검증방법
+```bash
+./gradlew test --tests "AuthServiceTest"
+./gradlew test --tests "EmailServiceTest"
+```
+
+### 관련커밋
+- feature/116-email-send-impl 브랜치, PR #117
+
+### 생성/수정 파일
+```
+build.gradle (spring-boot-starter-mail 의존성 추가)
+src/main/java/.../domain/auth/service/EmailService.java (신규 - 인터페이스)
+src/main/java/.../domain/auth/service/SmtpEmailService.java (신규 - SMTP 구현)
+src/main/java/.../domain/auth/service/LocalEmailService.java (신규 - 로컬 로깅)
+src/main/java/.../domain/auth/service/AuthService.java (EmailService 주입)
+src/main/java/.../global/error/ErrorCode.java (EMAIL_SEND_FAILED 추가)
+src/main/resources/application.yaml (SMTP 설정 추가)
+src/test/java/.../domain/auth/service/AuthServiceTest.java (mock 추가)
+src/test/java/.../domain/auth/service/EmailServiceTest.java (신규)
+```
+
+---
+
 ## 2026-02-02: diagnostic_code 중복 키 제약 조건 위반 (동시 요청 race condition)
 
 ### 원인
