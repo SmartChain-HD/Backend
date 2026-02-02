@@ -190,6 +190,7 @@ Swagger UI available at: `http://localhost:8080/swagger-ui.html`
 - [Frontend Integration Rules](./docs/FE_INTEGRATION_RULES.md) - 프론트엔드 연동 가이드
 - [Backend Implementation Guide](./docs/BACKEND_IMPLEMENTATION_GUIDE.md) - 백엔드 구현 가이드
 - [Status and Error Codes](./docs/STATUS_AND_ERROR_CODES.md) - 상태/에러 코드 참조
+- [AI Integration Guide](./docs/AI_INTEGRATION_GUIDE.md) - AI Run API 연동 가이드
 
 ## Implementation Notes
 
