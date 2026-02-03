@@ -141,48 +141,48 @@ public class DataInitializer implements CommandLineRunner {
         // 원청 심사자들 (3명 - 도메인별)
         User reviewerEsg = userRepository.save(User.builder()
                 .name("김심사(ESG)").email("reviewer.esg@hdhhi.co.kr").userPassword(encodedPassword)
-                .company(ownerCompany).role(reviewerRole).build());
+                .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
         User reviewerSafety = userRepository.save(User.builder()
                 .name("이심사(안전)").email("reviewer.safety@hdhhi.co.kr").userPassword(encodedPassword)
-                .company(ownerCompany).role(reviewerRole).build());
+                .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
         User reviewerCompliance = userRepository.save(User.builder()
                 .name("박심사(컴플)").email("reviewer.compliance@hdhhi.co.kr").userPassword(encodedPassword)
-                .company(ownerCompany).role(reviewerRole).build());
+                .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
 
         // 테크파트너 직원들 (결재자1, 기안자2)
         User approver1 = userRepository.save(User.builder()
                 .name("김결재(테크)").email("approver@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(approverRole).build());
+                .company(partnerCompany1).role(approverRole).emailVerified(true).build());
         User drafter1 = userRepository.save(User.builder()
                 .name("이기안(테크)").email("drafter1@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(drafterRole).build());
+                .company(partnerCompany1).role(drafterRole).emailVerified(true).build());
         User drafter2 = userRepository.save(User.builder()
                 .name("박기안(테크)").email("drafter2@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(drafterRole).build());
+                .company(partnerCompany1).role(drafterRole).emailVerified(true).build());
 
         // 그린매뉴팩처링 직원들
         User approver2 = userRepository.save(User.builder()
                 .name("최결재(그린)").email("approver@greenmanu.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany2).role(approverRole).build());
+                .company(partnerCompany2).role(approverRole).emailVerified(true).build());
         User drafter3 = userRepository.save(User.builder()
                 .name("정기안(그린)").email("drafter@greenmanu.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany2).role(drafterRole).build());
+                .company(partnerCompany2).role(drafterRole).emailVerified(true).build());
 
         // 안전건설 직원들
         User approver3 = userRepository.save(User.builder()
                 .name("강결재(안전)").email("approver@safebuild.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany3).role(approverRole).build());
+                .company(partnerCompany3).role(approverRole).emailVerified(true).build());
         User drafter4 = userRepository.save(User.builder()
                 .name("윤기안(안전)").email("drafter@safebuild.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany3).role(drafterRole).build());
+                .company(partnerCompany3).role(drafterRole).emailVerified(true).build());
 
         // 게스트 (신규 가입자)
         User guest1 = userRepository.save(User.builder()
                 .name("신입1").email("newbie1@precision.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany4).role(guestRole).build());
+                .company(partnerCompany4).role(guestRole).emailVerified(true).build());
         User guest2 = userRepository.save(User.builder()
                 .name("신입2").email("newbie2@precision.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany4).role(guestRole).build());
+                .company(partnerCompany4).role(guestRole).emailVerified(true).build());
         log.info("Users created: 12 users");
 
         // ========================================
