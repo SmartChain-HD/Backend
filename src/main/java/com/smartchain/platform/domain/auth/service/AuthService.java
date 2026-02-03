@@ -90,21 +90,31 @@ public class AuthService {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
 
-        // 5. GUEST 역할 조회
+        // 5. 이메일 인증 여부 확인 (회원가입 전 인증 완료 필수)
+        boolean isEmailVerified = verificationCodeRepository
+                .findTopByEmailAndVerifiedTrueOrderByCreatedAtDesc(request.getEmail())
+                .isPresent();
+
+        if (!isEmailVerified) {
+            throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED);
+        }
+
+        // 6. GUEST 역할 조회
         Role guestRole = roleRepository.findByCode(GUEST_ROLE_CODE)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROLE_NOT_FOUND));
 
-        // 6. 사용자 생성
+        // 7. 사용자 생성 (이메일 인증 완료 상태로)
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .userPassword(passwordEncoder.encode(request.getPassword()))
                 .role(guestRole)
+                .emailVerified(true)
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        log.info("User registered: userId={}, email={}", savedUser.getUserId(), savedUser.getEmail());
+        log.info("User registered: userId={}, email={}, emailVerified=true", savedUser.getUserId(), savedUser.getEmail());
 
         return RegisterResponse.builder()
                 .userId(savedUser.getUserId())
