@@ -34,9 +34,12 @@ public class Campaign extends BaseTimeEntity {
     private LocalDate periodEndDate;
     private LocalDate deadline;
 
+    @Column(nullable = false)
+    private Boolean isActive = true;
+
     @Builder
     public Campaign(String campaignCode, Long ownerCompanyId, Domain domain, String title, String content,
-                    LocalDate periodStartDate, LocalDate periodEndDate, LocalDate deadline) {
+                    LocalDate periodStartDate, LocalDate periodEndDate, LocalDate deadline, Boolean isActive) {
         this.campaignCode = campaignCode;
         this.ownerCompanyId = ownerCompanyId;
         this.domain = domain;
@@ -45,5 +48,14 @@ public class Campaign extends BaseTimeEntity {
         this.periodStartDate = periodStartDate;
         this.periodEndDate = periodEndDate;
         this.deadline = deadline;
+        this.isActive = isActive != null ? isActive : true;
+    }
+
+    public void deactivate() {
+        this.isActive = false;
+    }
+
+    public void activate() {
+        this.isActive = true;
     }
 }

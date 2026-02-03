@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -125,6 +124,7 @@ public class CampaignService {
         return CampaignDetailResponse.builder()
                 .campaignId(campaign.getCampaignId())
                 .campaignCode(campaign.getCampaignCode())
+                .domainCode(campaign.getDomain() != null ? campaign.getDomain().getCode() : null)
                 .title(campaign.getTitle())
                 .description(campaign.getContent())
                 .startDate(campaign.getPeriodStartDate())
@@ -132,6 +132,7 @@ public class CampaignService {
                 .deadline(campaign.getDeadline())
                 .status(determineCampaignStatus(campaign))
                 .statusLabel(determineCampaignStatusLabel(campaign))
+                .isActive(campaign.getIsActive())
                 .stats(stats)
                 .targetCompanies(List.of())
                 .templates(List.of())
@@ -150,6 +151,7 @@ public class CampaignService {
         return CampaignItemDto.builder()
                 .campaignId(campaign.getCampaignId())
                 .campaignCode(campaign.getCampaignCode())
+                .domainCode(campaign.getDomain() != null ? campaign.getDomain().getCode() : null)
                 .title(campaign.getTitle())
                 .description(campaign.getContent())
                 .startDate(campaign.getPeriodStartDate())
@@ -157,6 +159,7 @@ public class CampaignService {
                 .deadline(campaign.getDeadline())
                 .status(determineCampaignStatus(campaign))
                 .statusLabel(determineCampaignStatusLabel(campaign))
+                .isActive(campaign.getIsActive())
                 .targetCompanyCount(targetCount)
                 .submittedCount(submittedCount)
                 .progressRate(progressRate)

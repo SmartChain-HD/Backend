@@ -21,6 +21,8 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
 
     Page<Campaign> findByDomainOrderByCreatedAtDesc(Domain domain, Pageable pageable);
 
+    List<Campaign> findByIsActiveTrue();
+
     /**
      * 사용자 권한 도메인에 해당하고, 종료되지 않은(ACTIVE/DRAFT) 캠페인 목록 조회
      */
