@@ -21,11 +21,14 @@ public class CampaignController {
 
     private final CampaignService campaignService;
 
-    @Operation(summary = "캠페인 목록 조회", description = "모든 캠페인 목록을 조회합니다.")
+    @Operation(summary = "캠페인 목록 조회", description = "모든 캠페인 목록을 조회합니다. activeOnly=true로 활성화된 캠페인만 필터링할 수 있습니다.")
     @GetMapping
-    public ResponseEntity<BaseResponse<CampaignListResponse>> getCampaignList() {
-        log.info("캠페인 목록 조회 요청");
-        CampaignListResponse response = campaignService.getCampaignList();
+    public ResponseEntity<BaseResponse<CampaignListResponse>> getCampaignList(
+            @Parameter(description = "활성화된 캠페인만 조회 여부")
+            @RequestParam(required = false, defaultValue = "false") Boolean activeOnly
+    ) {
+        log.info("캠페인 목록 조회 요청 - activeOnly: {}", activeOnly);
+        CampaignListResponse response = campaignService.getCampaignList(activeOnly);
         return ResponseEntity.ok(BaseResponse.success("캠페인 목록 조회 완료", response));
     }
 

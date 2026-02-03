@@ -17,4 +17,6 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     List<Campaign> findByDomain(Domain domain);
 
     Page<Campaign> findByDomainOrderByCreatedAtDesc(Domain domain, Pageable pageable);
+
+    List<Campaign> findByIsActiveTrue();
 }

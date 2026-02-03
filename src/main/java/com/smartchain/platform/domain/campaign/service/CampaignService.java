@@ -30,9 +30,15 @@ public class CampaignService {
 
     /**
      * 캠페인 목록 조회
+     * @param activeOnly true이면 활성화된(isActive=true) 캠페인만 조회
      */
-    public CampaignListResponse getCampaignList() {
-        List<Campaign> campaigns = campaignRepository.findAll();
+    public CampaignListResponse getCampaignList(Boolean activeOnly) {
+        List<Campaign> campaigns;
+        if (Boolean.TRUE.equals(activeOnly)) {
+            campaigns = campaignRepository.findByIsActiveTrue();
+        } else {
+            campaigns = campaignRepository.findAll();
+        }
 
         List<CampaignItemDto> items = campaigns.stream()
                 .map(this::toCampaignItemDto)
@@ -83,6 +89,7 @@ public class CampaignService {
         return CampaignDetailResponse.builder()
                 .campaignId(campaign.getCampaignId())
                 .campaignCode(campaign.getCampaignCode())
+                .domainCode(campaign.getDomain() != null ? campaign.getDomain().getCode() : null)
                 .title(campaign.getTitle())
                 .description(campaign.getContent())
                 .startDate(campaign.getPeriodStartDate())
@@ -90,6 +97,7 @@ public class CampaignService {
                 .deadline(campaign.getDeadline())
                 .status(determineCampaignStatus(campaign))
                 .statusLabel(determineCampaignStatusLabel(campaign))
+                .isActive(campaign.getIsActive())
                 .stats(stats)
                 .targetCompanies(List.of())
                 .templates(List.of())
@@ -108,6 +116,7 @@ public class CampaignService {
         return CampaignItemDto.builder()
                 .campaignId(campaign.getCampaignId())
                 .campaignCode(campaign.getCampaignCode())
+                .domainCode(campaign.getDomain() != null ? campaign.getDomain().getCode() : null)
                 .title(campaign.getTitle())
                 .description(campaign.getContent())
                 .startDate(campaign.getPeriodStartDate())
@@ -115,6 +124,7 @@ public class CampaignService {
                 .deadline(campaign.getDeadline())
                 .status(determineCampaignStatus(campaign))
                 .statusLabel(determineCampaignStatusLabel(campaign))
+                .isActive(campaign.getIsActive())
                 .targetCompanyCount(targetCount)
                 .submittedCount(submittedCount)
                 .progressRate(progressRate)
