@@ -13,4 +13,7 @@ import lombok.NoArgsConstructor;
 public class DiagnosticCreateRequest {
     @NotNull(message = "캠페인을 선택해주세요")
     private Long campaignId;
+
+    @NotNull(message = "도메인을 선택해주세요")
+    private String domainCode;
 }

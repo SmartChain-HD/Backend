@@ -6,7 +6,12 @@ import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.dto.notification.NotificationListResponse;
 import com.smartchain.platform.dto.notification.NotificationReadRequest;
 import com.smartchain.platform.dto.notification.NotificationReadResponse;
+import com.smartchain.platform.dto.notification.UnreadCountResponse;
 import com.smartchain.platform.global.enums.NotificationType;
+import com.smartchain.platform.global.error.CustomException;
+import com.smartchain.platform.global.error.ErrorCode;
+
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -153,6 +158,160 @@ class NotificationServiceTest {
             assertThat(response.getMarkedCount()).isEqualTo(5);
             assertThat(response.getRemainingUnread()).isEqualTo(0);
             verify(notificationRepository).markAllAsReadByUserId(userId);
+        }
+    }
+
+    @Nested
+    @DisplayName("미읽음 알림 개수 조회 테스트")
+    class GetUnreadCountTest {
+
+        @Test
+        @DisplayName("미읽음 알림 개수 조회 성공")
+        void getUnreadCount_Success() {
+            // given
+            given(notificationRepository.countByUserUserIdAndIsRead(userId, false)).willReturn(5);
+
+            // when
+            UnreadCountResponse response = notificationService.getUnreadCount(userId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getUnreadCount()).isEqualTo(5);
+            verify(notificationRepository).countByUserUserIdAndIsRead(userId, false);
+        }
+
+        @Test
+        @DisplayName("미읽음 알림이 없는 경우 0 반환")
+        void getUnreadCount_NoUnread_ReturnsZero() {
+            // given
+            given(notificationRepository.countByUserUserIdAndIsRead(userId, false)).willReturn(0);
+
+            // when
+            UnreadCountResponse response = notificationService.getUnreadCount(userId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getUnreadCount()).isEqualTo(0);
+        }
+    }
+
+    @Nested
+    @DisplayName("개별 알림 읽음 처리 테스트")
+    class MarkSingleAsReadTest {
+
+        @Test
+        @DisplayName("개별 알림 읽음 처리 성공")
+        void markSingleAsRead_Success() {
+            // given
+            Long notificationId = 1L;
+            given(notificationRepository.findById(notificationId)).willReturn(Optional.of(testNotification));
+            given(testNotification.getUser()).willReturn(testUser);
+            given(testNotification.isRead()).willReturn(false);
+            given(notificationRepository.save(testNotification)).willReturn(testNotification);
+            given(notificationRepository.countByUserUserIdAndIsRead(userId, false)).willReturn(2);
+
+            // when
+            NotificationReadResponse response = notificationService.markSingleAsRead(userId, notificationId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getMarkedCount()).isEqualTo(1);
+            assertThat(response.getRemainingUnread()).isEqualTo(2);
+            verify(testNotification).markAsRead();
+            verify(notificationRepository).save(testNotification);
+        }
+
+        @Test
+        @DisplayName("타인의 알림 읽음 처리 시도 시 권한 오류")
+        void markSingleAsRead_OtherUserNotification_ThrowsPermissionDenied() {
+            // given
+            Long notificationId = 1L;
+            Long otherUserId = 999L;
+
+            User otherUser = mock(User.class);
+            when(otherUser.getUserId()).thenReturn(otherUserId);
+
+            given(notificationRepository.findById(notificationId)).willReturn(Optional.of(testNotification));
+            given(testNotification.getUser()).willReturn(otherUser);
+
+            // when & then
+            try {
+                notificationService.markSingleAsRead(userId, notificationId);
+            } catch (CustomException e) {
+                assertThat(e.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+            }
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 알림 읽음 처리 시 오류")
+        void markSingleAsRead_NotFound_ThrowsEntityNotFound() {
+            // given
+            Long notificationId = 999L;
+            given(notificationRepository.findById(notificationId)).willReturn(Optional.empty());
+
+            // when & then
+            try {
+                notificationService.markSingleAsRead(userId, notificationId);
+            } catch (CustomException e) {
+                assertThat(e.getErrorCode()).isEqualTo(ErrorCode.NOTIFICATION_NOT_FOUND);
+            }
+        }
+
+        @Test
+        @DisplayName("이미 읽은 알림 처리 시 markedCount 0 반환")
+        void markSingleAsRead_AlreadyRead_ReturnsZeroMarked() {
+            // given
+            Long notificationId = 1L;
+            given(notificationRepository.findById(notificationId)).willReturn(Optional.of(testNotification));
+            given(testNotification.getUser()).willReturn(testUser);
+            given(testNotification.isRead()).willReturn(true);
+            given(notificationRepository.countByUserUserIdAndIsRead(userId, false)).willReturn(3);
+
+            // when
+            NotificationReadResponse response = notificationService.markSingleAsRead(userId, notificationId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getMarkedCount()).isEqualTo(0);
+            assertThat(response.getRemainingUnread()).isEqualTo(3);
+            verify(testNotification, never()).markAsRead();
+            verify(notificationRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("전체 알림 읽음 처리 (새 API) 테스트")
+    class MarkAllAsReadForUserTest {
+
+        @Test
+        @DisplayName("전체 알림 읽음 처리 성공")
+        void markAllAsReadForUser_Success() {
+            // given
+            given(notificationRepository.markAllAsReadByUserId(userId)).willReturn(10);
+
+            // when
+            NotificationReadResponse response = notificationService.markAllAsReadForUser(userId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getMarkedCount()).isEqualTo(10);
+            assertThat(response.getRemainingUnread()).isEqualTo(0);
+            verify(notificationRepository).markAllAsReadByUserId(userId);
+        }
+
+        @Test
+        @DisplayName("읽을 알림이 없는 경우 0 반환")
+        void markAllAsReadForUser_NoNotifications_ReturnsZero() {
+            // given
+            given(notificationRepository.markAllAsReadByUserId(userId)).willReturn(0);
+
+            // when
+            NotificationReadResponse response = notificationService.markAllAsReadForUser(userId);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getMarkedCount()).isEqualTo(0);
+            assertThat(response.getRemainingUnread()).isEqualTo(0);
         }
     }
 

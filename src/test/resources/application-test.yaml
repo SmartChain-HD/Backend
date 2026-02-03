@@ -1,9 +1,14 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
     username: sa
     password:
     driver-class-name: org.h2.Driver
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations:
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -12,6 +17,7 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.H2Dialect
+    defer-datasource-initialization: true
   h2:
     console:
       enabled: false
@@ -24,3 +30,109 @@ jwt:
 logging:
   level:
     com.smartchain.platform: DEBUG
+
+# AI Run API 설정 (테스트용)
+ai:
+  run-api:
+    url: http://localhost:8000
+    timeout-seconds: 30
+    max-retry: 1
+  slots:
+    # 슬롯 정의: docs/API_CONTRACT_SSOT.md §8.6 기준
+    domains:
+      # ESG 도메인 (15개 슬롯, 필수 4개)
+      esg:
+        - name: esg.energy.electricity.usage
+          keywords: [전기, electricity, 전력사용, 전기사용, 전력량, kwh]
+          required: true
+        - name: esg.energy.electricity.bill
+          keywords: [전기고지서, 전기요금, electricity bill, 전기청구]
+          required: false
+        - name: esg.energy.gas.usage
+          keywords: [가스, gas, 도시가스, 가스사용, 가스량]
+          required: true
+        - name: esg.energy.gas.bill
+          keywords: [가스고지서, 가스요금, gas bill, 가스청구]
+          required: false
+        - name: esg.energy.water.usage
+          keywords: [수도, water, 용수, 수도사용, 용수량]
+          required: false
+        - name: esg.energy.water.bill
+          keywords: [수도고지서, 수도요금, water bill, 수도청구]
+          required: false
+        - name: esg.energy.ghg.evidence
+          keywords: [ghg, 온실가스, greenhouse, 탄소, carbon, 배출량]
+          required: false
+        - name: esg.hazmat.msds
+          keywords: [msds, sds, 물질안전, 유해물질, 화학물질, hazmat]
+          required: true
+        - name: esg.hazmat.inventory
+          keywords: [유해물질목록, 화학물질목록, hazmat inventory, 물질목록]
+          required: false
+        - name: esg.hazmat.disposal.list
+          keywords: [폐기목록, 처리목록, disposal list, 폐기물]
+          required: false
+        - name: esg.hazmat.disposal.evidence
+          keywords: [폐기증빙, 처리증빙, disposal evidence, 폐기확인]
+          required: false
+        - name: esg.ethics.code
+          keywords: [윤리강령, 행동강령, ethics, code of conduct, 윤리규정]
+          required: true
+        - name: esg.ethics.distribution.log
+          keywords: [배포확인, 수신확인, distribution, 서명명단]
+          required: false
+        - name: esg.ethics.pledge
+          keywords: [서약서, pledge, 서약, 윤리서약]
+          required: false
+        - name: esg.ethics.poster.image
+          keywords: [포스터, poster, 윤리포스터, 게시물]
+          required: false
+      # Safety 도메인 (8개 슬롯, 필수 4개)
+      safety:
+        - name: safety.education.status
+          keywords: [교육이수, 안전교육, education status, 교육현황, 수료]
+          required: true
+        - name: safety.fire.inspection
+          keywords: [소방점검, fire inspection, 소화기, 방화, 소방]
+          required: true
+        - name: safety.risk.assessment
+          keywords: [위험성평가, risk assessment, 위험평가, 리스크]
+          required: true
+        - name: safety.management.system
+          keywords: [안전보건관리, management system, 안전매뉴얼, 관리체계]
+          required: true
+        - name: safety.site.photos
+          keywords: [현장사진, site photo, 현장, 사진, image]
+          required: false
+        - name: safety.education.attendance
+          keywords: [출석부, attendance, 교육출석, 참석명단]
+          required: false
+        - name: safety.education.photo
+          keywords: [교육사진, education photo, 교육일사진]
+          required: false
+        - name: safety.tbm
+          keywords: [tbm, toolbox, 작업전회의, 안전회의, 작업전미팅]
+          required: false
+      # Compliance 도메인 (7개 슬롯, 필수 3개)
+      compliance:
+        - name: compliance.contract.sample
+          keywords: [표준계약, 하도급계약, contract sample, 근로계약, 계약서]
+          required: true
+        - name: compliance.education.privacy
+          keywords: [개인정보교육, privacy education, 개인정보보호, 정보보호교육]
+          required: true
+        - name: compliance.fair.trade
+          keywords: [공정거래, fair trade, 자율점검, 공정거래점검]
+          required: true
+        - name: compliance.ethics.report
+          keywords: [내부신고, ethics report, 윤리신고, 신고현황]
+          required: false
+        - name: compliance.education.plan
+          keywords: [교육계획, education plan, 법정교육, 교육일정]
+          required: false
+        - name: compliance.education.attendance
+          keywords: [출석부, attendance, 교육출석, 참석명단]
+          required: false
+        - name: compliance.education.photo
+          keywords: [교육사진, education photo, 교육일사진]
+          required: false

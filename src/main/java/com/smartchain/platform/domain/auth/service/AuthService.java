@@ -2,23 +2,30 @@ package com.smartchain.platform.domain.auth.service;
 
 import com.smartchain.platform.domain.auth.entity.EmailVerificationCode;
 import com.smartchain.platform.domain.auth.repository.EmailVerificationCodeRepository;
+import com.smartchain.platform.domain.role.repository.RoleRequestRepository;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
+import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.auth.common.CompanyInfoDto;
+import com.smartchain.platform.dto.auth.common.DomainRoleDto;
 import com.smartchain.platform.dto.auth.common.RoleInfoDto;
 import com.smartchain.platform.dto.auth.common.UserInfoDto;
 import com.smartchain.platform.dto.auth.email.*;
 import com.smartchain.platform.dto.auth.login.LoginRequest;
 import com.smartchain.platform.dto.auth.login.LoginResponse;
 import com.smartchain.platform.dto.auth.logout.LogoutRequest;
+import com.smartchain.platform.dto.auth.myinfo.MyDomainResponse;
 import com.smartchain.platform.dto.auth.myinfo.MyInfoResponse;
 import com.smartchain.platform.dto.auth.register.RegisterRequest;
 import com.smartchain.platform.dto.auth.register.RegisterResponse;
 import com.smartchain.platform.dto.auth.token.TokenRefreshRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshResponse;
 import com.smartchain.platform.global.error.CustomException;
+import com.smartchain.platform.global.enums.RequestStatus;
+import com.smartchain.platform.global.enums.UserStatus;
 import com.smartchain.platform.global.error.ErrorCode;
 import com.smartchain.platform.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -41,9 +49,12 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final UserDomainRoleRepository userDomainRoleRepository;
+    private final RoleRequestRepository roleRequestRepository;
     private final EmailVerificationCodeRepository verificationCodeRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final EmailService emailService;
 
     private static final String GUEST_ROLE_CODE = "GUEST";
     private static final int VERIFICATION_CODE_LENGTH = 6;
@@ -116,10 +127,21 @@ public class AuthService {
             throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
         }
 
-        // 3. 마지막 로그인 시간 업데이트
+        // 3. 계정 상태 검증
+        if (user.getStatus() == UserStatus.INACTIVE) {
+            throw new CustomException(ErrorCode.ACCOUNT_DISABLED);
+        }
+        if (user.isLocked()) {
+            throw new CustomException(ErrorCode.ACCOUNT_LOCKED);
+        }
+        if (!user.isEmailVerified()) {
+            throw new CustomException(ErrorCode.ACCOUNT_NOT_VERIFIED);
+        }
+
+        // 4. 마지막 로그인 시간 업데이트
         user.updateLastLoginAt();
 
-        // 4. 토큰 생성
+        // 5. 토큰 생성
         String roleCode = user.getRole() != null ? user.getRole().getCode() : GUEST_ROLE_CODE;
         String accessToken = jwtTokenProvider.createAccessToken(
                 user.getUserId(), user.getEmail(), roleCode);
@@ -127,7 +149,7 @@ public class AuthService {
 
         log.info("User logged in: userId={}, email={}", user.getUserId(), user.getEmail());
 
-        // 5. 응답 생성
+        // 6. 응답 생성
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -175,9 +197,8 @@ public class AuthService {
 
         verificationCodeRepository.save(verificationCode);
 
-        // TODO: 실제 이메일 발송 로직 구현 (Spring Mail 또는 외부 서비스 연동)
-        // 개발 환경에서는 로그로 코드 출력
-        log.info("Verification code sent: email={}, code={}", email, code);
+        // 이메일 발송 (프로파일에 따라 실제 발송 또는 로깅)
+        emailService.sendVerificationCode(email, code, VERIFICATION_CODE_EXPIRY_MINUTES);
 
         return SendVerificationResponse.builder()
                 .email(email)
@@ -205,6 +226,10 @@ public class AuthService {
 
         // 4. 인증 완료 처리
         verificationCode.markAsVerified();
+
+        // 5. 사용자 이메일 인증 상태 업데이트
+        userRepository.findByEmail(request.getEmail())
+                .ifPresent(User::verifyEmail);
 
         log.info("Email verified: email={}", request.getEmail());
 
@@ -283,7 +308,29 @@ public class AuthService {
                     .build());
         }
 
+        builder.domainRoles(buildDomainRoleDtos(user.getUserId()));
+
         return builder.build();
+    }
+
+    public MyDomainResponse getMyDomains(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        String globalRole = user.getRole() != null ? user.getRole().getCode() : GUEST_ROLE_CODE;
+        List<DomainRoleDto> domainRoles = buildDomainRoleDtos(userId);
+
+        String roleRequestStatus = null;
+        if (GUEST_ROLE_CODE.equals(globalRole)) {
+            boolean hasPending = roleRequestRepository.existsByUserAndStatus(user, RequestStatus.PENDING);
+            roleRequestStatus = hasPending ? "PENDING" : "NONE";
+        }
+
+        return MyDomainResponse.builder()
+                .globalRole(globalRole)
+                .domainRoles(domainRoles)
+                .roleRequestStatus(roleRequestStatus)
+                .build();
     }
 
     private String generateVerificationCode() {
@@ -315,6 +362,20 @@ public class AuthService {
                     .build());
         }
 
+        builder.domainRoles(buildDomainRoleDtos(user.getUserId()));
+
         return builder.build();
+    }
+
+    private List<DomainRoleDto> buildDomainRoleDtos(Long userId) {
+        List<UserDomainRole> domainRoles = userDomainRoleRepository.findByUserIdWithDomainAndRole(userId);
+        return domainRoles.stream()
+                .map(udr -> DomainRoleDto.builder()
+                        .domainCode(udr.getDomain().getCode())
+                        .domainName(udr.getDomain().getName())
+                        .roleCode(udr.getRole().getCode())
+                        .roleName(udr.getRole().getName())
+                        .build())
+                .toList();
     }
 }

@@ -2,6 +2,8 @@ package com.smartchain.platform.domain.review.repository;
 
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
+import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.global.enums.ReviewStatus;
 import com.smartchain.platform.global.enums.RiskLevel;
 import org.springframework.data.domain.Page;
@@ -51,4 +53,80 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     // 최근 활동 조회 (상위 N개)
     @Query("SELECT r FROM Review r ORDER BY r.submittedAt DESC")
     List<Review> findTopNByOrderBySubmittedAtDesc(Pageable pageable);
+
+    // 도메인별 조회
+    List<Review> findByDomain(Domain domain);
+
+    Page<Review> findByDomainOrderByCreatedAtDesc(Domain domain, Pageable pageable);
+
+    // 담당 심사자 + 도메인별 조회
+    Page<Review> findByAssignedReviewerAndDomainOrderByCreatedAtDesc(User assignedReviewer, Domain domain, Pageable pageable);
+
+    List<Review> findByAssignedReviewerAndDomain(User assignedReviewer, Domain domain);
+
+    // 도메인 목록(IN)으로 필터링
+    Page<Review> findByDomainInOrderByCreatedAtDesc(List<Domain> domains, Pageable pageable);
+
+    Page<Review> findByDomainInAndStatusOrderByCreatedAtDesc(List<Domain> domains, ReviewStatus status, Pageable pageable);
+
+    Page<Review> findByDomainInAndRiskLevelOrderByCreatedAtDesc(List<Domain> domains, RiskLevel riskLevel, Pageable pageable);
+
+    Page<Review> findByDomainInAndStatusAndRiskLevelOrderByCreatedAtDesc(
+            List<Domain> domains, ReviewStatus status, RiskLevel riskLevel, Pageable pageable);
+
+    Page<Review> findByDomainInAndStatusAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+            List<Domain> domains, ReviewStatus status, RiskLevel riskLevel, Company company, Pageable pageable);
+
+    Page<Review> findByDomainInAndStatusAndCompanyOrderByCreatedAtDesc(
+            List<Domain> domains, ReviewStatus status, Company company, Pageable pageable);
+
+    Page<Review> findByDomainInAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+            List<Domain> domains, RiskLevel riskLevel, Company company, Pageable pageable);
+
+    Page<Review> findByDomainInAndCompanyOrderByCreatedAtDesc(List<Domain> domains, Company company, Pageable pageable);
+
+    // 도메인 목록 기반 통계
+    long countByDomainIn(List<Domain> domains);
+
+    long countByDomainInAndStatus(List<Domain> domains, ReviewStatus status);
+
+    long countByDomainInAndRiskLevel(List<Domain> domains, RiskLevel riskLevel);
+
+    @Query("SELECT COUNT(DISTINCT r.company) FROM Review r WHERE r.domain IN :domains")
+    long countDistinctCompaniesByDomainIn(@Param("domains") List<Domain> domains);
+
+    @Query("SELECT r FROM Review r WHERE r.domain IN :domains ORDER BY r.submittedAt DESC")
+    List<Review> findByDomainInOrderBySubmittedAtDesc(@Param("domains") List<Domain> domains, Pageable pageable);
+
+    // 단일 도메인 필터 조회 (domainCode 쿼리 파라미터용)
+    Page<Review> findByDomainAndStatusOrderByCreatedAtDesc(Domain domain, ReviewStatus status, Pageable pageable);
+
+    Page<Review> findByDomainAndRiskLevelOrderByCreatedAtDesc(Domain domain, RiskLevel riskLevel, Pageable pageable);
+
+    Page<Review> findByDomainAndStatusAndRiskLevelOrderByCreatedAtDesc(
+            Domain domain, ReviewStatus status, RiskLevel riskLevel, Pageable pageable);
+
+    Page<Review> findByDomainAndStatusAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+            Domain domain, ReviewStatus status, RiskLevel riskLevel, Company company, Pageable pageable);
+
+    Page<Review> findByDomainAndStatusAndCompanyOrderByCreatedAtDesc(
+            Domain domain, ReviewStatus status, Company company, Pageable pageable);
+
+    Page<Review> findByDomainAndRiskLevelAndCompanyOrderByCreatedAtDesc(
+            Domain domain, RiskLevel riskLevel, Company company, Pageable pageable);
+
+    Page<Review> findByDomainAndCompanyOrderByCreatedAtDesc(Domain domain, Company company, Pageable pageable);
+
+    // 단일 도메인 통계
+    long countByDomain(Domain domain);
+
+    long countByDomainAndStatus(Domain domain, ReviewStatus status);
+
+    long countByDomainAndRiskLevel(Domain domain, RiskLevel riskLevel);
+
+    @Query("SELECT COUNT(DISTINCT r.company) FROM Review r WHERE r.domain = :domain")
+    long countDistinctCompaniesByDomain(@Param("domain") Domain domain);
+
+    @Query("SELECT r FROM Review r WHERE r.domain = :domain ORDER BY r.submittedAt DESC")
+    List<Review> findByDomainOrderBySubmittedAtDesc(@Param("domain") Domain domain, Pageable pageable);
 }

@@ -1,6 +1,7 @@
 package com.smartchain.platform.dto.role.approval;
 
 import com.smartchain.platform.dto.role.common.CompanySimpleDto;
+import com.smartchain.platform.dto.role.common.DomainSimpleDto;
 import com.smartchain.platform.dto.role.common.RoleSimpleDto;
 import com.smartchain.platform.dto.role.common.UserSimpleDto;
 import lombok.AllArgsConstructor;
@@ -17,6 +18,7 @@ import java.time.LocalDateTime;
 public class RoleApprovalDetailResponse {
     private Long accessRequestId;
     private UserSimpleDto user;
+    private DomainSimpleDto domain;      // v4.0: 도메인 정보
     private RoleSimpleDto requestedRole;
     private CompanySimpleDto company;
     private String status;

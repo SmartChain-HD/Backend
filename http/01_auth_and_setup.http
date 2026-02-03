@@ -1,0 +1,109 @@
+### SmartChain API 테스트 - 인증 및 초기 설정
+### 사전 준비: 00_seed_test_data.sql 실행 필요
+###
+### 사용법:
+###   1. 로그인 요청 실행
+###   2. 응답의 accessToken 값을 복사
+###   3. @drafterToken = 에 붙여넣기
+
+@host = http://localhost:8080
+
+### 토큰 변수 (로그인 후 여기에 붙여넣기)
+@drafterToken = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI2IiwiZW1haWwiOiJkcmFmdGVyQHRlc3QuY29tIiwicm9sZSI6IkdVRVNUIiwiaWF0IjoxNzY5NjcyMTkxLCJleHAiOjE3Njk2NzU3OTF9.H9i3FOcdjgd7bReUovvLcBBSJIgFuH8LoxqrZeJUf463xYl6B3mY-diUY1lKY02vOL1xcbLKFbZ0rGk0Xb5ndw"
+@approverToken = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI3IiwiZW1haWwiOiJhcHByb3ZlckB0ZXN0LmNvbSIsInJvbGUiOiJHVUVTVCIsImlhdCI6MTc2OTY3MjIzMSwiZXhwIjoxNzY5Njc1ODMxfQ.Er9xhzQd7xYrFjnlvZPp1B5OnGk14Vo1FTAuxjZlnkMA955mJZRkybkSaCtY1yG6HsZy4Bx6zUkvYgVHiabB4w"
+@reviewerToken = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiI4IiwiZW1haWwiOiJyZXZpZXdlckB0ZXN0LmNvbSIsInJvbGUiOiJHVUVTVCIsImlhdCI6MTc2OTY3MjI2NCwiZXhwIjoxNzY5Njc1ODY0fQ.nborgT-UMlSovsln0vaBm9sZ2GRNK6KSX82hrSyx4m8JO4m9jn8OXNz8E0QtBTkIeNkggWGP1In0HPfRuFzlww"
+
+### ========== 도메인 목록 조회 (인증 불필요) ==========
+GET {{host}}/api/v1/domains
+Content-Type: application/json
+
+### ========== 1. 기안자 회원가입 ==========
+POST {{host}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "name": "기안자테스트",
+  "email": "drafter@test.com",
+  "password": "Password123!",
+  "passwordConfirm": "Password123!",
+  "terms": {
+    "privacyPolicyAgreed": true,
+    "serviceTermsAgreed": true,
+    "marketingAgreed": false
+  }
+}
+
+### ========== 2. 결재자 회원가입 ==========
+POST {{host}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "name": "결재자테스트",
+  "email": "approver@test.com",
+  "password": "Password123!",
+  "passwordConfirm": "Password123!",
+  "terms": {
+    "privacyPolicyAgreed": true,
+    "serviceTermsAgreed": true,
+    "marketingAgreed": false
+  }
+}
+
+### ========== 3. 수신자 회원가입 ==========
+POST {{host}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "name": "수신자테스트",
+  "email": "reviewer@test.com",
+  "password": "Password123!",
+  "passwordConfirm": "Password123!",
+  "terms": {
+    "privacyPolicyAgreed": true,
+    "serviceTermsAgreed": true,
+    "marketingAgreed": false
+  }
+}
+
+### ========== 4. 기안자 로그인 ==========
+### 응답의 data.accessToken 값을 위의 @drafterToken에 붙여넣기
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "drafter@test.com",
+  "password": "Password123!"
+}
+
+### ========== 5. 결재자 로그인 ==========
+### 응답의 data.accessToken 값을 위의 @approverToken에 붙여넣기
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "approver@test.com",
+  "password": "Password123!"
+}
+
+### ========== 6. 수신자 로그인 ==========
+### 응답의 data.accessToken 값을 위의 @reviewerToken에 붙여넣기
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "reviewer@test.com",
+  "password": "Password123!"
+}
+
+### ========== 7. 내 정보 조회 (기안자) ==========
+GET {{host}}/api/v1/auth/me
+Authorization: Bearer {{drafterToken}}
+Content-Type: application/json
+
+### ========== 8. 이메일 중복 확인 ==========
+POST {{host}}/api/v1/auth/check-email
+Content-Type: application/json
+
+{
+  "email": "newuser@test.com"
+}

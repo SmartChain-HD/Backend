@@ -1,24 +1,32 @@
 package com.smartchain.platform.domain.role.service;
 
+import com.smartchain.platform.domain.notification.service.NotificationService;
 import com.smartchain.platform.domain.role.repository.RoleRequestRepository;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.RoleRequest;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
+import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
+import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
+import com.smartchain.platform.global.enums.NotificationType;
 import com.smartchain.platform.dto.role.approval.RoleApprovalDetailResponse;
 import com.smartchain.platform.dto.role.approval.RoleApprovalItemDto;
 import com.smartchain.platform.dto.role.approval.RoleApprovalListResponse;
 import com.smartchain.platform.dto.role.approval.RoleDecisionRequest;
 import com.smartchain.platform.dto.role.approval.RoleDecisionResponse;
 import com.smartchain.platform.dto.role.common.CompanySimpleDto;
+import com.smartchain.platform.dto.role.common.DomainSimpleDto;
 import com.smartchain.platform.dto.role.common.PageDto;
 import com.smartchain.platform.dto.role.common.ProcessedByDto;
 import com.smartchain.platform.dto.role.common.RoleSimpleDto;
 import com.smartchain.platform.dto.role.common.UserSimpleDto;
 import com.smartchain.platform.dto.role.page.CompanyOptionDto;
+import com.smartchain.platform.dto.role.page.DomainOptionDto;
 import com.smartchain.platform.dto.role.page.RoleOptionDto;
 import com.smartchain.platform.dto.role.page.RoleRequestPageResponse;
 import com.smartchain.platform.dto.role.request.RoleRequestCreateDto;
@@ -51,6 +59,9 @@ public class RoleRequestService {
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
     private final RoleRepository roleRepository;
+    private final DomainRepository domainRepository;
+    private final UserDomainRoleRepository userDomainRoleRepository;
+    private final NotificationService notificationService;
 
     private static final List<String> REQUESTABLE_ROLES = Arrays.asList("DRAFTER", "APPROVER", "REVIEWER");
 
@@ -103,6 +114,16 @@ public class RoleRequestService {
                         .build())
                 .toList();
 
+        List<DomainOptionDto> availableDomains = domainRepository.findByIsActiveTrue().stream()
+                .map(domain -> DomainOptionDto.builder()
+                        .domainId(domain.getDomainId())
+                        .domainCode(domain.getCode())
+                        .domainName(domain.getName())
+                        .description(domain.getDescription())
+                        .selectable(true)
+                        .build())
+                .toList();
+
         RoleRequestStatusDto pendingRequest = null;
         Optional<RoleRequest> pendingRequestOpt = roleRequestRepository.findByUserAndStatus(user, RequestStatus.PENDING);
         if (pendingRequestOpt.isPresent()) {
@@ -112,6 +133,7 @@ public class RoleRequestService {
         return RoleRequestPageResponse.builder()
                 .currentRole(currentRole)
                 .availableRoles(availableRoles)
+                .availableDomains(availableDomains)
                 .availableCompanies(availableCompanies)
                 .pendingRequest(pendingRequest)
                 .build();
@@ -126,7 +148,21 @@ public class RoleRequestService {
             throw new CustomException(ErrorCode.INVALID_ROLE_REQUEST);
         }
 
-        if (roleRequestRepository.existsByUserAndStatus(user, RequestStatus.PENDING)) {
+        Domain domain = domainRepository.findById(request.getDomainId())
+                .orElseThrow(() -> new CustomException(ErrorCode.DOMAIN_NOT_FOUND));
+
+        // APPROVER는 ESG 도메인에서만 허용
+        if ("APPROVER".equals(request.getRequestedRole()) && !"ESG".equals(domain.getCode())) {
+            throw new CustomException(ErrorCode.APPROVER_ONLY_ESG);
+        }
+
+        // 해당 도메인에 이미 권한이 있는지 확인
+        if (userDomainRoleRepository.existsByUserUserIdAndDomainDomainId(userId, request.getDomainId())) {
+            throw new CustomException(ErrorCode.DUPLICATE_DOMAIN_ROLE);
+        }
+
+        // 해당 도메인에 대기 중인 요청이 있는지 확인
+        if (roleRequestRepository.existsByUserAndDomainAndStatus(user, domain, RequestStatus.PENDING)) {
             throw new CustomException(ErrorCode.DUPLICATE_ROLE_REQUEST);
         }
 
@@ -136,6 +172,7 @@ public class RoleRequestService {
         RoleRequest roleRequest = RoleRequest.builder()
                 .user(user)
                 .company(company)
+                .domain(domain)
                 .requestedRole(request.getRequestedRole())
                 .reason(request.getReason())
                 .status(RequestStatus.PENDING)
@@ -143,8 +180,11 @@ public class RoleRequestService {
 
         RoleRequest savedRequest = roleRequestRepository.save(roleRequest);
 
-        log.info("Role request created: userId={}, requestedRole={}, companyId={}",
-                userId, request.getRequestedRole(), request.getCompanyId());
+        log.info("Role request created: userId={}, requestedRole={}, domainId={}, companyId={}",
+                userId, request.getRequestedRole(), request.getDomainId(), request.getCompanyId());
+
+        // REVIEWER들에게 권한 요청 알림 생성
+        notifyReviewersOfNewRoleRequest(user, savedRequest);
 
         return RoleRequestResponse.builder()
                 .accessRequestId(savedRequest.getRequestId())
@@ -172,6 +212,15 @@ public class RoleRequestService {
                 .name(ROLE_NAME_MAP.getOrDefault(roleRequest.getRequestedRole(), roleRequest.getRequestedRole()))
                 .build();
 
+        DomainSimpleDto domainDto = null;
+        if (roleRequest.getDomain() != null) {
+            domainDto = DomainSimpleDto.builder()
+                    .domainId(roleRequest.getDomain().getDomainId())
+                    .code(roleRequest.getDomain().getCode())
+                    .name(roleRequest.getDomain().getName())
+                    .build();
+        }
+
         CompanySimpleDto company = null;
         if (roleRequest.getCompany() != null) {
             company = CompanySimpleDto.builder()
@@ -191,6 +240,7 @@ public class RoleRequestService {
         return RoleRequestStatusDto.builder()
                 .accessRequestId(roleRequest.getRequestId())
                 .requestedRole(requestedRole)
+                .domain(domainDto)
                 .company(company)
                 .status(roleRequest.getStatus().name())
                 .statusLabel(STATUS_LABEL_MAP.getOrDefault(roleRequest.getStatus().name(), roleRequest.getStatus().name()))
@@ -287,6 +337,15 @@ public class RoleRequestService {
                 .email(roleRequest.getUser().getEmail())
                 .build();
 
+        DomainSimpleDto domainDto = null;
+        if (roleRequest.getDomain() != null) {
+            domainDto = DomainSimpleDto.builder()
+                    .domainId(roleRequest.getDomain().getDomainId())
+                    .code(roleRequest.getDomain().getCode())
+                    .name(roleRequest.getDomain().getName())
+                    .build();
+        }
+
         CompanySimpleDto companyDto = null;
         if (roleRequest.getCompany() != null) {
             companyDto = CompanySimpleDto.builder()
@@ -307,6 +366,7 @@ public class RoleRequestService {
         return RoleApprovalItemDto.builder()
                 .accessRequestId(roleRequest.getRequestId())
                 .user(userDto)
+                .domain(domainDto)
                 .company(companyDto)
                 .requestedRole(requestedRole)
                 .status(roleRequest.getStatus().name())
@@ -342,6 +402,15 @@ public class RoleRequestService {
                 .email(roleRequest.getUser().getEmail())
                 .build();
 
+        DomainSimpleDto domainDto = null;
+        if (roleRequest.getDomain() != null) {
+            domainDto = DomainSimpleDto.builder()
+                    .domainId(roleRequest.getDomain().getDomainId())
+                    .code(roleRequest.getDomain().getCode())
+                    .name(roleRequest.getDomain().getName())
+                    .build();
+        }
+
         CompanySimpleDto companyDto = null;
         if (roleRequest.getCompany() != null) {
             companyDto = CompanySimpleDto.builder()
@@ -358,6 +427,7 @@ public class RoleRequestService {
         return RoleApprovalDetailResponse.builder()
                 .accessRequestId(roleRequest.getRequestId())
                 .user(userDto)
+                .domain(domainDto)
                 .requestedRole(requestedRole)
                 .company(companyDto)
                 .status(roleRequest.getStatus().name())
@@ -397,13 +467,46 @@ public class RoleRequestService {
 
         if ("APPROVED".equals(decision)) {
             roleRequest.approve(currentUser);
+
+            // UserDomainRole 생성 (도메인별 권한 부여)
+            if (roleRequest.getDomain() != null) {
+                Role role = roleRepository.findByCode(roleRequest.getRequestedRole())
+                        .orElseThrow(() -> new CustomException(ErrorCode.ROLE_NOT_FOUND));
+
+                UserDomainRole userDomainRole = UserDomainRole.builder()
+                        .user(roleRequest.getUser())
+                        .domain(roleRequest.getDomain())
+                        .role(role)
+                        .build();
+
+                userDomainRoleRepository.save(userDomainRole);
+                log.info("UserDomainRole created: userId={}, domainId={}, roleCode={}",
+                        roleRequest.getUser().getUserId(),
+                        roleRequest.getDomain().getDomainId(),
+                        roleRequest.getRequestedRole());
+
+                // GUEST인 경우 전역 역할도 업그레이드
+                User requestUser = roleRequest.getUser();
+                if (requestUser.getRole() != null && "GUEST".equals(requestUser.getRole().getCode())) {
+                    requestUser.changeRole(role);
+                    log.info("User global role upgraded from GUEST to {}: userId={}",
+                            roleRequest.getRequestedRole(), requestUser.getUserId());
+                }
+            }
+
             message = "권한 요청이 승인되었습니다";
             log.info("Role request approved: requestId={}, approvedBy={}", accessRequestId, userId);
+
+            // 요청자에게 승인 알림 생성
+            notifyRequesterOfApproval(roleRequest);
         } else if ("REJECTED".equals(decision)) {
             roleRequest.reject(currentUser, request.getRejectReason());
             message = "권한 요청이 반려되었습니다";
             log.info("Role request rejected: requestId={}, rejectedBy={}, reason={}",
                     accessRequestId, userId, request.getRejectReason());
+
+            // 요청자에게 반려 알림 생성
+            notifyRequesterOfRejection(roleRequest);
         } else {
             throw new CustomException(ErrorCode.INVALID_DECISION);
         }
@@ -420,5 +523,68 @@ public class RoleRequestService {
                 .processedBy(processedByDto)
                 .message(message)
                 .build();
+    }
+
+    // ========== 알림 생성 헬퍼 메서드 ==========
+
+    private void notifyReviewersOfNewRoleRequest(User requester, RoleRequest roleRequest) {
+        List<User> reviewers = userRepository.findAllByRoleCode("REVIEWER");
+
+        String domainName = roleRequest.getDomain() != null ? roleRequest.getDomain().getName() : "";
+        String roleName = ROLE_NAME_MAP.getOrDefault(roleRequest.getRequestedRole(), roleRequest.getRequestedRole());
+        String title = "새로운 권한 요청";
+        String message = String.format("%s님이 %s 도메인의 %s 권한을 요청했습니다.",
+                requester.getName(), domainName, roleName);
+        String linkUrl = "/management/role-requests/" + roleRequest.getRequestId();
+
+        for (User reviewer : reviewers) {
+            notificationService.createNotification(
+                    reviewer,
+                    NotificationType.ROLE_REQUEST_CREATED,
+                    title,
+                    message,
+                    linkUrl
+            );
+        }
+
+        log.info("Role request notification sent to {} reviewers: requestId={}",
+                reviewers.size(), roleRequest.getRequestId());
+    }
+
+    private void notifyRequesterOfApproval(RoleRequest roleRequest) {
+        User requester = roleRequest.getUser();
+        String domainName = roleRequest.getDomain() != null ? roleRequest.getDomain().getName() : "";
+        String roleName = ROLE_NAME_MAP.getOrDefault(roleRequest.getRequestedRole(), roleRequest.getRequestedRole());
+
+        String title = "권한 요청이 승인되었습니다";
+        String message = String.format("%s 도메인의 %s 권한이 승인되었습니다.", domainName, roleName);
+
+        notificationService.createNotification(
+                requester,
+                NotificationType.ROLE_APPROVED,
+                title,
+                message,
+                null
+        );
+    }
+
+    private void notifyRequesterOfRejection(RoleRequest roleRequest) {
+        User requester = roleRequest.getUser();
+        String domainName = roleRequest.getDomain() != null ? roleRequest.getDomain().getName() : "";
+        String roleName = ROLE_NAME_MAP.getOrDefault(roleRequest.getRequestedRole(), roleRequest.getRequestedRole());
+
+        String title = "권한 요청이 반려되었습니다";
+        String message = String.format("%s 도메인의 %s 권한 요청이 반려되었습니다.", domainName, roleName);
+        if (roleRequest.getRejectReason() != null && !roleRequest.getRejectReason().isEmpty()) {
+            message += " 사유: " + roleRequest.getRejectReason();
+        }
+
+        notificationService.createNotification(
+                requester,
+                NotificationType.ROLE_REQUEST_REJECTED,
+                title,
+                message,
+                null
+        );
     }
 }

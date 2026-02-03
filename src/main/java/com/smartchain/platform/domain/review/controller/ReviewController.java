@@ -36,10 +36,12 @@ public class ReviewController {
     private final ReportExportService reportExportService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Operation(summary = "진단 현황 대시보드 조회", description = "수신자용 진단 현황 대시보드를 조회합니다. REVIEWER 권한이 필요합니다.")
+    @Operation(summary = "진단 현황 대시보드 조회", description = "수신자용 진단 현황 대시보드를 조회합니다. REVIEWER 권한이 필요합니다. domainCode 파라미터로 도메인별 통계를 조회할 수 있습니다.")
     @GetMapping("/dashboard")
     public ResponseEntity<BaseResponse<ReviewDashboardResponse>> getDashboard(
             HttpServletRequest request,
+            @Parameter(description = "도메인 필터 (ESG, SAFETY, COMPLIANCE)")
+            @RequestParam(required = false) String domainCode,
             @Parameter(description = "캠페인 ID 필터")
             @RequestParam(required = false) Long campaignId,
             @Parameter(description = "기간 시작 (yyyy-MM-dd)")
@@ -47,14 +49,16 @@ public class ReviewController {
             @Parameter(description = "기간 종료 (yyyy-MM-dd)")
             @RequestParam(required = false) String toDate) {
         Long userId = extractUserIdFromRequest(request);
-        ReviewDashboardResponse response = reviewService.getDashboard(userId, campaignId, fromDate, toDate);
+        ReviewDashboardResponse response = reviewService.getDashboard(userId, domainCode, campaignId, fromDate, toDate);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 
-    @Operation(summary = "심사 대상 목록 조회", description = "심사 대상 목록을 조회합니다. REVIEWER 권한이 필요합니다.")
+    @Operation(summary = "심사 대상 목록 조회", description = "심사 대상 목록을 조회합니다. REVIEWER 권한이 필요합니다. domainCode 파라미터로 도메인별 필터링이 가능합니다.")
     @GetMapping
     public ResponseEntity<BaseResponse<ReviewListResponse>> getReviewList(
             HttpServletRequest request,
+            @Parameter(description = "도메인 필터 (ESG, SAFETY, COMPLIANCE)")
+            @RequestParam(required = false) String domainCode,
             @Parameter(description = "심사 상태 필터 (REVIEWING, APPROVED, REVISION_REQUIRED)")
             @RequestParam(required = false) String status,
             @Parameter(description = "위험군 필터 (HIGH, MEDIUM, LOW)")
@@ -66,7 +70,7 @@ public class ReviewController {
             @Parameter(description = "페이지 크기")
             @RequestParam(defaultValue = "20") int size) {
         Long userId = extractUserIdFromRequest(request);
-        ReviewListResponse response = reviewService.getReviewList(userId, status, riskLevel, companyId, page, size);
+        ReviewListResponse response = reviewService.getReviewList(userId, domainCode, status, riskLevel, companyId, page, size);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 

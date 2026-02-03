@@ -5,11 +5,15 @@ import com.smartchain.platform.domain.approval.repository.ApprovalRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Campaign;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.entity.DiagnosticHistory;
+import com.smartchain.platform.domain.review.entity.Review;
+import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.diagnostic.repository.CampaignRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.user.entity.Company;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.diagnostic.ai.AiAnalysisResponse;
 import com.smartchain.platform.dto.diagnostic.ai.CategoryScoresDto;
@@ -40,7 +44,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Year;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -57,6 +63,8 @@ public class DiagnosticService {
     private final CampaignRepository campaignRepository;
     private final UserRepository userRepository;
     private final ApprovalRepository approvalRepository;
+    private final ReviewRepository reviewRepository;
+    private final DomainRepository domainRepository;
 
     private static final List<String> ALLOWED_ROLES = Arrays.asList("DRAFTER", "APPROVER");
 
@@ -69,59 +77,127 @@ public class DiagnosticService {
             "COMPLETED", "완료"
     );
 
-    public DiagnosticListResponse getDiagnosticList(Long userId, String statuses, LocalDate deadlineFrom,
+    public DiagnosticListResponse getDiagnosticList(Long userId, String domainCode, String statuses,
+                                                     String keyword, LocalDate deadlineFrom,
                                                      LocalDate deadlineTo, int page, int size) {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        Company userCompany = currentUser.getCompany();
+
+        // 공통 필터 파라미터 준비
+        List<DiagnosticStatus> statusList = (statuses != null && !statuses.isEmpty())
+                ? parseStatuses(statuses) : Collections.emptyList();
+        boolean hasStatuses = !statusList.isEmpty();
+        String trimmedKeyword = (keyword != null && !keyword.isBlank()) ? keyword.trim() : null;
+
+        // 도메인별 역할 분류
+        List<Domain> reviewerDomains = new ArrayList<>();
+        List<Domain> approverDomains = new ArrayList<>();
+        List<Domain> drafterDomains = new ArrayList<>();
+
+        for (var domainRole : currentUser.getDomainRoles()) {
+            String roleCode = domainRole.getRole().getCode();
+            Domain domain = domainRole.getDomain();
+            switch (roleCode) {
+                case "REVIEWER" -> reviewerDomains.add(domain);
+                case "APPROVER" -> approverDomains.add(domain);
+                case "DRAFTER" -> drafterDomains.add(domain);
+            }
+        }
+
+        // 도메인 역할이 없으면 레거시 로직 사용
+        boolean hasDomainRoles = !reviewerDomains.isEmpty() || !approverDomains.isEmpty() || !drafterDomains.isEmpty();
+        if (!hasDomainRoles) {
+            return getDiagnosticListLegacy(currentUser, userCompany, domainCode, hasStatuses, statusList,
+                    trimmedKeyword, deadlineFrom, deadlineTo, page, size);
+        }
+
+        // domainCode 파라미터가 있으면 해당 도메인으로 필터링
+        if (domainCode != null && !domainCode.isEmpty()) {
+            reviewerDomains = reviewerDomains.stream().filter(d -> d.getCode().equals(domainCode)).toList();
+            approverDomains = approverDomains.stream().filter(d -> d.getCode().equals(domainCode)).toList();
+            drafterDomains = drafterDomains.stream().filter(d -> d.getCode().equals(domainCode)).toList();
+        }
+
+        boolean hasReviewer = !reviewerDomains.isEmpty();
+        boolean hasApprover = !approverDomains.isEmpty();
+        boolean hasDrafter = !drafterDomains.isEmpty();
+
+        // 모든 도메인 리스트가 비어있으면 빈 결과 반환
+        if (!hasReviewer && !hasApprover && !hasDrafter) {
+            return buildEmptyResponse(page, size);
+        }
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Diagnostic> diagnosticPage = diagnosticRepository.findByFilters(
+                hasReviewer ? reviewerDomains : Collections.singletonList(null),
+                hasApprover ? approverDomains : Collections.singletonList(null),
+                hasDrafter ? drafterDomains : Collections.singletonList(null),
+                hasReviewer, hasApprover, hasDrafter,
+                userCompany, userId,
+                hasStatuses, hasStatuses ? statusList : Collections.singletonList(DiagnosticStatus.WRITING),
+                trimmedKeyword, deadlineFrom, deadlineTo,
+                pageable);
+
+        return buildListResponse(diagnosticPage);
+    }
+
+    /**
+     * 레거시: 도메인 역할이 없는 사용자용 기안 목록 조회
+     */
+    private DiagnosticListResponse getDiagnosticListLegacy(User currentUser, Company userCompany,
+                                                            String domainCode, boolean hasStatuses,
+                                                            List<DiagnosticStatus> statusList, String keyword,
+                                                            LocalDate deadlineFrom, LocalDate deadlineTo,
+                                                            int page, int size) {
         validateAccessRole(currentUser);
 
-        Company userCompany = currentUser.getCompany();
         if (userCompany == null) {
             throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
         }
 
-        Pageable pageable = PageRequest.of(page, size);
-        Page<Diagnostic> diagnosticPage;
-
-        if (statuses != null && !statuses.isEmpty()) {
-            List<DiagnosticStatus> statusList = parseStatuses(statuses);
-            diagnosticPage = diagnosticRepository.findByCompanyAndStatusInOrderByCreatedAtDesc(
-                    userCompany, statusList, pageable);
-        } else if (deadlineFrom != null && deadlineTo != null) {
-            diagnosticPage = diagnosticRepository.findByCompanyAndDeadlineBetweenOrderByCreatedAtDesc(
-                    userCompany, deadlineFrom, deadlineTo, pageable);
-        } else {
-            diagnosticPage = diagnosticRepository.findByCompanyOrderByCreatedAtDesc(userCompany, pageable);
+        Domain domain = null;
+        boolean hasDomain = false;
+        if (domainCode != null && !domainCode.isEmpty()) {
+            domain = domainRepository.findByCode(domainCode)
+                    .orElseThrow(() -> new CustomException(ErrorCode.DOMAIN_NOT_FOUND));
+            hasDomain = true;
         }
 
-        List<DiagnosticListItemDto> content = diagnosticPage.getContent().stream()
-                .map(this::mapToListItemDto)
-                .toList();
+        Pageable pageable = PageRequest.of(page, size);
+        String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
 
-        PageDto pageDto = PageDto.builder()
-                .number(diagnosticPage.getNumber())
-                .size(diagnosticPage.getSize())
-                .totalElements(diagnosticPage.getTotalElements())
-                .totalPages(diagnosticPage.getTotalPages())
-                .build();
+        Page<Diagnostic> diagnosticPage;
+        List<DiagnosticStatus> queryStatuses = hasStatuses ? statusList : Collections.singletonList(DiagnosticStatus.WRITING);
 
-        return DiagnosticListResponse.builder()
-                .content(content)
-                .page(pageDto)
-                .build();
+        if ("DRAFTER".equals(userRoleCode)) {
+            // DRAFTER는 본인 기안만 조회
+            diagnosticPage = diagnosticRepository.findByDrafterIdAndFilters(
+                    currentUser.getUserId(), hasDomain, domain,
+                    hasStatuses, queryStatuses,
+                    keyword, deadlineFrom, deadlineTo, pageable);
+        } else {
+            // APPROVER는 회사 전체 건 조회
+            diagnosticPage = diagnosticRepository.findByCompanyAndFilters(
+                    userCompany, hasDomain, domain,
+                    hasStatuses, queryStatuses,
+                    keyword, deadlineFrom, deadlineTo, pageable);
+        }
+
+        return buildListResponse(diagnosticPage);
     }
 
     public DiagnosticDetailResponse getDiagnosticDetail(Long userId, Long diagnosticId) {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        validateAccessRole(currentUser);
-
         Diagnostic diagnostic = diagnosticRepository.findById(diagnosticId)
                 .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
 
-        validateCompanyAccess(currentUser, diagnostic);
+        // 도메인 기반 권한 검증
+        validateDomainAccess(currentUser, diagnostic);
 
         User drafter = null;
         if (diagnostic.getDrafterId() != null) {
@@ -161,9 +237,20 @@ public class DiagnosticService {
                     .build();
         }
 
+        DomainSimpleDto domainDto = null;
+        if (diagnostic.getDomain() != null) {
+            Domain domain = diagnostic.getDomain();
+            domainDto = DomainSimpleDto.builder()
+                    .domainId(domain.getDomainId())
+                    .code(domain.getCode())
+                    .name(domain.getName())
+                    .build();
+        }
+
         return DiagnosticDetailResponse.builder()
                 .diagnosticId(diagnostic.getDiagnosticId())
                 .diagnosticCode(diagnostic.getDiagnosticCode())
+                .domain(domainDto)
                 .campaign(campaignDto)
                 .company(companyDto)
                 .period(periodDto)
@@ -185,18 +272,31 @@ public class DiagnosticService {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
-        if (!"DRAFTER".equals(userRoleCode)) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
-        }
-
         Company userCompany = currentUser.getCompany();
         if (userCompany == null) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
+            throw new CustomException(ErrorCode.COMPANY_NOT_ASSIGNED);
         }
 
         Campaign campaign = campaignRepository.findById(request.getCampaignId())
                 .orElseThrow(() -> new CustomException(ErrorCode.CAMPAIGN_NOT_FOUND));
+
+        // 캠페인의 도메인 또는 요청의 도메인 코드로 도메인 조회
+        Domain domain = campaign.getDomain();
+        if (domain == null && request.getDomainCode() != null) {
+            domain = domainRepository.findByCode(request.getDomainCode())
+                    .orElseThrow(() -> new CustomException(ErrorCode.DOMAIN_NOT_FOUND));
+        }
+
+        // 도메인 기반 DRAFTER 권한 검증
+        if (domain != null) {
+            validateDrafterRole(currentUser, domain.getCode());
+        } else {
+            // 레거시: 도메인이 없으면 기본 역할로 검증
+            String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
+            if (!"DRAFTER".equals(userRoleCode)) {
+                throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+            }
+        }
 
         String diagnosticCode = generateDiagnosticCode();
 
@@ -205,6 +305,7 @@ public class DiagnosticService {
                 .title(campaign.getTitle())
                 .campaign(campaign)
                 .company(userCompany)
+                .domain(domain)
                 .drafterId(userId)
                 .periodStartDate(campaign.getPeriodStartDate())
                 .periodEndDate(campaign.getPeriodEndDate())
@@ -239,26 +340,40 @@ public class DiagnosticService {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
-        if (!"DRAFTER".equals(userRoleCode)) {
-            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
-        }
-
         Diagnostic diagnostic = diagnosticRepository.findById(diagnosticId)
                 .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
 
+        // 본인 기안만 제출 가능 (소유자 검증 우선)
         if (!diagnostic.getDrafterId().equals(userId)) {
             throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
         }
 
-        // BIZ_002: 이미 제출된 기안
+        // 이미 제출된 기안: 멱등 처리 (재요청 시 기존 결과 반환)
         if (diagnostic.getStatus() == DiagnosticStatus.SUBMITTED) {
-            throw new CustomException(ErrorCode.DIAGNOSTIC_ALREADY_SUBMITTED);
+            log.info("Diagnostic already submitted (idempotent): diagnosticId={}, userId={}", diagnosticId, userId);
+            return DiagnosticSubmitResponse.builder()
+                    .diagnosticId(diagnostic.getDiagnosticId())
+                    .previousStatus(DiagnosticStatus.SUBMITTED.name())
+                    .newStatus(DiagnosticStatus.SUBMITTED.name())
+                    .submittedAt(diagnostic.getSubmittedAt())
+                    .message("기안이 이미 제출되었습니다")
+                    .build();
         }
 
-        // BIZ_001: 상태 전이 불가
+        // 상태 전이 불가
         if (!diagnostic.canSubmit()) {
             throw new CustomException(ErrorCode.DIAGNOSTIC_INVALID_STATE_TRANSITION);
+        }
+
+        // 도메인 기반 DRAFTER 권한 검증
+        Domain domain = diagnostic.getDomain();
+        if (domain != null) {
+            validateDrafterRole(currentUser, domain.getCode());
+        } else {
+            String userRoleCode = currentUser.getRole() != null ? currentUser.getRole().getCode() : "GUEST";
+            if (!"DRAFTER".equals(userRoleCode)) {
+                throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+            }
         }
 
         String previousStatus = diagnostic.getStatus().name();
@@ -274,38 +389,75 @@ public class DiagnosticService {
                 .build();
         diagnosticHistoryRepository.save(history);
 
-        // Approval 레코드 자동 생성
-        Approval approval = Approval.builder()
-                .diagnostic(diagnostic)
-                .requester(currentUser)
-                .requestComment(request.getSubmitComment())
-                .deadline(diagnostic.getDeadline())
-                .build();
-        Approval savedApproval = approvalRepository.save(approval);
+        // 도메인별 워크플로우 분기
+        String domainCode = domain != null ? domain.getCode() : "ESG";
 
-        log.info("Diagnostic submitted: diagnosticId={}, submittedBy={}, approvalId={}",
-                diagnosticId, userId, savedApproval.getApprovalId());
+        if ("ESG".equals(domainCode)) {
+            // ESG: 결재자에게 결재 요청 (기안자 → 결재자 → 수신자)
+            Approval approval = Approval.builder()
+                    .diagnostic(diagnostic)
+                    .requester(currentUser)
+                    .requestComment(request.getSubmitComment())
+                    .deadline(diagnostic.getDeadline())
+                    .build();
+            Approval savedApproval = approvalRepository.save(approval);
 
-        return DiagnosticSubmitResponse.builder()
-                .diagnosticId(diagnostic.getDiagnosticId())
-                .previousStatus(previousStatus)
-                .newStatus(DiagnosticStatus.SUBMITTED.name())
-                .submittedAt(diagnostic.getSubmittedAt())
-                .approvalId(savedApproval.getApprovalId())
-                .message("기안이 제출되었습니다")
-                .build();
+            log.info("Diagnostic submitted (ESG → Approval): diagnosticId={}, submittedBy={}, approvalId={}",
+                    diagnosticId, userId, savedApproval.getApprovalId());
+
+            return DiagnosticSubmitResponse.builder()
+                    .diagnosticId(diagnostic.getDiagnosticId())
+                    .previousStatus(previousStatus)
+                    .newStatus(DiagnosticStatus.SUBMITTED.name())
+                    .submittedAt(diagnostic.getSubmittedAt())
+                    .approvalId(savedApproval.getApprovalId())
+                    .message("기안이 제출되었습니다")
+                    .build();
+        } else {
+            // SAFETY, COMPLIANCE: 결재 스킵, 수신자에게 직행 (기안자 → 수신자)
+            diagnostic.approve();
+
+            DiagnosticHistory approveHistory = DiagnosticHistory.builder()
+                    .diagnostic(diagnostic)
+                    .actor(currentUser)
+                    .action("AUTO_APPROVED")
+                    .previousStatus(DiagnosticStatus.SUBMITTED.name())
+                    .newStatus(DiagnosticStatus.APPROVED.name())
+                    .comment("결재 스킵 (도메인 정책: " + domainCode + ")")
+                    .build();
+            diagnosticHistoryRepository.save(approveHistory);
+
+            Review review = Review.builder()
+                    .diagnostic(diagnostic)
+                    .company(diagnostic.getCompany())
+                    .domain(domain)
+                    .submittedAt(diagnostic.getSubmittedAt())
+                    .build();
+            Review savedReview = reviewRepository.save(review);
+
+            log.info("Diagnostic submitted ({} → Review, approval skipped): diagnosticId={}, submittedBy={}, reviewId={}",
+                    domainCode, diagnosticId, userId, savedReview.getReviewId());
+
+            return DiagnosticSubmitResponse.builder()
+                    .diagnosticId(diagnostic.getDiagnosticId())
+                    .previousStatus(previousStatus)
+                    .newStatus(DiagnosticStatus.APPROVED.name())
+                    .submittedAt(diagnostic.getSubmittedAt())
+                    .reviewId(savedReview.getReviewId())
+                    .message("기안이 제출되었습니다 (심사 대기)")
+                    .build();
+        }
     }
 
     public AiAnalysisResponse getAiAnalysis(Long userId, Long diagnosticId) {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        validateAccessRole(currentUser);
-
         Diagnostic diagnostic = diagnosticRepository.findById(diagnosticId)
                 .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
 
-        validateCompanyAccess(currentUser, diagnostic);
+        // 도메인 기반 권한 검증
+        validateDomainAccess(currentUser, diagnostic);
 
         // 현재 AI 분석이 실제로 실행되지 않으므로 Mock 데이터 반환
         // 실제 AI 분석 결과는 별도의 AiAnalysis 엔티티에서 조회해야 함
@@ -325,12 +477,11 @@ public class DiagnosticService {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        validateAccessRole(currentUser);
-
         Diagnostic diagnostic = diagnosticRepository.findById(diagnosticId)
                 .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
 
-        validateCompanyAccess(currentUser, diagnostic);
+        // 도메인 기반 권한 검증
+        validateDomainAccess(currentUser, diagnostic);
 
         List<DiagnosticHistory> histories = diagnosticHistoryRepository.findByDiagnosticOrderByCreatedAtDesc(diagnostic);
 
@@ -342,6 +493,76 @@ public class DiagnosticService {
                 .diagnosticId(diagnosticId)
                 .history(historyItems)
                 .build();
+    }
+
+    /**
+     * 도메인 기반 접근 권한 검증 (DRAFTER 또는 APPROVER)
+     */
+    private void validateDomainAccess(User user, Diagnostic diagnostic) {
+        Domain domain = diagnostic.getDomain();
+        if (domain == null) {
+            // 도메인이 없는 기존 데이터는 기본 역할 및 회사/소유권 검증
+            validateAccessRoleLegacy(user);
+            validateCompanyAccess(user, diagnostic);
+            return;
+        }
+
+        String domainCode = domain.getCode();
+
+        // 해당 도메인에서 DRAFTER 또는 APPROVER 역할이 있는지 확인
+        if (!user.hasAnyRoleInDomain(domainCode, "DRAFTER", "APPROVER", "REVIEWER")) {
+            log.warn("User {} does not have access to domain {}", user.getUserId(), domainCode);
+            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+        }
+
+        // 회사 및 소유권 검증
+        validateCompanyAndOwnership(user, diagnostic, domainCode);
+    }
+
+    /**
+     * 기안 생성/제출 시 DRAFTER 권한 검증
+     */
+    private void validateDrafterRole(User user, String domainCode) {
+        if (!user.hasRoleInDomain(domainCode, "DRAFTER")) {
+            log.warn("User {} does not have DRAFTER role in domain {}", user.getUserId(), domainCode);
+            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+        }
+    }
+
+    /**
+     * 회사 및 소유권 검증
+     */
+    private void validateCompanyAndOwnership(User user, Diagnostic diagnostic, String domainCode) {
+        Company userCompany = user.getCompany();
+
+        // DRAFTER: 본인 기안만 접근
+        if (user.hasRoleInDomain(domainCode, "DRAFTER")) {
+            if (!diagnostic.getDrafterId().equals(user.getUserId())) {
+                throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
+            }
+            return;
+        }
+
+        // APPROVER: 같은 회사 기안만 접근
+        if (user.hasRoleInDomain(domainCode, "APPROVER")) {
+            if (userCompany == null || !userCompany.getCompanyId().equals(diagnostic.getCompany().getCompanyId())) {
+                throw new CustomException(ErrorCode.PERMISSION_DENIED_RESOURCE);
+            }
+            return;
+        }
+
+        // REVIEWER: 모든 기안 접근 가능 (원청)
+        // REVIEWER는 제한 없음
+    }
+
+    /**
+     * 레거시: 도메인 없는 데이터용 기본 역할 검증
+     */
+    private void validateAccessRoleLegacy(User user) {
+        String userRoleCode = user.getRole() != null ? user.getRole().getCode() : "GUEST";
+        if (!ALLOWED_ROLES.contains(userRoleCode)) {
+            throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
+        }
     }
 
     private void validateAccessRole(User user) {
@@ -366,6 +587,38 @@ public class DiagnosticService {
         }
     }
 
+    private DiagnosticListResponse buildListResponse(Page<Diagnostic> diagnosticPage) {
+        List<DiagnosticListItemDto> content = diagnosticPage.getContent().stream()
+                .map(this::mapToListItemDto)
+                .toList();
+
+        PageDto pageDto = PageDto.builder()
+                .number(diagnosticPage.getNumber())
+                .size(diagnosticPage.getSize())
+                .totalElements(diagnosticPage.getTotalElements())
+                .totalPages(diagnosticPage.getTotalPages())
+                .build();
+
+        return DiagnosticListResponse.builder()
+                .content(content)
+                .page(pageDto)
+                .build();
+    }
+
+    private DiagnosticListResponse buildEmptyResponse(int page, int size) {
+        PageDto pageDto = PageDto.builder()
+                .number(page)
+                .size(size)
+                .totalElements(0)
+                .totalPages(0)
+                .build();
+
+        return DiagnosticListResponse.builder()
+                .content(Collections.emptyList())
+                .page(pageDto)
+                .build();
+    }
+
     private List<DiagnosticStatus> parseStatuses(String statuses) {
         return Arrays.stream(statuses.split(","))
                 .map(String::trim)
@@ -382,8 +635,7 @@ public class DiagnosticService {
 
     private String generateDiagnosticCode() {
         int year = Year.now().getValue();
-        Long maxId = diagnosticRepository.findMaxDiagnosticId();
-        long sequence = (maxId != null ? maxId : 0L) + 1;
+        long sequence = diagnosticRepository.getNextDiagnosticCodeSequence();
         return String.format("DG-%d-%05d", year, sequence);
     }
 
@@ -409,9 +661,20 @@ public class DiagnosticService {
                 .overall(diagnostic.getOverallProgress())
                 .build();
 
+        DomainSimpleDto domainDto = null;
+        if (diagnostic.getDomain() != null) {
+            Domain domain = diagnostic.getDomain();
+            domainDto = DomainSimpleDto.builder()
+                    .domainId(domain.getDomainId())
+                    .code(domain.getCode())
+                    .name(domain.getName())
+                    .build();
+        }
+
         return DiagnosticListItemDto.builder()
                 .diagnosticId(diagnostic.getDiagnosticId())
                 .diagnosticCode(diagnostic.getDiagnosticCode())
+                .domain(domainDto)
                 .campaign(campaignDto)
                 .summary(diagnostic.getTitle())
                 .period(periodDto)

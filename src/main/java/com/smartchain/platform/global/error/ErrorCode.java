@@ -18,11 +18,15 @@ public enum ErrorCode {
     VERIFICATION_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "U008", "인증 코드가 만료되었습니다"),
     INVALID_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "U009", "인증 코드가 올바르지 않습니다"),
     VERIFICATION_RATE_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "U010", "잠시 후 다시 시도해주세요"),
+    COMPANY_NOT_ASSIGNED(HttpStatus.BAD_REQUEST, "U011", "소속 회사가 지정되지 않았습니다"),
 
     // 401 Unauthorized
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A001", "유효하지 않은 토큰입니다"),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A002", "만료된 토큰입니다"),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "A003", "이메일 또는 비밀번호가 올바르지 않습니다"),
+    ACCOUNT_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "A005", "이메일 인증이 완료되지 않은 계정입니다"),
+    ACCOUNT_LOCKED(HttpStatus.FORBIDDEN, "A006", "계정이 잠겨 있습니다"),
+    ACCOUNT_DISABLED(HttpStatus.FORBIDDEN, "A007", "비활성화된 계정입니다"),
 
     // 403 Forbidden
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "A004", "접근 권한이 없습니다"),
@@ -36,6 +40,7 @@ public enum ErrorCode {
     // 404 Not Found
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U003", "사용자를 찾을 수 없습니다"),
     ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "R001", "역할을 찾을 수 없습니다"),
+    DOMAIN_NOT_FOUND(HttpStatus.NOT_FOUND, "DOM001", "도메인을 찾을 수 없습니다"),
     COMPANY_NOT_FOUND(HttpStatus.NOT_FOUND, "C001", "회사를 찾을 수 없습니다"),
     DIAGNOSTIC_NOT_FOUND(HttpStatus.NOT_FOUND, "D001", "진단을 찾을 수 없습니다"),
     CAMPAIGN_NOT_FOUND(HttpStatus.NOT_FOUND, "D002", "캠페인을 찾을 수 없습니다"),
@@ -45,6 +50,7 @@ public enum ErrorCode {
     ROLE_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "R002", "권한 요청을 찾을 수 없습니다"),
     REVIEW_NOT_FOUND(HttpStatus.NOT_FOUND, "RV001", "심사를 찾을 수 없습니다"),
     JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "JOB001", "작업을 찾을 수 없습니다"),
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "알림을 찾을 수 없습니다"),
 
     // 422 Unprocessable Entity (Business Logic Errors)
     DIAGNOSTIC_CANNOT_SUBMIT(HttpStatus.UNPROCESSABLE_ENTITY, "D003", "제출할 수 없는 상태입니다"),
@@ -58,7 +64,9 @@ public enum ErrorCode {
     // 409 Conflict
     DUPLICATE_BUSINESS_NUMBER(HttpStatus.CONFLICT, "C002", "이미 등록된 사업자등록번호입니다"),
     DUPLICATE_ROLE_REQUEST(HttpStatus.CONFLICT, "R003", "이미 대기중인 권한 요청이 있습니다"),
+    DUPLICATE_DOMAIN_ROLE(HttpStatus.CONFLICT, "R006", "해당 도메인에 이미 권한이 부여되어 있습니다"),
     INVALID_ROLE_REQUEST(HttpStatus.BAD_REQUEST, "R004", "유효하지 않은 권한입니다"),
+    APPROVER_ONLY_ESG(HttpStatus.BAD_REQUEST, "R007", "결재자(APPROVER) 역할은 ESG 도메인에서만 요청할 수 있습니다"),
     ALREADY_PROCESSED_REQUEST(HttpStatus.CONFLICT, "PERM_003", "이미 처리된 권한 요청입니다"),
     INVALID_DECISION(HttpStatus.BAD_REQUEST, "R005", "유효하지 않은 처리 결과입니다"),
     ALREADY_PROCESSED_APPROVAL(HttpStatus.CONFLICT, "AP002", "이미 처리된 결재 요청입니다"),
@@ -73,7 +81,18 @@ public enum ErrorCode {
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S001", "서버 오류가 발생했습니다"),
     FILE_UPLOAD_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S002", "파일 업로드에 실패했습니다"),
     AI_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "S003", "AI 서비스 연동에 실패했습니다"),
-    FILE_PARSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SYS_003", "파일 파싱에 실패했습니다");
+    FILE_PARSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "SYS_003", "파일 파싱에 실패했습니다"),
+    EMAIL_SEND_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "S004", "이메일 발송에 실패했습니다"),
+
+    // 503 Service Unavailable - AI Service
+    AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI001", "AI 서비스에 연결할 수 없습니다"),
+    AI_ANALYSIS_IN_PROGRESS(HttpStatus.CONFLICT, "AI002", "이미 분석이 진행 중입니다"),
+    AI_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "AI003", "AI 분석 결과를 찾을 수 없습니다"),
+    AI_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "AI004", "AI 서비스 응답이 유효하지 않습니다"),
+    AI_INVALID_VERDICT(HttpStatus.BAD_GATEWAY, "AI005", "AI 서비스의 verdict 값이 유효하지 않습니다"),
+    AI_INVALID_RISK_LEVEL(HttpStatus.BAD_GATEWAY, "AI006", "AI 서비스의 riskLevel 값이 유효하지 않습니다"),
+    AI_BAD_REQUEST(HttpStatus.BAD_REQUEST, "AI007", "AI 서비스 요청 파라미터가 올바르지 않습니다"),
+    AI_MISSING_REQUIRED_SLOTS(HttpStatus.UNPROCESSABLE_ENTITY, "AI008", "필수 슬롯에 해당하는 파일이 제출되지 않았습니다");
 
     private final HttpStatus status;
     private final String code;

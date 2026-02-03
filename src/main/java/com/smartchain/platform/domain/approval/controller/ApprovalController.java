@@ -28,10 +28,12 @@ public class ApprovalController {
     private final ApprovalService approvalService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Operation(summary = "결재 대기 목록 조회", description = "결재 대기 목록을 조회합니다. APPROVER 권한이 필요합니다.")
+    @Operation(summary = "결재 대기 목록 조회", description = "결재 대기 목록을 조회합니다. APPROVER 권한이 필요합니다. domainCode 파라미터로 도메인별 필터링이 가능합니다.")
     @GetMapping
     public ResponseEntity<BaseResponse<ApprovalListResponse>> getApprovalList(
             HttpServletRequest request,
+            @Parameter(description = "도메인 필터 (ESG, SAFETY, COMPLIANCE)")
+            @RequestParam(required = false) String domainCode,
             @Parameter(description = "결재 상태 필터 (WAITING, APPROVED, REJECTED)")
             @RequestParam(required = false) String status,
             @Parameter(description = "페이지 번호 (0부터 시작)")
@@ -39,7 +41,7 @@ public class ApprovalController {
             @Parameter(description = "페이지 크기")
             @RequestParam(defaultValue = "10") int size) {
         Long userId = extractUserIdFromRequest(request);
-        ApprovalListResponse response = approvalService.getApprovalList(userId, status, page, size);
+        ApprovalListResponse response = approvalService.getApprovalList(userId, domainCode, status, page, size);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 

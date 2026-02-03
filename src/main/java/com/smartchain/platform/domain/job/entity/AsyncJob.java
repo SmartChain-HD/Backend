@@ -3,6 +3,7 @@ package com.smartchain.platform.domain.job.entity;
 import com.smartchain.platform.global.entity.BaseTimeEntity;
 import com.smartchain.platform.global.enums.JobStatus;
 import com.smartchain.platform.global.enums.JobType;
+import com.smartchain.platform.global.enums.PipelinePhase;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -32,6 +33,9 @@ public class AsyncJob extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private JobStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private PipelinePhase currentPhase;
 
     private int progress;
 
@@ -67,6 +71,7 @@ public class AsyncJob extends BaseTimeEntity {
         this.jobId = generateJobId(jobType);
         this.jobType = jobType;
         this.status = JobStatus.PENDING;
+        this.currentPhase = PipelinePhase.QUEUED;
         this.progress = 0;
         this.requesterId = requesterId;
         this.targetId = targetId;
@@ -83,12 +88,16 @@ public class AsyncJob extends BaseTimeEntity {
             case REPORT_GENERATION -> "job_report_";
             case BULK_REPORT -> "job_bulk_report_";
             case EXPORT -> "job_export_";
+            case AI_ESG_ANALYSIS -> "job_ai_esg_";
+            case AI_COMPLIANCE_ANALYSIS -> "job_ai_compliance_";
+            case AI_SAFETY_ANALYSIS -> "job_ai_safety_";
         };
         return prefix + UUID.randomUUID().toString().substring(0, 8);
     }
 
     public void start() {
         this.status = JobStatus.RUNNING;
+        this.currentPhase = PipelinePhase.OCR;
         this.startedAt = LocalDateTime.now();
         this.message = "작업이 실행 중입니다";
     }
@@ -98,8 +107,30 @@ public class AsyncJob extends BaseTimeEntity {
         this.message = message;
     }
 
+    /**
+     * 파이프라인 단계 진행 및 진행률 업데이트
+     */
+    public void advancePhase(PipelinePhase phase, int progress, String message) {
+        this.currentPhase = phase;
+        this.progress = progress;
+        this.message = message;
+    }
+
+    /**
+     * 다음 파이프라인 단계로 자동 진행
+     */
+    public void advanceToNextPhase() {
+        if (this.currentPhase != null && !this.currentPhase.isTerminal()) {
+            this.currentPhase = this.currentPhase.next();
+            this.message = this.currentPhase.getDescription();
+            // 단계별 진행률 계산 (4단계 기준)
+            this.progress = Math.min(100, this.currentPhase.getOrder() * 25);
+        }
+    }
+
     public void succeed(String resultUrl) {
         this.status = JobStatus.SUCCEEDED;
+        this.currentPhase = PipelinePhase.COMPLETED;
         this.progress = 100;
         this.completedAt = LocalDateTime.now();
         this.resultUrl = resultUrl;

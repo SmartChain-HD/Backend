@@ -14,6 +14,8 @@ import java.time.LocalDateTime;
 public class DiagnosticCreateResponse {
     private Long diagnosticId;
     private String diagnosticCode;
+    private String domainCode;
+    private String domainName;
     private String status;               // WRITING
     private LocalDateTime createdAt;
 }

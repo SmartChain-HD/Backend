@@ -9,6 +9,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 @Entity
 @Getter
@@ -38,22 +42,38 @@ public class User extends BaseTimeEntity {
 
     private LocalDateTime lastLoginAt;
 
+    @Column(nullable = false)
+    private boolean emailVerified = false;
+
+    @Column(nullable = false)
+    private boolean locked = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserStatus status = UserStatus.ACTIVE;
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserDomainRole> domainRoles = new ArrayList<>();
+
     @Builder
-    public User(String name, String email, String userPassword, Company company, Role role) {
+    public User(String name, String email, String userPassword, Company company, Role role,
+                Boolean emailVerified, Boolean locked, UserStatus status) {
         this.name = name;
         this.email = email;
         this.userPassword = userPassword;
         this.company = company;
         this.role = role;
-        this.status = UserStatus.ACTIVE;
+        this.emailVerified = emailVerified != null ? emailVerified : false;
+        this.locked = locked != null ? locked : false;
+        this.status = status != null ? status : UserStatus.ACTIVE;
     }
 
     public void updateLastLoginAt() {
         this.lastLoginAt = LocalDateTime.now();
+    }
+
+    public void verifyEmail() {
+        this.emailVerified = true;
     }
 
     public void changeRole(Role newRole) {
@@ -62,5 +82,59 @@ public class User extends BaseTimeEntity {
 
     public void changeStatus(UserStatus newStatus) {
         this.status = newStatus;
+    }
+
+    /**
+     * 특정 도메인에서의 역할 조회
+     */
+    public Optional<Role> getRoleForDomain(String domainCode) {
+        return domainRoles.stream()
+                .filter(udr -> udr.getDomain().getCode().equals(domainCode))
+                .map(UserDomainRole::getRole)
+                .findFirst();
+    }
+
+    /**
+     * 특정 도메인에서 특정 역할을 가지고 있는지 확인
+     */
+    public boolean hasRoleInDomain(String domainCode, String roleCode) {
+        return domainRoles.stream()
+                .anyMatch(udr ->
+                        udr.getDomain().getCode().equals(domainCode) &&
+                        udr.getRole().getCode().equals(roleCode));
+    }
+
+    /**
+     * 특정 도메인에서 주어진 역할들 중 하나라도 가지고 있는지 확인
+     */
+    public boolean hasAnyRoleInDomain(String domainCode, String... roleCodes) {
+        return domainRoles.stream()
+                .anyMatch(udr ->
+                        udr.getDomain().getCode().equals(domainCode) &&
+                        Arrays.asList(roleCodes).contains(udr.getRole().getCode()));
+    }
+
+    /**
+     * 도메인별 역할 추가
+     */
+    public void addDomainRole(UserDomainRole domainRole) {
+        this.domainRoles.add(domainRole);
+    }
+
+    /**
+     * 특정 도메인의 역할 제거
+     */
+    public void removeDomainRole(String domainCode) {
+        this.domainRoles.removeIf(udr -> udr.getDomain().getCode().equals(domainCode));
+    }
+
+    /**
+     * 특정 역할을 가진 모든 도메인 조회
+     */
+    public List<Domain> getDomainsWithRole(String roleCode) {
+        return domainRoles.stream()
+                .filter(udr -> udr.getRole().getCode().equals(roleCode))
+                .map(UserDomainRole::getDomain)
+                .toList();
     }
 }

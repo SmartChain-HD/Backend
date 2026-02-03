@@ -2,19 +2,26 @@ package com.smartchain.platform.domain.auth.service;
 
 import com.smartchain.platform.domain.auth.entity.EmailVerificationCode;
 import com.smartchain.platform.domain.auth.repository.EmailVerificationCodeRepository;
+import com.smartchain.platform.domain.role.repository.RoleRequestRepository;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
+import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.repository.RoleRepository;
+import com.smartchain.platform.domain.user.repository.UserDomainRoleRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.auth.email.*;
 import com.smartchain.platform.dto.auth.login.LoginRequest;
 import com.smartchain.platform.dto.auth.login.LoginResponse;
+import com.smartchain.platform.dto.auth.myinfo.MyDomainResponse;
 import com.smartchain.platform.dto.auth.myinfo.MyInfoResponse;
 import com.smartchain.platform.dto.auth.register.RegisterRequest;
 import com.smartchain.platform.dto.auth.register.RegisterResponse;
 import com.smartchain.platform.dto.auth.register.TermsAgreementRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshResponse;
+import com.smartchain.platform.global.enums.RequestStatus;
+import com.smartchain.platform.global.enums.UserStatus;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import com.smartchain.platform.global.security.JwtTokenProvider;
@@ -29,12 +36,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -51,6 +61,12 @@ class AuthServiceTest {
     private RoleRepository roleRepository;
 
     @Mock
+    private UserDomainRoleRepository userDomainRoleRepository;
+
+    @Mock
+    private RoleRequestRepository roleRequestRepository;
+
+    @Mock
     private EmailVerificationCodeRepository verificationCodeRepository;
 
     @Mock
@@ -58,6 +74,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtTokenProvider jwtTokenProvider;
+
+    @Mock
+    private EmailService emailService;
 
     private Role guestRole;
 
@@ -206,6 +225,7 @@ class AuthServiceTest {
                     .email("test@test.com")
                     .userPassword("encodedPassword")
                     .role(guestRole)
+                    .emailVerified(true)
                     .build();
 
             given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(user));
@@ -213,6 +233,7 @@ class AuthServiceTest {
             given(jwtTokenProvider.createAccessToken(any(), anyString(), anyString())).willReturn("accessToken");
             given(jwtTokenProvider.createRefreshToken(any())).willReturn("refreshToken");
             given(jwtTokenProvider.getAccessTokenValidityInSeconds()).willReturn(3600L);
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any())).willReturn(Collections.emptyList());
 
             // when
             LoginResponse response = authService.login(request);
@@ -250,6 +271,93 @@ class AuthServiceTest {
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.INVALID_CREDENTIALS);
+                    });
+        }
+
+        @Test
+        @DisplayName("비활성화된 계정 로그인 시 ACCOUNT_DISABLED")
+        void login_DisabledAccount_ThrowsException() {
+            // given
+            LoginRequest request = LoginRequest.builder()
+                    .email("test@test.com")
+                    .password("Password123!")
+                    .build();
+
+            User user = User.builder()
+                    .name("홍길동")
+                    .email("test@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .status(UserStatus.INACTIVE)
+                    .build();
+
+            given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(user));
+            given(passwordEncoder.matches("Password123!", "encodedPassword")).willReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> authService.login(request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_DISABLED);
+                    });
+        }
+
+        @Test
+        @DisplayName("잠긴 계정 로그인 시 ACCOUNT_LOCKED")
+        void login_LockedAccount_ThrowsException() {
+            // given
+            LoginRequest request = LoginRequest.builder()
+                    .email("test@test.com")
+                    .password("Password123!")
+                    .build();
+
+            User user = User.builder()
+                    .name("홍길동")
+                    .email("test@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .locked(true)
+                    .build();
+
+            given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(user));
+            given(passwordEncoder.matches("Password123!", "encodedPassword")).willReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> authService.login(request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_LOCKED);
+                    });
+        }
+
+        @Test
+        @DisplayName("이메일 미인증 계정 로그인 시 ACCOUNT_NOT_VERIFIED")
+        void login_UnverifiedAccount_ThrowsException() {
+            // given
+            LoginRequest request = LoginRequest.builder()
+                    .email("test@test.com")
+                    .password("Password123!")
+                    .build();
+
+            User user = User.builder()
+                    .name("홍길동")
+                    .email("test@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .emailVerified(false)
+                    .build();
+
+            given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(user));
+            given(passwordEncoder.matches("Password123!", "encodedPassword")).willReturn(true);
+
+            // when & then
+            assertThatThrownBy(() -> authService.login(request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_NOT_VERIFIED);
                     });
         }
     }
@@ -318,6 +426,7 @@ class AuthServiceTest {
             assertThat(response.getEmail()).isEqualTo("test@test.com");
             assertThat(response.getExpiresInSeconds()).isEqualTo(300);
             verify(verificationCodeRepository).save(any(EmailVerificationCode.class));
+            verify(emailService).sendVerificationCode(eq("test@test.com"), anyString(), eq(5));
         }
 
         @Test
@@ -468,6 +577,7 @@ class AuthServiceTest {
                     .build();
 
             given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any())).willReturn(Collections.emptyList());
 
             // when
             MyInfoResponse response = authService.getMyInfo(1L);
@@ -492,6 +602,110 @@ class AuthServiceTest {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_FOUND);
                     });
+        }
+    }
+
+    @Nested
+    @DisplayName("내 도메인 역할 조회 테스트")
+    class GetMyDomainsTest {
+
+        @Test
+        @DisplayName("일반 사용자: 도메인 역할 목록 반환")
+        void getMyDomains_WithDomainRoles_Success() {
+            // given
+            Role drafterRole = new Role("기안자", "DRAFTER");
+            User user = User.builder()
+                    .name("홍길동")
+                    .email("test@test.com")
+                    .userPassword("encodedPassword")
+                    .role(drafterRole)
+                    .build();
+
+            Domain esgDomain = mock(Domain.class);
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+            lenient().when(esgDomain.getName()).thenReturn("ESG 실사");
+
+            Role mockDrafterRole = mock(Role.class);
+            lenient().when(mockDrafterRole.getCode()).thenReturn("DRAFTER");
+            lenient().when(mockDrafterRole.getName()).thenReturn("기안자");
+
+            Domain safetyDomain = mock(Domain.class);
+            lenient().when(safetyDomain.getCode()).thenReturn("SAFETY");
+            lenient().when(safetyDomain.getName()).thenReturn("안전보건");
+
+            UserDomainRole udr1 = mock(UserDomainRole.class);
+            lenient().when(udr1.getDomain()).thenReturn(esgDomain);
+            lenient().when(udr1.getRole()).thenReturn(mockDrafterRole);
+
+            UserDomainRole udr2 = mock(UserDomainRole.class);
+            lenient().when(udr2.getDomain()).thenReturn(safetyDomain);
+            lenient().when(udr2.getRole()).thenReturn(mockDrafterRole);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any()))
+                    .willReturn(List.of(udr1, udr2));
+
+            // when
+            MyDomainResponse response = authService.getMyDomains(1L);
+
+            // then
+            assertThat(response.getGlobalRole()).isEqualTo("DRAFTER");
+            assertThat(response.getDomainRoles()).hasSize(2);
+            assertThat(response.getDomainRoles().get(0).getDomainCode()).isEqualTo("ESG");
+            assertThat(response.getDomainRoles().get(1).getDomainCode()).isEqualTo("SAFETY");
+            assertThat(response.getRoleRequestStatus()).isNull();
+        }
+
+        @Test
+        @DisplayName("게스트 사용자: 빈 목록 + 권한요청 상태 PENDING")
+        void getMyDomains_Guest_PendingRequest() {
+            // given
+            User user = User.builder()
+                    .name("게스트")
+                    .email("guest@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any()))
+                    .willReturn(Collections.emptyList());
+            given(roleRequestRepository.existsByUserAndStatus(user, RequestStatus.PENDING))
+                    .willReturn(true);
+
+            // when
+            MyDomainResponse response = authService.getMyDomains(1L);
+
+            // then
+            assertThat(response.getGlobalRole()).isEqualTo("GUEST");
+            assertThat(response.getDomainRoles()).isEmpty();
+            assertThat(response.getRoleRequestStatus()).isEqualTo("PENDING");
+        }
+
+        @Test
+        @DisplayName("게스트 사용자: 빈 목록 + 권한요청 없음 NONE")
+        void getMyDomains_Guest_NoRequest() {
+            // given
+            User user = User.builder()
+                    .name("게스트")
+                    .email("guest@test.com")
+                    .userPassword("encodedPassword")
+                    .role(guestRole)
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(user));
+            given(userDomainRoleRepository.findByUserIdWithDomainAndRole(any()))
+                    .willReturn(Collections.emptyList());
+            given(roleRequestRepository.existsByUserAndStatus(user, RequestStatus.PENDING))
+                    .willReturn(false);
+
+            // when
+            MyDomainResponse response = authService.getMyDomains(1L);
+
+            // then
+            assertThat(response.getGlobalRole()).isEqualTo("GUEST");
+            assertThat(response.getDomainRoles()).isEmpty();
+            assertThat(response.getRoleRequestStatus()).isEqualTo("NONE");
         }
     }
 }

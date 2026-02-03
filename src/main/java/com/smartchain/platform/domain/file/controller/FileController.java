@@ -3,6 +3,7 @@ package com.smartchain.platform.domain.file.controller;
 import com.smartchain.platform.domain.file.service.FileService;
 import com.smartchain.platform.dto.common.file.*;
 import com.smartchain.platform.global.response.BaseResponse;
+import java.util.List;
 import com.smartchain.platform.global.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -37,6 +38,17 @@ public class FileController {
         return ResponseEntity
                 .status(HttpStatus.ACCEPTED)
                 .body(BaseResponse.success("파일 업로드가 시작되었습니다", response));
+    }
+
+    @Operation(summary = "파일 목록 조회", description = "진단에 업로드된 파일 목록을 조회합니다.")
+    @GetMapping("/api/v1/diagnostics/{diagnosticId}/files")
+    public ResponseEntity<BaseResponse<List<EvidenceFileDto>>> getFileList(
+            HttpServletRequest request,
+            @Parameter(description = "진단 ID")
+            @PathVariable Long diagnosticId) {
+        Long userId = extractUserIdFromRequest(request);
+        List<EvidenceFileDto> response = fileService.getFileList(userId, diagnosticId);
+        return ResponseEntity.ok(BaseResponse.success(response));
     }
 
     @Operation(summary = "파싱 결과 조회", description = "파일의 파싱 결과를 조회합니다. DRAFTER, APPROVER 권한 필요.")

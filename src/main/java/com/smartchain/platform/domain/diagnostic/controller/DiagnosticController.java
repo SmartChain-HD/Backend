@@ -1,7 +1,9 @@
 package com.smartchain.platform.domain.diagnostic.controller;
 
 import com.smartchain.platform.domain.diagnostic.service.DiagnosticService;
+import com.smartchain.platform.domain.job.service.AiAnalysisJobService;
 import com.smartchain.platform.dto.diagnostic.ai.AiAnalysisResponse;
+import com.smartchain.platform.dto.job.JobStatusResponse;
 import com.smartchain.platform.dto.diagnostic.create.DiagnosticCreateRequest;
 import com.smartchain.platform.dto.diagnostic.create.DiagnosticCreateResponse;
 import com.smartchain.platform.dto.diagnostic.detail.DiagnosticDetailResponse;
@@ -32,14 +34,21 @@ import java.time.LocalDate;
 public class DiagnosticController {
 
     private final DiagnosticService diagnosticService;
+    private final AiAnalysisJobService aiAnalysisJobService;
     private final JwtTokenProvider jwtTokenProvider;
 
-    @Operation(summary = "기안 목록 조회", description = "기안 목록을 조회합니다. DRAFTER는 본인 기안만, APPROVER는 소속 회사 전체 기안을 조회합니다.")
+    @Operation(summary = "기안 목록 조회", description = "기안 목록을 조회합니다. DRAFTER는 본인 기안만, APPROVER는 소속 회사 전체 기안을 조회합니다. domainCode, status, keyword로 필터링 가능합니다.")
     @GetMapping
     public ResponseEntity<BaseResponse<DiagnosticListResponse>> getDiagnosticList(
             HttpServletRequest request,
+            @Parameter(description = "도메인 코드 필터 (ESG, SAFETY, COMPLIANCE)")
+            @RequestParam(required = false) String domainCode,
             @Parameter(description = "상태 필터 (쉼표로 구분, 예: WRITING,SUBMITTED)")
             @RequestParam(required = false) String statuses,
+            @Parameter(description = "상태 필터 (statuses의 alias)")
+            @RequestParam(required = false) String status,
+            @Parameter(description = "검색 키워드 (제목, 기안코드, 회사명)")
+            @RequestParam(required = false) String keyword,
             @Parameter(description = "마감일 시작")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deadlineFrom,
             @Parameter(description = "마감일 종료")
@@ -47,7 +56,9 @@ public class DiagnosticController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Long userId = extractUserIdFromRequest(request);
-        DiagnosticListResponse response = diagnosticService.getDiagnosticList(userId, statuses, deadlineFrom, deadlineTo, page, size);
+        // status를 statuses의 alias로 지원
+        String effectiveStatuses = statuses != null ? statuses : status;
+        DiagnosticListResponse response = diagnosticService.getDiagnosticList(userId, domainCode, effectiveStatuses, keyword, deadlineFrom, deadlineTo, page, size);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 
@@ -82,6 +93,18 @@ public class DiagnosticController {
         Long userId = extractUserIdFromRequest(request);
         DiagnosticSubmitResponse response = diagnosticService.submitDiagnostic(userId, diagnosticId, submitRequest);
         return ResponseEntity.ok(BaseResponse.success(response.getMessage(), response));
+    }
+
+    @Operation(summary = "AI 분석 요청", description = "기안에 대한 AI 분석을 비동기로 요청합니다. jobId를 반환하며, GET /jobs/{jobId}로 진행 상태를 확인할 수 있습니다.")
+    @PostMapping("/{diagnosticId}/ai-analysis")
+    public ResponseEntity<BaseResponse<JobStatusResponse>> requestAiAnalysis(
+            HttpServletRequest request,
+            @PathVariable Long diagnosticId,
+            @Parameter(description = "분석 유형 (ESG, COMPLIANCE, SAFETY). 기본값: ESG")
+            @RequestParam(required = false, defaultValue = "ESG") String analysisType) {
+        Long userId = extractUserIdFromRequest(request);
+        JobStatusResponse response = aiAnalysisJobService.submitAiAnalysis(userId, diagnosticId, analysisType);
+        return ResponseEntity.accepted().body(BaseResponse.success("AI 분석이 시작되었습니다", response));
     }
 
     @Operation(summary = "AI 분석 결과 조회", description = "기안의 AI 분석 결과를 조회합니다. DRAFTER, APPROVER 권한 필요.")

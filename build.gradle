@@ -26,10 +26,13 @@ repositories {
 
 dependencies {
 	// Spring Boot
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	implementation 'org.springframework.boot:spring-boot-starter-aop'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'  // WebClient for AI API
 	// Swagger (API 문서화)
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0'
 	// JWT (인증)
@@ -39,12 +42,15 @@ dependencies {
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
+	// Azure Blob Storage
+	implementation 'com.azure:azure-storage-blob:12.29.0'
 	// Database
 	runtimeOnly 'org.postgresql:postgresql'
 	testRuntimeOnly 'com.h2database:h2'
 	// Test
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'  // WebClient 테스트용
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

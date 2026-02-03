@@ -4,6 +4,7 @@ import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.evidence.entity.EvidenceFile;
 import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
+import com.smartchain.platform.domain.file.storage.FileStorageService;
 import com.smartchain.platform.domain.job.entity.AsyncJob;
 import com.smartchain.platform.domain.job.repository.AsyncJobRepository;
 import com.smartchain.platform.domain.user.entity.User;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -36,12 +38,14 @@ public class FileService {
     private final DiagnosticRepository diagnosticRepository;
     private final EvidenceFileRepository evidenceFileRepository;
     private final AsyncJobRepository asyncJobRepository;
+    private final FileStorageService fileStorageService;
 
     private static final long MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
             "application/pdf",
             "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "text/csv",
             "image/png",
             "image/jpeg",
             "image/jpg"
@@ -59,10 +63,17 @@ public class FileService {
                 .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
 
         validateDiagnosticAccess(user, diagnostic);
+
+        // 제출 이후 상태에서는 파일 업로드 불가
+        if (isSubmittedOrLater(diagnostic.getStatus())) {
+            throw new CustomException(ErrorCode.DIAGNOSTIC_INVALID_STATE_TRANSITION);
+        }
+
         validateFileForUpload(file);
 
-        // 파일 저장 (실제 구현에서는 Azure Blob Storage 사용)
+        // 파일 저장소에 업로드
         String filePath = generateFilePath(diagnosticId, file.getOriginalFilename());
+        fileStorageService.upload(file, filePath);
 
         EvidenceFile evidenceFile = EvidenceFile.builder()
                 .diagnostic(diagnostic)
@@ -100,6 +111,38 @@ public class FileService {
                 .uploadedAt(LocalDateTime.now())
                 .jobId(savedJob.getJobId())
                 .statusCheckUrl(savedJob.getStatusCheckUrl())
+                .build();
+    }
+
+    /**
+     * 진단별 파일 목록 조회
+     */
+    public List<EvidenceFileDto> getFileList(Long userId, Long diagnosticId) {
+        User user = validateUser(userId);
+
+        Diagnostic diagnostic = diagnosticRepository.findById(diagnosticId)
+                .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
+
+        validateDiagnosticAccess(user, diagnostic);
+
+        List<EvidenceFile> files = evidenceFileRepository.findByDiagnosticId(diagnosticId);
+
+        return files.stream()
+                .map(this::toEvidenceFileDto)
+                .collect(Collectors.toList());
+    }
+
+    private EvidenceFileDto toEvidenceFileDto(EvidenceFile file) {
+        return EvidenceFileDto.builder()
+                .fileId(file.getResultFileId())
+                .fileName(file.getOriginalFileName())
+                .fileUrl("/api/v1/files/" + file.getResultFileId() + "/download-url")
+                .fileType(getFileType(file.getOriginalFileName()))
+                .fileSize(file.getFileSize())
+                .parsingStatus(file.getParsingStatus() != null ? file.getParsingStatus().name() : null)
+                .parsedDataUrl("/api/v1/diagnostics/" + file.getDiagnostic().getDiagnosticId()
+                        + "/files/" + file.getResultFileId() + "/parsing-result")
+                .uploadedAt(file.getCreatedAt())
                 .build();
     }
 
@@ -142,9 +185,8 @@ public class FileService {
         EvidenceFile evidenceFile = evidenceFileRepository.findById(fileId)
                 .orElseThrow(() -> new CustomException(ErrorCode.FILE_NOT_FOUND));
 
-        // 실제 구현에서는 Azure Blob Storage SAS URL 생성
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(30);
-        String signedUrl = generateSignedUrl(evidenceFile.getFilePath(), expiresAt);
+        String signedUrl = fileStorageService.getPresignedUrl(evidenceFile.getFilePath(), Duration.ofMinutes(30));
 
         log.info("Download URL generated: fileId={}, requestedBy={}, expiresAt={}",
                 fileId, userId, expiresAt);
@@ -177,7 +219,7 @@ public class FileService {
             }
         }
 
-        // 실제 구현에서는 Azure Blob Storage에서 삭제
+        fileStorageService.delete(evidenceFile.getFilePath());
         evidenceFileRepository.delete(evidenceFile);
 
         log.info("File deleted: fileId={}, deletedBy={}", fileId, userId);
@@ -215,9 +257,9 @@ public class FileService {
                 .contents(contents)
                 .build();
 
-        // 실제 구현에서는 패키지 ZIP 생성 후 Signed URL 발급
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(30);
-        String packageUrl = generatePackageUrl(diagnosticId, expiresAt);
+        String packagePath = "packages/diagnostic_" + diagnosticId + ".zip";
+        String packageUrl = fileStorageService.getPresignedUrl(packagePath, Duration.ofMinutes(30));
 
         log.info("Package URL generated: diagnosticId={}, fileCount={}, requestedBy={}",
                 diagnosticId, files.size(), userId);
@@ -301,22 +343,13 @@ public class FileService {
         return "diagnostics/" + diagnosticId + "/" + uuid + "_" + originalFileName;
     }
 
-    private String generateSignedUrl(String filePath, LocalDateTime expiresAt) {
-        // 실제 구현에서는 Azure Blob Storage SAS URL 생성
-        return "https://storage.blob.core.windows.net/files/" + filePath + "?sig=xxx&se=" + expiresAt;
-    }
-
-    private String generatePackageUrl(Long diagnosticId, LocalDateTime expiresAt) {
-        // 실제 구현에서는 패키지 ZIP 생성 후 Signed URL 발급
-        return "https://storage.blob.core.windows.net/packages/diagnostic_" + diagnosticId + ".zip?sig=xxx&se=" + expiresAt;
-    }
-
     private String getFileType(String fileName) {
         if (fileName == null) return "UNKNOWN";
         String extension = fileName.substring(fileName.lastIndexOf('.') + 1).toUpperCase();
         return switch (extension) {
             case "PDF" -> "PDF";
             case "XLS", "XLSX" -> "XLSX";
+            case "CSV" -> "CSV";
             case "DOC", "DOCX" -> "DOCX";
             case "PNG" -> "PNG";
             case "JPG", "JPEG" -> "JPG";
