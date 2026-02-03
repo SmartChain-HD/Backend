@@ -37,7 +37,7 @@ public class SlotConfigProperties {
     }
 
     public String matchSlotName(String fileName, String domainCode) {
-        String lowerName = fileName.toLowerCase();
+        String lowerName = fileName.toLowerCase().replace('_', ' ');
         List<SlotDefinition> slots = getSlotsForDomain(domainCode);
 
         for (SlotDefinition slot : slots) {

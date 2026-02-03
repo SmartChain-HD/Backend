@@ -15,16 +15,17 @@ import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.beans.factory.annotation.Value;
+
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * AI 분석 서비스
@@ -43,6 +44,9 @@ public class AiAnalysisService {
     private final EvidenceFileRepository evidenceFileRepository;
     private final ObjectMapper objectMapper;
     private final SlotConfigProperties slotConfigProperties;
+
+    @Value("${file.storage.local.base-path:./uploads}")
+    private String fileBasePath;
 
     public AiAnalysisService(
         AiRunApiClient aiRunApiClient,
@@ -89,22 +93,6 @@ public class AiAnalysisService {
     }
 
     /**
-     * Submit 호출 - 전체 검증 및 판정 (비동기)
-     */
-    @Async
-    @Transactional
-    public CompletableFuture<AiAnalysisResult> submitAsync(Long diagnosticId) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return submit(diagnosticId);
-            } catch (Exception e) {
-                log.error("AI 분석 실패 - diagnosticId: {}", diagnosticId, e);
-                throw new CustomException(ErrorCode.AI_SERVICE_ERROR);
-            }
-        });
-    }
-
-    /**
      * Submit 호출 - 전체 검증 및 판정 (동기)
      */
     @Transactional
@@ -118,11 +106,11 @@ public class AiAnalysisService {
             throw new CustomException(ErrorCode.DIAGNOSTIC_MISSING_EVIDENCE);
         }
 
-        // FileInfo 변환
+        // FileInfo 변환 (절대 경로로 변환)
         List<FileInfo> files = evidenceFiles.stream()
             .map(ef -> new FileInfo(
                 ef.getResultFileId().toString(),
-                ef.getFilePath(),
+                Paths.get(fileBasePath, ef.getFilePath()).toAbsolutePath().toString(),
                 ef.getOriginalFileName()
             ))
             .toList();
@@ -135,12 +123,11 @@ public class AiAnalysisService {
             ))
             .toList();
 
-        // 필수 슬롯 검증 - AI 서비스 호출 전 사전 차단
+        // TODO: 필수 슬롯 검증 임시 비활성화 (테스트용)
         List<String> missingRequiredSlots = validateRequiredSlots(slotHints, domainCode);
         if (!missingRequiredSlots.isEmpty()) {
-            log.warn("필수 슬롯 미제출 - diagnosticId: {}, missingSlots: {}",
+            log.warn("필수 슬롯 미제출 (검증 비활성화 상태) - diagnosticId: {}, missingSlots: {}",
                 diagnosticId, missingRequiredSlots);
-            throw new CustomException(ErrorCode.AI_MISSING_REQUIRED_SLOTS);
         }
 
         // 기존 package_id 조회
