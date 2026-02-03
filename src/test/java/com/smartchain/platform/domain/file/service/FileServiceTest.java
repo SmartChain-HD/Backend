@@ -7,6 +7,7 @@ import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository
 import com.smartchain.platform.domain.file.storage.FileStorageService;
 import com.smartchain.platform.domain.job.entity.AsyncJob;
 import com.smartchain.platform.domain.job.repository.AsyncJobRepository;
+import com.smartchain.platform.domain.job.service.FileParsingJobService;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
@@ -57,6 +58,9 @@ class FileServiceTest {
 
     @Mock
     private FileStorageService fileStorageService;
+
+    @Mock
+    private FileParsingJobService fileParsingJobService;
 
     @Mock
     private User drafterUser;

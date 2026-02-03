@@ -1,6 +1,10 @@
 spring:
   application:
     name: platform
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
 server:
   port: 8080
 ---
@@ -65,7 +69,7 @@ file:
 # AI Run API 설정
 ai:
   run-api:
-    url: http://localhost:8000
+    url: http://127.0.0.1:8000
     timeout-seconds: 180
     max-retry: 3
   slots:
