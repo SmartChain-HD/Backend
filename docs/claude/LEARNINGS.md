@@ -1,5 +1,40 @@
 # Claude Code Learnings
 
+## 2026-02-04: 전체 결재 페이지 제거 - domainCode 필수화 (#162)
+
+### 원인
+- 결재 목록 조회 API에서 `domainCode` 없이 호출 시 "전체 결재" 조회 가능
+- 기획상 도메인별 결재 페이지만 존재해야 함
+- 전체 결재 페이지는 존재하면 안 됨
+
+### 해결
+- `ApprovalService.getApprovalList()`에서 `domainCode` 필수 검증 추가
+- `domainCode`가 null이거나 비어있으면 `DOMAIN_CODE_REQUIRED` 에러 반환
+- ErrorCode에 `DOMAIN_CODE_REQUIRED` (AP005) 추가
+- 레거시 모드에서도 `domainCode` 유효성 검증 수행
+
+### 재발방지
+- 목록 조회 API에서 필수 필터 파라미터는 서비스 레이어에서 검증
+- 기획에서 "존재하면 안 되는 페이지"는 API 레벨에서 차단
+
+### 검증방법
+```bash
+./gradlew test --tests "ApprovalServiceTest"
+```
+
+### 관련커밋
+- fix/162-approval-domain-required 브랜치
+
+### 생성/수정 파일
+```
+src/main/java/.../domain/approval/service/ApprovalService.java (domainCode 필수 검증)
+src/main/java/.../global/error/ErrorCode.java (DOMAIN_CODE_REQUIRED 추가)
+src/test/java/.../domain/approval/service/ApprovalServiceTest.java (테스트 수정)
+docs/claude/LEARNINGS.md (엔트리 추가)
+```
+
+---
+
 ## 2026-02-04: 권한 요청 반려 API 오류 (#154)
 
 ### 원인

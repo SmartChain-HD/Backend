@@ -121,13 +121,53 @@ class ApprovalServiceTest {
     @DisplayName("결재 대기 목록 조회 테스트")
     class GetApprovalListTest {
 
+        @Mock
+        private Domain esgDomain;
+
+        @BeforeEach
+        void setUpDomain() {
+            lenient().when(esgDomain.getCode()).thenReturn("ESG");
+            lenient().when(esgDomain.getName()).thenReturn("ESG 실사");
+        }
+
         @Test
-        @DisplayName("APPROVER가 결재 목록 조회 성공")
-        void getApprovalList_AsApprover_Success() {
+        @DisplayName("domainCode 없이 조회 시 실패")
+        void getApprovalList_WithoutDomainCode_ThrowsException() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(approverUser));
+
+            // when & then
+            assertThatThrownBy(() -> approvalService.getApprovalList(1L, null, null, 0, 10))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DOMAIN_CODE_REQUIRED);
+                    });
+        }
+
+        @Test
+        @DisplayName("빈 domainCode로 조회 시 실패")
+        void getApprovalList_WithEmptyDomainCode_ThrowsException() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(approverUser));
+
+            // when & then
+            assertThatThrownBy(() -> approvalService.getApprovalList(1L, "", null, 0, 10))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DOMAIN_CODE_REQUIRED);
+                    });
+        }
+
+        @Test
+        @DisplayName("레거시 APPROVER가 도메인 지정하여 결재 목록 조회 성공")
+        void getApprovalList_AsLegacyApprover_Success() {
             // given
             Page<Approval> approvalPage = new PageImpl<>(List.of(testApproval), PageRequest.of(0, 10), 1);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(approverUser));
+            given(domainRepository.findByCode("ESG")).willReturn(Optional.of(esgDomain));
             given(approvalRepository.findByCompanyOrderByCreatedAtDesc(eq(testCompany), any()))
                     .willReturn(approvalPage);
             given(approvalRepository.countByCompanyAndStatus(testCompany, ApprovalStatus.WAITING)).willReturn(3);
@@ -135,7 +175,7 @@ class ApprovalServiceTest {
             given(approvalRepository.countByCompanyAndStatus(testCompany, ApprovalStatus.REJECTED)).willReturn(2);
 
             // when
-            ApprovalListResponse response = approvalService.getApprovalList(1L, null, null, 0, 10);
+            ApprovalListResponse response = approvalService.getApprovalList(1L, "ESG", null, 0, 10);
 
             // then
             assertThat(response).isNotNull();
@@ -156,9 +196,11 @@ class ApprovalServiceTest {
             when(guestUser.getDomainsWithRole("APPROVER")).thenReturn(new ArrayList<>());
 
             given(userRepository.findById(3L)).willReturn(Optional.of(guestUser));
+            // 레거시 모드에서 domainCode 유효성 검증을 위해 호출됨
+            lenient().when(domainRepository.findByCode("ESG")).thenReturn(Optional.of(esgDomain));
 
             // when & then
-            assertThatThrownBy(() -> approvalService.getApprovalList(3L, null, null, 0, 10))
+            assertThatThrownBy(() -> approvalService.getApprovalList(3L, "ESG", null, 0, 10))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
@@ -177,7 +219,7 @@ class ApprovalServiceTest {
             given(userRepository.findById(4L)).willReturn(Optional.of(noCompanyApprover));
 
             // when & then
-            assertThatThrownBy(() -> approvalService.getApprovalList(4L, null, null, 0, 10))
+            assertThatThrownBy(() -> approvalService.getApprovalList(4L, "ESG", null, 0, 10))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
@@ -192,6 +234,7 @@ class ApprovalServiceTest {
             Page<Approval> approvalPage = new PageImpl<>(List.of(testApproval), PageRequest.of(0, 10), 1);
 
             given(userRepository.findById(1L)).willReturn(Optional.of(approverUser));
+            given(domainRepository.findByCode("ESG")).willReturn(Optional.of(esgDomain));
             given(approvalRepository.findByCompanyAndStatusOrderByCreatedAtDesc(eq(testCompany), eq(ApprovalStatus.WAITING), any()))
                     .willReturn(approvalPage);
             given(approvalRepository.countByCompanyAndStatus(testCompany, ApprovalStatus.WAITING)).willReturn(3);
@@ -199,7 +242,7 @@ class ApprovalServiceTest {
             given(approvalRepository.countByCompanyAndStatus(testCompany, ApprovalStatus.REJECTED)).willReturn(2);
 
             // when
-            ApprovalListResponse response = approvalService.getApprovalList(1L, null, "WAITING", 0, 10);
+            ApprovalListResponse response = approvalService.getApprovalList(1L, "ESG", "WAITING", 0, 10);
 
             // then
             assertThat(response).isNotNull();
@@ -214,9 +257,10 @@ class ApprovalServiceTest {
         void getApprovalList_InvalidStatus_ThrowsException() {
             // given
             given(userRepository.findById(1L)).willReturn(Optional.of(approverUser));
+            given(domainRepository.findByCode("ESG")).willReturn(Optional.of(esgDomain));
 
             // when & then
-            assertThatThrownBy(() -> approvalService.getApprovalList(1L, null, "INVALID_STATUS", 0, 10))
+            assertThatThrownBy(() -> approvalService.getApprovalList(1L, "ESG", "INVALID_STATUS", 0, 10))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
