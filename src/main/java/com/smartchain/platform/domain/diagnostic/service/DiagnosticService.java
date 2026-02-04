@@ -306,15 +306,23 @@ public class DiagnosticService {
 
         String diagnosticCode = generateDiagnosticCode();
 
+        // 기간: 요청에서 받은 값 우선, 없으면 캠페인 값 사용
+        LocalDate periodStart = request.getPeriodStartDate() != null
+                ? request.getPeriodStartDate()
+                : campaign.getPeriodStartDate();
+        LocalDate periodEnd = request.getPeriodEndDate() != null
+                ? request.getPeriodEndDate()
+                : campaign.getPeriodEndDate();
+
         Diagnostic diagnostic = Diagnostic.builder()
                 .diagnosticCode(diagnosticCode)
-                .title(campaign.getTitle())
+                .title(request.getTitle())
                 .campaign(campaign)
                 .company(userCompany)
                 .domain(domain)
                 .drafterId(userId)
-                .periodStartDate(campaign.getPeriodStartDate())
-                .periodEndDate(campaign.getPeriodEndDate())
+                .periodStartDate(periodStart)
+                .periodEndDate(periodEnd)
                 .deadline(campaign.getDeadline())
                 .build();
 
