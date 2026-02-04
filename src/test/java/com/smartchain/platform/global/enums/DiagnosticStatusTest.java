@@ -25,7 +25,7 @@ class DiagnosticStatusTest {
         assertThat(DiagnosticStatus.WRITING.getDisplayName()).isEqualTo("작성중");
         assertThat(DiagnosticStatus.SUBMITTED.getDisplayName()).isEqualTo("제출됨");
         assertThat(DiagnosticStatus.RETURNED.getDisplayName()).isEqualTo("반려됨");
-        assertThat(DiagnosticStatus.APPROVED.getDisplayName()).isEqualTo("내부승인");
+        assertThat(DiagnosticStatus.APPROVED.getDisplayName()).isEqualTo("승인됨");
         assertThat(DiagnosticStatus.REVIEWING.getDisplayName()).isEqualTo("심사중");
         assertThat(DiagnosticStatus.COMPLETED.getDisplayName()).isEqualTo("완료");
     }
