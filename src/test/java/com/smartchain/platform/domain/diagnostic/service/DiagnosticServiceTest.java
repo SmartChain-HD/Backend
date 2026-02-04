@@ -1303,4 +1303,122 @@ class DiagnosticServiceTest {
                     });
         }
     }
+
+    @Nested
+    @DisplayName("캠페인 상태 일관성 테스트 (Issue #156)")
+    class CampaignStatusConsistencyTest {
+
+        @Test
+        @DisplayName("기안이 REVIEWING 상태면 캠페인도 '진행중' 표시")
+        void getDiagnosticList_ReviewingStatus_CampaignShowsActive() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            lenient().when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnostic.getTitle()).thenReturn("2026년 ESG 자가진단");
+            lenient().when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            lenient().when(diagnostic.getCompany()).thenReturn(testCompany);
+            lenient().when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.REVIEWING);  // 심사중
+            lenient().when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            lenient().when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            lenient().when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            lenient().when(diagnostic.getQualitativeProgress()).thenReturn(100);
+            lenient().when(diagnostic.getQuantitativeProgress()).thenReturn(100);
+            lenient().when(diagnostic.getOverallProgress()).thenReturn(100);
+            lenient().when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findByDrafterIdAndFilters(eq(1L), eq(false), any(), eq(false), any(), any(), any(), any(), any()))
+                    .willReturn(diagnosticPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, null, null, null, 0, 10);
+
+            // then
+            assertThat(response.getContent()).hasSize(1);
+            assertThat(response.getContent().get(0).getStatus()).isEqualTo("REVIEWING");
+            assertThat(response.getContent().get(0).getStatusLabel()).isEqualTo("심사중");
+            // 캠페인 상태도 기안 상태와 일관되게 "진행중"이어야 함 (Issue #156)
+            assertThat(response.getContent().get(0).getCampaign()).isNotNull();
+            assertThat(response.getContent().get(0).getCampaign().getStatus()).isEqualTo("ACTIVE");
+            assertThat(response.getContent().get(0).getCampaign().getStatusLabel()).isEqualTo("진행중");
+        }
+
+        @Test
+        @DisplayName("기안이 COMPLETED 상태면 캠페인도 '완료' 표시")
+        void getDiagnosticList_CompletedStatus_CampaignShowsCompleted() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            lenient().when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnostic.getTitle()).thenReturn("2026년 ESG 자가진단");
+            lenient().when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            lenient().when(diagnostic.getCompany()).thenReturn(testCompany);
+            lenient().when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.COMPLETED);  // 완료
+            lenient().when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            lenient().when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            lenient().when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            lenient().when(diagnostic.getQualitativeProgress()).thenReturn(100);
+            lenient().when(diagnostic.getQuantitativeProgress()).thenReturn(100);
+            lenient().when(diagnostic.getOverallProgress()).thenReturn(100);
+            lenient().when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findByDrafterIdAndFilters(eq(1L), eq(false), any(), eq(false), any(), any(), any(), any(), any()))
+                    .willReturn(diagnosticPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, null, null, null, 0, 10);
+
+            // then
+            assertThat(response.getContent()).hasSize(1);
+            assertThat(response.getContent().get(0).getStatus()).isEqualTo("COMPLETED");
+            assertThat(response.getContent().get(0).getStatusLabel()).isEqualTo("완료");
+            // 캠페인 상태도 기안 상태와 일관되게 "완료"이어야 함 (Issue #156)
+            assertThat(response.getContent().get(0).getCampaign()).isNotNull();
+            assertThat(response.getContent().get(0).getCampaign().getStatus()).isEqualTo("COMPLETED");
+            assertThat(response.getContent().get(0).getCampaign().getStatusLabel()).isEqualTo("완료");
+        }
+
+        @Test
+        @DisplayName("기안이 WRITING 상태면 캠페인도 '진행중' 표시")
+        void getDiagnosticList_WritingStatus_CampaignShowsActive() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(1L);
+            lenient().when(diagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
+            lenient().when(diagnostic.getTitle()).thenReturn("2026년 ESG 자가진단");
+            lenient().when(diagnostic.getCampaign()).thenReturn(testCampaign);
+            lenient().when(diagnostic.getCompany()).thenReturn(testCompany);
+            lenient().when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);  // 작성중
+            lenient().when(diagnostic.getPeriodStartDate()).thenReturn(LocalDate.of(2026, 1, 1));
+            lenient().when(diagnostic.getPeriodEndDate()).thenReturn(LocalDate.of(2026, 12, 31));
+            lenient().when(diagnostic.getDeadline()).thenReturn(LocalDate.of(2026, 3, 31));
+            lenient().when(diagnostic.getQualitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getQuantitativeProgress()).thenReturn(0);
+            lenient().when(diagnostic.getOverallProgress()).thenReturn(0);
+            lenient().when(diagnostic.getCreatedAt()).thenReturn(LocalDateTime.now());
+
+            Page<Diagnostic> diagnosticPage = new PageImpl<>(List.of(diagnostic), PageRequest.of(0, 10), 1);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findByDrafterIdAndFilters(eq(1L), eq(false), any(), eq(false), any(), any(), any(), any(), any()))
+                    .willReturn(diagnosticPage);
+
+            // when
+            DiagnosticListResponse response = diagnosticService.getDiagnosticList(1L, null, null, null, null, null, 0, 10);
+
+            // then
+            assertThat(response.getContent()).hasSize(1);
+            assertThat(response.getContent().get(0).getStatus()).isEqualTo("WRITING");
+            // 캠페인 상태는 "진행중" (기안이 아직 완료되지 않음)
+            assertThat(response.getContent().get(0).getCampaign()).isNotNull();
+            assertThat(response.getContent().get(0).getCampaign().getStatus()).isEqualTo("ACTIVE");
+            assertThat(response.getContent().get(0).getCampaign().getStatusLabel()).isEqualTo("진행중");
+        }
+    }
 }
