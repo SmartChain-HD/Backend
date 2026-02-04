@@ -1,5 +1,43 @@
 # Claude Code Learnings
 
+## 2026-02-04: 기안 상태 불일치 - 심사중/완료 동시 존재 (#156)
+
+### 원인
+- 기안 목록에서 기안(Diagnostic) 상태는 실제 진행 상태(REVIEWING 등) 표시
+- 캠페인(Campaign) 상태는 날짜 기반으로 동적 계산(DRAFT/ACTIVE/CLOSED)
+- CampaignSimpleDto에 status 필드가 없어 프론트엔드에서 별도 계산
+- 캠페인 종료일 지났으나 기안이 아직 심사 중이면 상태 불일치 발생
+
+### 해결
+- **CampaignSimpleDto**: `status`, `statusLabel` 필드 추가
+- **DiagnosticService.mapToListItemDto()**: 기안 상태 기반으로 캠페인 상태 결정
+  - 기안 COMPLETED → 캠페인 "COMPLETED" (완료)
+  - 그 외 상태 → 캠페인 "ACTIVE" (진행중)
+- 기안 목록 응답에서 기안/캠페인 상태가 일관되게 표시됨
+
+### 재발방지
+- DTO 간 상태 표시 로직이 다를 경우 불일치 발생 가능
+- 관련 엔티티 상태를 표시할 때는 단일 소스(기안 상태)를 기준으로 결정
+- 날짜 기반 상태 계산은 캠페인 목록에서만 사용, 기안 목록에서는 기안 상태 기반 사용
+
+### 검증방법
+```bash
+./gradlew test --tests "DiagnosticServiceTest"
+./gradlew build -x test
+```
+
+### 관련커밋
+- feature/156-campaign-status-consistency 브랜치
+
+### 생성/수정 파일
+```
+src/main/java/.../dto/diagnostic/common/CampaignSimpleDto.java (+status, +statusLabel)
+src/main/java/.../domain/diagnostic/service/DiagnosticService.java (+determineCampaignStatusByDiagnostic, +getCampaignStatusLabel)
+src/test/java/.../domain/diagnostic/service/DiagnosticServiceTest.java (+3 테스트 케이스)
+```
+
+---
+
 ## 2026-02-04: 반려→재승인 시 상태 처리 오류 수정 (#155)
 
 ### 원인

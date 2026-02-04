@@ -657,10 +657,15 @@ public class DiagnosticService {
         CampaignSimpleDto campaignDto = null;
         if (diagnostic.getCampaign() != null) {
             Campaign campaign = diagnostic.getCampaign();
+            // 기안 상태 기반으로 캠페인 상태 결정 (Issue #156)
+            String campaignStatus = determineCampaignStatusByDiagnostic(diagnostic.getStatus());
+            String campaignStatusLabel = getCampaignStatusLabel(campaignStatus);
             campaignDto = CampaignSimpleDto.builder()
                     .campaignId(campaign.getCampaignId())
                     .campaignCode(campaign.getCampaignCode())
                     .title(campaign.getTitle())
+                    .status(campaignStatus)
+                    .statusLabel(campaignStatusLabel)
                     .build();
         }
 
@@ -723,5 +728,25 @@ public class DiagnosticService {
                 .comment(history.getComment())
                 .timestamp(history.getCreatedAt())
                 .build();
+    }
+
+    /**
+     * 기안 상태 기반으로 캠페인 상태 결정 (Issue #156)
+     * - 기안이 COMPLETED면 캠페인도 "COMPLETED" (완료)
+     * - 그 외의 경우 "ACTIVE" (진행중)
+     */
+    private String determineCampaignStatusByDiagnostic(DiagnosticStatus diagnosticStatus) {
+        if (diagnosticStatus == DiagnosticStatus.COMPLETED) {
+            return "COMPLETED";
+        }
+        return "ACTIVE";
+    }
+
+    private String getCampaignStatusLabel(String campaignStatus) {
+        return switch (campaignStatus) {
+            case "COMPLETED" -> "완료";
+            case "ACTIVE" -> "진행중";
+            default -> "알 수 없음";
+        };
     }
 }
