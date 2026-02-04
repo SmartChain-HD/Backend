@@ -9,5 +9,12 @@ public record SlotStatus(
     @JsonProperty("slot_name")
     String slotName,
 
+    @JsonProperty("display_name")
+    String displayName,
+
     String status  // SUBMITTED, MISSING
-) {}
+) {
+    public SlotStatus(String slotName, String status) {
+        this(slotName, "", status);
+    }
+}

@@ -1,15 +1,10 @@
 package com.smartchain.platform.domain.job.service;
 
-import com.smartchain.platform.domain.ai.client.AiRunApiClient;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.evidence.entity.EvidenceFile;
 import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
 import com.smartchain.platform.domain.job.entity.AsyncJob;
 import com.smartchain.platform.domain.job.repository.AsyncJobRepository;
-import com.smartchain.platform.dto.ai.run.FileInfo;
-import com.smartchain.platform.dto.ai.run.RunPreviewRequest;
-import com.smartchain.platform.dto.ai.run.RunPreviewResponse;
-import com.smartchain.platform.dto.ai.run.SlotHint;
 import com.smartchain.platform.global.enums.PipelinePhase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,9 +12,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -28,7 +21,6 @@ public class FileParsingJobService {
 
     private final AsyncJobRepository asyncJobRepository;
     private final EvidenceFileRepository evidenceFileRepository;
-    private final AiRunApiClient aiRunApiClient;
 
     @Async("fileParsingExecutor")
     @Transactional
@@ -55,56 +47,15 @@ public class FileParsingJobService {
             evidenceFileRepository.save(file);
             log.info("File parsing started: jobId={}, fileId={}", jobId, file.getResultFileId());
 
-            // Phase 1: OCR
-            job.advancePhase(PipelinePhase.OCR, 25, "파일 OCR 처리 중");
+            // Phase 1: 파일 검증
+            job.advancePhase(PipelinePhase.VALIDATION, 50, "파일 검증 중");
             asyncJobRepository.save(job);
 
-            // AI preview API 호출 (파일 파싱)
             Diagnostic diagnostic = file.getDiagnostic();
             Long diagnosticId = diagnostic != null ? diagnostic.getDiagnosticId() : null;
 
-            String domainCode = "esg";
-            String periodStart = null;
-            String periodEnd = null;
-            if (diagnostic != null) {
-                if (diagnostic.getDomain() != null) {
-                    domainCode = diagnostic.getDomain().getCode().toLowerCase();
-                }
-                if (diagnostic.getPeriodStartDate() != null) {
-                    periodStart = diagnostic.getPeriodStartDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                }
-                if (diagnostic.getPeriodEndDate() != null) {
-                    periodEnd = diagnostic.getPeriodEndDate().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-                }
-            }
-
-            RunPreviewRequest previewRequest = new RunPreviewRequest(
-                    domainCode,
-                    periodStart,
-                    periodEnd,
-                    null,  // packageId - 첫 호출이므로 null
-                    List.of(new FileInfo(
-                            file.getResultFileId().toString(),
-                            file.getFilePath(),
-                            file.getOriginalFileName()
-                    ))
-            );
-
-            RunPreviewResponse previewResponse = aiRunApiClient.previewSync(previewRequest);
-
-            // Phase 2: VALIDATION
-            job.advancePhase(PipelinePhase.VALIDATION, 50, "파싱 결과 검증 중");
-            asyncJobRepository.save(job);
-
-            // Phase 3: METRICS
-            job.advancePhase(PipelinePhase.METRICS, 75, "데이터 추출 완료");
-            asyncJobRepository.save(job);
-
-            // 파싱 결과를 EvidenceFile에 반영
-            String parsedText = extractSlotInfo(previewResponse);
-            String metaInfo = buildMetaInfo(previewResponse);
-
-            file.completeParsing(null, parsedText, metaInfo);
+            // 파일 업로드 완료 처리 (AI preview는 프론트엔드에서 수동 호출)
+            file.completeParsing(null, null, null);
             evidenceFileRepository.save(file);
 
             // 완료
@@ -126,20 +77,4 @@ public class FileParsingJobService {
         return CompletableFuture.completedFuture(null);
     }
 
-    private String extractSlotInfo(RunPreviewResponse response) {
-        if (response == null || response.slotHint() == null) return null;
-        return response.slotHint().stream()
-                .map(SlotHint::slotName)
-                .collect(Collectors.joining(", "));
-    }
-
-    private String buildMetaInfo(RunPreviewResponse response) {
-        if (response == null) return null;
-        int slotCount = response.slotHint() != null ? response.slotHint().size() : 0;
-        int missingCount = response.missingRequiredSlots() != null ? response.missingRequiredSlots().size() : 0;
-        return "{\"packageId\":\"" + response.packageId()
-                + "\",\"slotHintCount\":" + slotCount
-                + ",\"missingRequiredSlots\":" + missingCount
-                + "}";
-    }
 }

@@ -76,7 +76,7 @@ class AiAnalysisServiceTest {
             when(diagnosticRepository.findById(diagnosticId)).thenReturn(Optional.empty());
 
             // when & then
-            assertThatThrownBy(() -> aiAnalysisService.submit(diagnosticId))
+            assertThatThrownBy(() -> aiAnalysisService.submit(diagnosticId, null))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException customEx = (CustomException) ex;
@@ -97,7 +97,7 @@ class AiAnalysisServiceTest {
             when(evidenceFileRepository.findByDiagnosticId(diagnosticId)).thenReturn(List.of());
 
             // when & then
-            assertThatThrownBy(() -> aiAnalysisService.submit(diagnosticId))
+            assertThatThrownBy(() -> aiAnalysisService.submit(diagnosticId, null))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException customEx = (CustomException) ex;
@@ -124,7 +124,7 @@ class AiAnalysisServiceTest {
             ));
 
             // when & then
-            assertThatThrownBy(() -> aiAnalysisService.submit(diagnosticId))
+            assertThatThrownBy(() -> aiAnalysisService.submit(diagnosticId, null))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException customEx = (CustomException) ex;
@@ -174,7 +174,7 @@ class AiAnalysisServiceTest {
             when(resultRepository.save(any(AiAnalysisResult.class))).thenReturn(savedResult);
 
             // when
-            AiAnalysisResult result = aiAnalysisService.submit(diagnosticId);
+            AiAnalysisResult result = aiAnalysisService.submit(diagnosticId, null);
 
             // then
             assertThat(result).isNotNull();
@@ -213,7 +213,7 @@ class AiAnalysisServiceTest {
                 .thenThrow(new CustomException(ErrorCode.AI_SERVICE_ERROR));
 
             // when & then
-            assertThatThrownBy(() -> aiAnalysisService.submit(diagnosticId))
+            assertThatThrownBy(() -> aiAnalysisService.submit(diagnosticId, null))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException customEx = (CustomException) ex;

@@ -1,9 +1,12 @@
 package com.smartchain.platform.domain.ai.service;
 
+import com.smartchain.platform.dto.ai.run.SlotHint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 public class AiAnalysisAsyncService {
@@ -17,9 +20,9 @@ public class AiAnalysisAsyncService {
     }
 
     @Async
-    public void submitAsync(Long diagnosticId) {
+    public void submitAsync(Long diagnosticId, List<SlotHint> slotHints) {
         try {
-            aiAnalysisService.submit(diagnosticId);
+            aiAnalysisService.submit(diagnosticId, slotHints);
         } catch (Exception e) {
             log.error("AI 분석 실패 - diagnosticId: {}", diagnosticId, e);
         }
