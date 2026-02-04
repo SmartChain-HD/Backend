@@ -1,5 +1,47 @@
 # Claude Code Learnings
 
+## 2026-02-04: Google reCAPTCHA v3 로그인 보안 검증 구현
+
+### 원인
+- 로그인 API에 봇/자동화 공격 방지 보안 레이어 부재
+- 프론트엔드에서 reCAPTCHA v3 구현 요청에 따른 백엔드 검증 필요
+
+### 해결
+- `RecaptchaConfig`: reCAPTCHA 설정 (secretKey, scoreThreshold, enabled)
+- `RecaptchaService`: Google reCAPTCHA API 검증 서비스
+  - POST `https://www.google.com/recaptcha/api/siteverify`로 토큰 검증
+  - success 체크, action 변조 방지, score 임계값(0.5) 검증
+- `LoginRequest`에 `recaptchaToken` 필드 추가
+- `AuthService.login()`에 reCAPTCHA 검증 로직 추가 (비밀번호 검증 전 수행)
+- `ErrorCode`에 `RECAPTCHA_FAILED` (CAPTCHA_001), `RECAPTCHA_LOW_SCORE` (CAPTCHA_002) 추가
+
+### 재발방지
+- 보안 검증 로직은 주요 인증 로직 앞에 배치
+- 환경변수로 enabled 플래그 제공하여 개발/테스트 환경에서 비활성화 가능
+- score 임계값은 환경변수로 조정 가능 (기본 0.5)
+
+### 검증방법
+```bash
+./gradlew build -x test
+./gradlew test --tests "*AuthServiceTest*login*"
+```
+
+### 관련커밋
+- (이 세션에서 구현)
+
+### 생성/수정 파일
+```
+src/main/java/.../global/config/RecaptchaConfig.java (신규)
+src/main/java/.../domain/auth/service/RecaptchaService.java (신규)
+src/main/java/.../dto/auth/login/LoginRequest.java (recaptchaToken 추가)
+src/main/java/.../domain/auth/service/AuthService.java (검증 로직 추가)
+src/main/java/.../global/error/ErrorCode.java (CAPTCHA_001, CAPTCHA_002 추가)
+src/main/resources/application.yaml (recaptcha 설정 추가)
+src/test/java/.../domain/auth/service/AuthServiceTest.java (mock 추가)
+```
+
+---
+
 ## 2026-02-03: 캠페인/기안/회원가입 버그 수정 (#134)
 
 ### 원인
