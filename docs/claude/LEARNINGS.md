@@ -1,5 +1,42 @@
 # Claude Code Learnings
 
+## 2026-02-04: 반려→재승인 시 상태 처리 오류 수정 (#155)
+
+### 원인
+- 수신자(REVIEWER)가 반려(REVISION_REQUIRED)한 심사를 대시보드에서 다시 승인하려 할 때
+- 기존 `processReview()` 메서드가 `REVIEWING` 상태에서만 처리 가능하도록 구현됨
+- `REVISION_REQUIRED` 상태의 심사를 재승인하는 기능이 없어 의도치 않은 동작 발생
+
+### 해결
+- **Review 엔티티**: `isRevisionRequired()` 메서드 추가, `revertToReviewing()` 메서드 추가
+- **ReviewService.processReview()**: `REVISION_REQUIRED` 상태에서도 재승인(APPROVED) 가능하도록 수정
+  - `REVISION_REQUIRED` + `APPROVED` 요청 → 기안 상태를 REVIEWING으로 되돌린 후 COMPLETED 처리
+  - `REVISION_REQUIRED` + `REVISION_REQUIRED` 요청 → 중복 방지 에러 반환
+- **테스트 추가**: 재승인 성공 케이스, 중복 보완요청 실패 케이스
+
+### 재발방지
+- 상태 전이 로직 구현 시 모든 가능한 상태 조합 검토 필요
+- 특히 "취소/롤백" 시나리오가 필요한지 기획 단계에서 확인
+- 심사 워크플로우 변경 시 Review/Diagnostic 상태 동기화 주의
+
+### 검증방법
+```bash
+./gradlew test --tests "ReviewServiceTest"
+./gradlew build -x test
+```
+
+### 관련커밋
+- feature/155-fix-compliance-reapproval-v3 브랜치
+
+### 생성/수정 파일
+```
+src/main/java/.../domain/review/entity/Review.java (+isRevisionRequired, +revertToReviewing)
+src/main/java/.../domain/review/service/ReviewService.java (processReview 로직 수정)
+src/test/java/.../domain/review/service/ReviewServiceTest.java (+2 테스트 케이스)
+```
+
+---
+
 ## 2026-02-04: 전체 결재 페이지 제거 - domainCode 필수화 (#162)
 
 ### 원인
