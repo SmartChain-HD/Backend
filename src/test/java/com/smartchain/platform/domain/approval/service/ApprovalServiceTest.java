@@ -3,6 +3,8 @@ package com.smartchain.platform.domain.approval.service;
 import com.smartchain.platform.domain.approval.entity.Approval;
 import com.smartchain.platform.domain.approval.repository.ApprovalRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
+import com.smartchain.platform.domain.review.entity.Review;
+import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.Role;
@@ -59,6 +61,9 @@ class ApprovalServiceTest {
 
     @Mock
     private DomainRepository domainRepository;
+
+    @Mock
+    private ReviewRepository reviewRepository;
 
     @Mock
     private User approverUser;
@@ -444,13 +449,17 @@ class ApprovalServiceTest {
     class SubmitToReviewerTest {
 
         @Test
-        @DisplayName("원청 제출 성공")
+        @DisplayName("원청 제출 성공 - Review 엔티티 생성 검증 (#158)")
         void submitToReviewer_Success() {
             // given
+            LocalDateTime submittedAt = LocalDateTime.now();
             when(testApproval.isApproved()).thenReturn(true);
-            when(testApproval.getSubmittedToReviewerAt()).thenReturn(LocalDateTime.now());
+            when(testApproval.getSubmittedToReviewerAt()).thenReturn(submittedAt);
             when(testDiagnostic.isApproved()).thenReturn(true);
             when(testDiagnostic.getStatus()).thenReturn(DiagnosticStatus.APPROVED);
+
+            Review savedReview = mock(Review.class);
+            when(savedReview.getReviewId()).thenReturn(50L);
 
             SubmitToReviewerRequest request = SubmitToReviewerRequest.builder()
                     .submitComment("원청 제출합니다")
@@ -458,6 +467,7 @@ class ApprovalServiceTest {
 
             given(userRepository.findById(1L)).willReturn(Optional.of(approverUser));
             given(approvalRepository.findById(1L)).willReturn(Optional.of(testApproval));
+            given(reviewRepository.save(any(Review.class))).willReturn(savedReview);
 
             // when
             SubmitToReviewerResponse response = approvalService.submitToReviewer(1L, 1L, request);
@@ -466,11 +476,63 @@ class ApprovalServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.getApprovalId()).isEqualTo(1L);
             assertThat(response.getDiagnosticId()).isEqualTo(100L);
+            assertThat(response.getReviewId()).isEqualTo(50L);  // Review 생성 확인
             assertThat(response.getPreviousStatus()).isEqualTo("APPROVED");
             assertThat(response.getNewStatus()).isEqualTo("REVIEWING");
             assertThat(response.getMessage()).isEqualTo("원청에 제출되었습니다");
             verify(testApproval).submitToReviewer();
             verify(testDiagnostic).markAsReviewing();
+            verify(reviewRepository).save(any(Review.class));  // Review 저장 호출 확인
+        }
+
+        @Test
+        @DisplayName("원청 제출 시 Review 엔티티에 Diagnostic/Company/Domain 정보가 올바르게 설정되는지 검증 (#158)")
+        void submitToReviewer_CreatesReviewWithCorrectData() {
+            // given
+            Domain esgDomain = mock(Domain.class);
+            when(esgDomain.getCode()).thenReturn("ESG");
+
+            // 도메인 기반 권한 설정
+            User domainApprover = mock(User.class);
+            lenient().when(domainApprover.getUserId()).thenReturn(1L);
+            lenient().when(domainApprover.getName()).thenReturn("도메인 결재자");
+            when(domainApprover.getCompany()).thenReturn(testCompany);
+            when(domainApprover.hasRoleInDomain("ESG", "APPROVER")).thenReturn(true);
+
+            LocalDateTime submittedAt = LocalDateTime.now();
+            lenient().when(testApproval.isApproved()).thenReturn(true);
+            lenient().when(testApproval.getSubmittedToReviewerAt()).thenReturn(submittedAt);
+            lenient().when(testDiagnostic.isApproved()).thenReturn(true);
+            lenient().when(testDiagnostic.getStatus()).thenReturn(DiagnosticStatus.APPROVED);
+            lenient().when(testDiagnostic.getDomain()).thenReturn(esgDomain);
+
+            Review savedReview = mock(Review.class);
+            when(savedReview.getReviewId()).thenReturn(51L);
+
+            SubmitToReviewerRequest request = SubmitToReviewerRequest.builder()
+                    .submitComment("원청 제출합니다")
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(domainApprover));
+            given(approvalRepository.findById(1L)).willReturn(Optional.of(testApproval));
+            given(reviewRepository.save(any(Review.class))).willAnswer(invocation -> {
+                Review review = invocation.getArgument(0);
+                // Review 엔티티에 설정된 값 검증
+                assertThat(review.getDiagnostic()).isEqualTo(testDiagnostic);
+                assertThat(review.getCompany()).isEqualTo(testCompany);
+                assertThat(review.getDomain()).isEqualTo(esgDomain);
+                assertThat(review.getScore()).isEqualTo(72);  // testDiagnostic.getOverallScore()
+                assertThat(review.getSubmittedAt()).isEqualTo(submittedAt);
+                return savedReview;
+            });
+
+            // when
+            SubmitToReviewerResponse response = approvalService.submitToReviewer(1L, 1L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getReviewId()).isEqualTo(51L);
+            verify(reviewRepository).save(any(Review.class));
         }
 
         @Test

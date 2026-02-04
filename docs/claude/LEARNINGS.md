@@ -1602,3 +1602,39 @@ docs/STATUS_AND_ERROR_CODES.md (AI007 문서화)
 src/main/java/.../domain/review/service/ReviewService.java (AiAnalysisResultRepository 추가, fetchAiAnalysisResult 메서드)
 src/test/java/.../domain/review/service/ReviewServiceTest.java (AI 분석 결과 테스트 2건)
 ```
+
+---
+
+## 2026-02-04: 결재자 제출 후 수신자에게 서류 안 올라감 (#158)
+
+### 원인
+- `ApprovalService.submitToReviewer()` 메서드에서 Diagnostic 상태만 REVIEWING으로 변경
+- Review 엔티티를 생성하지 않아 수신자 대시보드/심사 목록에서 조회 불가
+- 주석에 "Review entity not yet created - will be created by Review API"라고 되어 있었으나 실제로 Review API에서 생성하는 로직 없음
+
+### 해결
+- `ApprovalService`에 `ReviewRepository` 의존성 추가
+- `submitToReviewer()` 메서드에서 Review 엔티티 생성 로직 추가:
+  - Diagnostic, Company, Domain, Score(overallScore), submittedAt 설정
+  - ReviewRepository.save() 호출
+- 응답의 reviewId에 생성된 Review ID 반환 (기존 null → 실제 ID)
+- 테스트 2건 추가: Review 생성 검증, Review 데이터 검증
+
+### 재발 방지
+- 엔티티 생성이 필요한 워크플로우 전이 시 실제 생성 로직 구현 확인
+- "will be created later" 주석은 실제 구현 여부를 별도 검증 필요
+- 연관 엔티티 생성 누락 시 조회 API에서 결과 없음으로 나타남
+
+### 검증방법
+```bash
+./gradlew test --tests "ApprovalServiceTest"
+```
+
+### 관련커밋
+- PR #158 (feature/158-review-creation-on-submit)
+
+### 생성/수정 파일
+```
+src/main/java/.../domain/approval/service/ApprovalService.java (ReviewRepository 추가, Review 생성 로직)
+src/test/java/.../domain/approval/service/ApprovalServiceTest.java (+2 테스트 케이스)
+```
