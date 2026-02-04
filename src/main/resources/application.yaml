@@ -78,6 +78,10 @@ ai:
     url: http://127.0.0.1:8000
     timeout-seconds: 180
     max-retry: 3
+  chat:
+    base-url: http://127.0.0.1:8001
+    admin-api-key: ${AI_CHAT_ADMIN_KEY:test-key}
+    timeout-seconds: 30
   slots:
     # 슬롯 정의: docs/API_CONTRACT_SSOT.md §8.6 기준
     domains:
@@ -211,6 +215,13 @@ azure:
 logging:
   level:
     com.smartchain.platform: INFO
+
+# AI Chat API 설정 (dev)
+ai:
+  chat:
+    base-url: ${AI_CHAT_URL:http://127.0.0.1:8001}
+    admin-api-key: ${AI_CHAT_ADMIN_KEY}
+    timeout-seconds: 30
 
 # 이메일 설정 (SMTP)
 spring.mail:
