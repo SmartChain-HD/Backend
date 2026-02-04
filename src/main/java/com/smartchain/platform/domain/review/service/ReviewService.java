@@ -1,5 +1,7 @@
 package com.smartchain.platform.domain.review.service;
 
+import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
+import com.smartchain.platform.domain.ai.repository.AiAnalysisResultRepository;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
@@ -8,6 +10,7 @@ import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
 import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
+import com.smartchain.platform.dto.ai.AiAnalysisResultDetailResponse;
 import com.smartchain.platform.dto.review.common.*;
 import com.smartchain.platform.dto.review.dashboard.*;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionRequest;
@@ -29,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -40,6 +44,7 @@ public class ReviewService {
     private final UserRepository userRepository;
     private final CompanyRepository companyRepository;
     private final DomainRepository domainRepository;
+    private final AiAnalysisResultRepository aiAnalysisResultRepository;
 
     private static final Map<String, String> RISK_LEVEL_LABEL_MAP = Map.of(
             "HIGH", "고위험군",
@@ -228,14 +233,18 @@ public class ReviewService {
 
         validateDomainReviewerAccess(currentUser, review);
 
+        // AI 분석 결과 조회 (있는 경우에만)
+        Long diagnosticId = review.getDiagnostic().getDiagnosticId();
+        Object aiAnalysisData = fetchAiAnalysisResult(diagnosticId);
+
         // Diagnostic Info
         DiagnosticDetailInfoDto diagnosticDto = DiagnosticDetailInfoDto.builder()
-                .diagnosticId(review.getDiagnostic().getDiagnosticId())
+                .diagnosticId(diagnosticId)
                 .diagnosticCode(review.getDiagnostic().getDiagnosticCode())
                 .title(review.getDiagnostic().getTitle())
                 .qualitativeData(null)
                 .quantitativeData(null)
-                .aiAnalysis(null)
+                .aiAnalysis(aiAnalysisData)
                 .build();
 
         // Company Info
@@ -366,6 +375,19 @@ public class ReviewService {
         if (!user.hasRoleInDomain(domainCode, "REVIEWER")) {
             throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
         }
+    }
+
+    /**
+     * 진단의 최신 AI 분석 결과를 조회하여 상세 응답으로 반환
+     * 결과가 없으면 null 반환
+     */
+    private Object fetchAiAnalysisResult(Long diagnosticId) {
+        Optional<AiAnalysisResult> latestResult = aiAnalysisResultRepository
+                .findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(diagnosticId);
+
+        return latestResult
+                .map(AiAnalysisResultDetailResponse::from)
+                .orElse(null);
     }
 
     private Page<Review> findReviewsWithDomainFilters(List<Domain> domains, String status, String riskLevel, Long companyId, Pageable pageable) {
