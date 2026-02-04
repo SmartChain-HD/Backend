@@ -280,11 +280,6 @@ public class DiagnosticService {
         Campaign campaign = campaignRepository.findById(request.getCampaignId())
                 .orElseThrow(() -> new CustomException(ErrorCode.CAMPAIGN_NOT_FOUND));
 
-        // 캠페인 종료 여부 확인 (종료된 캠페인에는 진단 생성 불가)
-        if (campaign.getPeriodEndDate().isBefore(LocalDate.now())) {
-            throw new CustomException(ErrorCode.CAMPAIGN_CLOSED);
-        }
-
         // 캠페인의 도메인 또는 요청의 도메인 코드로 도메인 조회
         Domain domain = campaign.getDomain();
         if (domain == null && request.getDomainCode() != null) {

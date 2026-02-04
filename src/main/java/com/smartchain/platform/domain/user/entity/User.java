@@ -80,10 +80,6 @@ public class User extends BaseTimeEntity {
         this.role = newRole;
     }
 
-    public void changeCompany(Company newCompany) {
-        this.company = newCompany;
-    }
-
     public void changeStatus(UserStatus newStatus) {
         this.status = newStatus;
     }

@@ -1,6 +1,5 @@
 package com.smartchain.platform.domain.job.service;
 
-import com.smartchain.platform.domain.ai.service.AiAnalysisService;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.job.entity.AsyncJob;
@@ -31,7 +30,6 @@ public class AiAnalysisJobService {
     private final DiagnosticRepository diagnosticRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
-    private final AiAnalysisService aiAnalysisService;
 
     private static final int AI_ANALYSIS_ESTIMATED_SECONDS = 120;
 
@@ -94,17 +92,14 @@ public class AiAnalysisJobService {
             job.updateProgress(30, "데이터 수집 중");
             asyncJobRepository.save(job);
 
-            // 실제 FastAPI 호출 + 결과 DB 저장
             job.updateProgress(60, "AI 분석 수행 중");
             asyncJobRepository.save(job);
-
-            aiAnalysisService.submit(job.getTargetId());
 
             job.updateProgress(90, "결과 정리 중");
             asyncJobRepository.save(job);
 
             // 분석 완료
-            String resultUrl = "/api/v1/ai/run/diagnostics/" + job.getTargetId() + "/result";
+            String resultUrl = "/api/v1/diagnostics/" + job.getTargetId() + "/ai-analysis";
             job.succeed(resultUrl);
             asyncJobRepository.save(job);
 

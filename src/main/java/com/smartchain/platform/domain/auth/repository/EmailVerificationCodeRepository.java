@@ -12,8 +12,6 @@ public interface EmailVerificationCodeRepository extends JpaRepository<EmailVeri
 
     Optional<EmailVerificationCode> findTopByEmailAndVerifiedFalseOrderByCreatedAtDesc(String email);
 
-    Optional<EmailVerificationCode> findTopByEmailAndVerifiedTrueOrderByCreatedAtDesc(String email);
-
     Optional<EmailVerificationCode> findTopByEmailOrderByCreatedAtDesc(String email);
 
     void deleteByExpiresAtBefore(LocalDateTime dateTime);

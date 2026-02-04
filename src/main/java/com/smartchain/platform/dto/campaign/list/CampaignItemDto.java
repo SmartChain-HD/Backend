@@ -14,7 +14,6 @@ import java.time.LocalDate;
 public class CampaignItemDto {
     private Long campaignId;
     private String campaignCode;         // "CMP-2026-001"
-    private String domainCode;           // "ESG", "SAFETY", "COMPLIANCE"
     private String title;                // "2026년 상반기 ESG 평가"
     private String description;
     private LocalDate startDate;
@@ -22,7 +21,6 @@ public class CampaignItemDto {
     private LocalDate deadline;
     private String status;               // DRAFT, ACTIVE, CLOSED
     private String statusLabel;
-    private Boolean isActive;            // 캠페인 활성화 여부
     private int targetCompanyCount;      // 대상 협력사 수
     private int submittedCount;          // 제출 완료 수
     private int progressRate;            // 진행률 (%)

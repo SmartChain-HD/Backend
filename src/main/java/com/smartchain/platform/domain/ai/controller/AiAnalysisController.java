@@ -1,7 +1,6 @@
 package com.smartchain.platform.domain.ai.controller;
 
 import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
-import com.smartchain.platform.domain.ai.service.AiAnalysisAsyncService;
 import com.smartchain.platform.domain.ai.service.AiAnalysisService;
 import com.smartchain.platform.dto.ai.AiAnalysisRequest;
 import com.smartchain.platform.dto.ai.AiAnalysisResultDetailResponse;
@@ -30,11 +29,9 @@ public class AiAnalysisController {
     private static final Logger log = LoggerFactory.getLogger(AiAnalysisController.class);
 
     private final AiAnalysisService aiAnalysisService;
-    private final AiAnalysisAsyncService aiAnalysisAsyncService;
 
-    public AiAnalysisController(AiAnalysisService aiAnalysisService, AiAnalysisAsyncService aiAnalysisAsyncService) {
+    public AiAnalysisController(AiAnalysisService aiAnalysisService) {
         this.aiAnalysisService = aiAnalysisService;
-        this.aiAnalysisAsyncService = aiAnalysisAsyncService;
     }
 
     @Operation(summary = "AI Run Preview", description = "파일 추가 시 슬롯 추정 및 필수 항목 현황 확인")
@@ -60,7 +57,7 @@ public class AiAnalysisController {
         log.info("AI 분석 요청 - diagnosticId: {}", diagnosticId);
 
         // 비동기로 분석 시작
-        aiAnalysisAsyncService.submitAsync(diagnosticId);
+        aiAnalysisService.submitAsync(diagnosticId);
 
         Map<String, Object> response = Map.of(
             "diagnosticId", diagnosticId,

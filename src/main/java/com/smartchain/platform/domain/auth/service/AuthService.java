@@ -55,7 +55,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailService emailService;
-    private final RecaptchaService recaptchaService;
 
     private static final String GUEST_ROLE_CODE = "GUEST";
     private static final int VERIFICATION_CODE_LENGTH = 6;
@@ -91,31 +90,21 @@ public class AuthService {
             throw new CustomException(ErrorCode.DUPLICATE_EMAIL);
         }
 
-        // 5. 이메일 인증 여부 확인 (회원가입 전 인증 완료 필수)
-        boolean isEmailVerified = verificationCodeRepository
-                .findTopByEmailAndVerifiedTrueOrderByCreatedAtDesc(request.getEmail())
-                .isPresent();
-
-        if (!isEmailVerified) {
-            throw new CustomException(ErrorCode.EMAIL_NOT_VERIFIED);
-        }
-
-        // 6. GUEST 역할 조회
+        // 5. GUEST 역할 조회
         Role guestRole = roleRepository.findByCode(GUEST_ROLE_CODE)
                 .orElseThrow(() -> new CustomException(ErrorCode.ROLE_NOT_FOUND));
 
-        // 7. 사용자 생성 (이메일 인증 완료 상태로)
+        // 6. 사용자 생성
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
                 .userPassword(passwordEncoder.encode(request.getPassword()))
                 .role(guestRole)
-                .emailVerified(true)
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        log.info("User registered: userId={}, email={}, emailVerified=true", savedUser.getUserId(), savedUser.getEmail());
+        log.info("User registered: userId={}, email={}", savedUser.getUserId(), savedUser.getEmail());
 
         return RegisterResponse.builder()
                 .userId(savedUser.getUserId())
@@ -129,9 +118,6 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
-        // 0. reCAPTCHA 검증
-        recaptchaService.verify(request.getRecaptchaToken(), "login");
-
         // 1. 사용자 조회
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));

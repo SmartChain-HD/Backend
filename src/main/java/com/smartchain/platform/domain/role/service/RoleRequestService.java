@@ -492,13 +492,6 @@ public class RoleRequestService {
                     log.info("User global role upgraded from GUEST to {}: userId={}",
                             roleRequest.getRequestedRole(), requestUser.getUserId());
                 }
-
-                // 회사 정보 연결 (회사가 없는 경우에만)
-                if (requestUser.getCompany() == null && roleRequest.getCompany() != null) {
-                    requestUser.changeCompany(roleRequest.getCompany());
-                    log.info("User company assigned: userId={}, companyId={}",
-                            requestUser.getUserId(), roleRequest.getCompany().getCompanyId());
-                }
             }
 
             message = "권한 요청이 승인되었습니다";
