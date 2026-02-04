@@ -88,97 +88,127 @@ ai:
       # ESG 도메인 (15개 슬롯, 필수 4개)
       esg:
         - name: esg.energy.electricity.usage
+          display-name: 전기 사용량
           keywords: [전기, electricity, 전력사용, 전기사용, 전력량, kwh]
           required: true
         - name: esg.energy.electricity.bill
+          display-name: 전기 고지서
           keywords: [전기고지서, 전기요금, electricity bill, 전기청구]
           required: false
         - name: esg.energy.gas.usage
+          display-name: 가스 사용량
           keywords: [가스, gas, 도시가스, 가스사용, 가스량]
           required: true
         - name: esg.energy.gas.bill
+          display-name: 가스 고지서
           keywords: [가스고지서, 가스요금, gas bill, 가스청구]
           required: false
         - name: esg.energy.water.usage
+          display-name: 용수 사용량
           keywords: [수도, water, 용수, 수도사용, 용수량]
           required: false
         - name: esg.energy.water.bill
+          display-name: 수도 고지서
           keywords: [수도고지서, 수도요금, water bill, 수도청구]
           required: false
         - name: esg.energy.ghg.evidence
+          display-name: 온실가스 배출 증빙
           keywords: [ghg, 온실가스, greenhouse, 탄소, carbon, 배출량]
           required: false
         - name: esg.hazmat.msds
+          display-name: MSDS (물질안전보건자료)
           keywords: [msds, sds, 물질안전, 유해물질, 화학물질, hazmat]
           required: true
         - name: esg.hazmat.inventory
+          display-name: 유해물질 목록
           keywords: [유해물질목록, 화학물질목록, hazmat inventory, 물질목록]
           required: false
         - name: esg.hazmat.disposal.list
+          display-name: 폐기물 처리 목록
           keywords: [폐기목록, 처리목록, disposal list, 폐기물]
           required: false
         - name: esg.hazmat.disposal.evidence
+          display-name: 폐기물 처리 증빙
           keywords: [폐기증빙, 처리증빙, disposal evidence, 폐기확인]
           required: false
         - name: esg.ethics.code
+          display-name: 윤리강령
           keywords: [윤리강령, 행동강령, ethics, code of conduct, 윤리규정]
           required: true
         - name: esg.ethics.distribution.log
+          display-name: 윤리강령 배포 확인
           keywords: [배포확인, 수신확인, distribution, 서명명단]
           required: false
         - name: esg.ethics.pledge
+          display-name: 윤리 서약서
           keywords: [서약서, pledge, 서약, 윤리서약]
           required: false
         - name: esg.ethics.poster.image
+          display-name: 윤리 포스터
           keywords: [포스터, poster, 윤리포스터, 게시물]
           required: false
       # Safety 도메인 (8개 슬롯, 필수 4개)
       safety:
         - name: safety.education.status
+          display-name: 안전교육 이수 현황
           keywords: [교육이수, 안전교육, education status, 교육현황, 수료]
           required: true
         - name: safety.fire.inspection
+          display-name: 소방점검 결과
           keywords: [소방점검, fire inspection, 소화기, 방화, 소방]
           required: true
         - name: safety.risk.assessment
+          display-name: 위험성 평가서
           keywords: [위험성평가, risk assessment, 위험평가, 리스크]
           required: true
         - name: safety.management.system
+          display-name: 안전보건 관리체계
           keywords: [안전보건관리, management system, 안전매뉴얼, 관리체계]
           required: true
         - name: safety.site.photos
+          display-name: 현장 사진
           keywords: [현장사진, site photo, 현장, 사진, image]
           required: false
         - name: safety.education.attendance
+          display-name: 교육 출석부
           keywords: [출석부, attendance, 교육출석, 참석명단]
           required: false
         - name: safety.education.photo
+          display-name: 교육 사진
           keywords: [교육사진, education photo, 교육일사진]
           required: false
         - name: safety.tbm
+          display-name: TBM (작업전 안전회의)
           keywords: [tbm, toolbox, 작업전회의, 안전회의, 작업전미팅]
           required: false
       # Compliance 도메인 (7개 슬롯, 필수 3개)
       compliance:
         - name: compliance.contract.sample
+          display-name: 표준 계약서
           keywords: [표준계약, 하도급계약, contract sample, 근로계약, 계약서]
           required: true
         - name: compliance.education.privacy
+          display-name: 개인정보 보호교육
           keywords: [개인정보교육, privacy education, 개인정보보호, 정보보호교육]
           required: true
         - name: compliance.fair.trade
+          display-name: 공정거래 자율점검
           keywords: [공정거래, fair trade, 자율점검, 공정거래점검]
           required: true
         - name: compliance.ethics.report
+          display-name: 윤리신고 현황
           keywords: [내부신고, ethics report, 윤리신고, 신고현황]
           required: false
         - name: compliance.education.plan
+          display-name: 법정교육 계획
           keywords: [교육계획, education plan, 법정교육, 교육일정]
           required: false
         - name: compliance.education.attendance
+          display-name: 교육 출석부
           keywords: [출석부, attendance, 교육출석, 참석명단]
           required: false
         - name: compliance.education.photo
+          display-name: 교육 사진
           keywords: [교육사진, education photo, 교육일사진]
           required: false
 

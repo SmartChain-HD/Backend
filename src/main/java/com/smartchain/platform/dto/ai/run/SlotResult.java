@@ -11,6 +11,9 @@ public record SlotResult(
     @JsonProperty("slot_name")
     String slotName,
 
+    @JsonProperty("display_name")
+    String displayName,
+
     String verdict,  // PASS, NEED_CLARIFY, NEED_FIX
 
     List<String> reasons,
@@ -22,4 +25,19 @@ public record SlotResult(
     List<String> fileNames,
 
     Map<String, String> extras
-) {}
+) {
+    /**
+     * displayName 없이 생성하는 생성자 (AI 서버 응답 역직렬화용)
+     */
+    public SlotResult(String slotName, String verdict, List<String> reasons,
+                      List<String> fileIds, List<String> fileNames, Map<String, String> extras) {
+        this(slotName, null, verdict, reasons, fileIds, fileNames, extras);
+    }
+
+    /**
+     * displayName을 추가한 새 SlotResult 반환
+     */
+    public SlotResult withDisplayName(String displayName) {
+        return new SlotResult(slotName, displayName, verdict, reasons, fileIds, fileNames, extras);
+    }
+}

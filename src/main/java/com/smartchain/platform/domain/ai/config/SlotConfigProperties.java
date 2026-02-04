@@ -22,6 +22,7 @@ public class SlotConfigProperties {
     @Setter
     public static class SlotDefinition {
         private String name;
+        private String displayName;  // 한글 표시명
         private List<String> keywords = new ArrayList<>();
         private boolean required;
     }
@@ -49,5 +50,16 @@ public class SlotConfigProperties {
         }
 
         return domainCode.toLowerCase() + ".other";
+    }
+
+    /**
+     * 슬롯명으로 표시명 조회
+     */
+    public String getDisplayName(String slotName, String domainCode) {
+        return getSlotsForDomain(domainCode).stream()
+            .filter(s -> s.getName().equals(slotName))
+            .findFirst()
+            .map(SlotDefinition::getDisplayName)
+            .orElse(slotName);  // displayName이 없으면 slotName 반환
     }
 }
