@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class DiagnosticDetailInfoDto {
     private Long diagnosticId;
     private String diagnosticCode;
+    private String title;
     private Object qualitativeData;      // 정성적 데이터
     private Object quantitativeData;     // 정량적 데이터
     private Object aiAnalysis;           // AI 분석 결과
