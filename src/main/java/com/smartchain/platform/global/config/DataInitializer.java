@@ -141,48 +141,48 @@ public class DataInitializer implements CommandLineRunner {
         // 원청 심사자들 (3명 - 도메인별)
         User reviewerEsg = userRepository.save(User.builder()
                 .name("김심사(ESG)").email("reviewer.esg@hdhhi.co.kr").userPassword(encodedPassword)
-                .company(ownerCompany).role(reviewerRole).build());
+                .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
         User reviewerSafety = userRepository.save(User.builder()
                 .name("이심사(안전)").email("reviewer.safety@hdhhi.co.kr").userPassword(encodedPassword)
-                .company(ownerCompany).role(reviewerRole).build());
+                .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
         User reviewerCompliance = userRepository.save(User.builder()
                 .name("박심사(컴플)").email("reviewer.compliance@hdhhi.co.kr").userPassword(encodedPassword)
-                .company(ownerCompany).role(reviewerRole).build());
+                .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
 
         // 테크파트너 직원들 (결재자1, 기안자2)
         User approver1 = userRepository.save(User.builder()
                 .name("김결재(테크)").email("approver@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(approverRole).build());
+                .company(partnerCompany1).role(approverRole).emailVerified(true).build());
         User drafter1 = userRepository.save(User.builder()
                 .name("이기안(테크)").email("drafter1@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(drafterRole).build());
+                .company(partnerCompany1).role(drafterRole).emailVerified(true).build());
         User drafter2 = userRepository.save(User.builder()
                 .name("박기안(테크)").email("drafter2@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(drafterRole).build());
+                .company(partnerCompany1).role(drafterRole).emailVerified(true).build());
 
         // 그린매뉴팩처링 직원들
         User approver2 = userRepository.save(User.builder()
                 .name("최결재(그린)").email("approver@greenmanu.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany2).role(approverRole).build());
+                .company(partnerCompany2).role(approverRole).emailVerified(true).build());
         User drafter3 = userRepository.save(User.builder()
                 .name("정기안(그린)").email("drafter@greenmanu.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany2).role(drafterRole).build());
+                .company(partnerCompany2).role(drafterRole).emailVerified(true).build());
 
         // 안전건설 직원들
         User approver3 = userRepository.save(User.builder()
                 .name("강결재(안전)").email("approver@safebuild.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany3).role(approverRole).build());
+                .company(partnerCompany3).role(approverRole).emailVerified(true).build());
         User drafter4 = userRepository.save(User.builder()
                 .name("윤기안(안전)").email("drafter@safebuild.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany3).role(drafterRole).build());
+                .company(partnerCompany3).role(drafterRole).emailVerified(true).build());
 
         // 게스트 (신규 가입자)
         User guest1 = userRepository.save(User.builder()
                 .name("신입1").email("newbie1@precision.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany4).role(guestRole).build());
+                .company(partnerCompany4).role(guestRole).emailVerified(true).build());
         User guest2 = userRepository.save(User.builder()
                 .name("신입2").email("newbie2@precision.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany4).role(guestRole).build());
+                .company(partnerCompany4).role(guestRole).emailVerified(true).build());
         log.info("Users created: 12 users");
 
         // ========================================
@@ -193,62 +193,61 @@ public class DataInitializer implements CommandLineRunner {
         userDomainRoleRepository.save(UserDomainRole.builder().user(reviewerSafety).domain(safetyDomain).role(reviewerRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(reviewerCompliance).domain(complianceDomain).role(reviewerRole).build());
 
-        // 테크파트너: ESG + COMPLIANCE
+        // 테크파트너: ESG(결재자+기안자) + COMPLIANCE(기안자만)
         userDomainRoleRepository.save(UserDomainRole.builder().user(approver1).domain(esgDomain).role(approverRole).build());
-        userDomainRoleRepository.save(UserDomainRole.builder().user(approver1).domain(complianceDomain).role(approverRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter1).domain(esgDomain).role(drafterRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter1).domain(complianceDomain).role(drafterRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter2).domain(esgDomain).role(drafterRole).build());
 
-        // 그린매뉴팩처링: ESG + SAFETY
+        // 그린매뉴팩처링: ESG(결재자+기안자) + SAFETY(기안자만)
         userDomainRoleRepository.save(UserDomainRole.builder().user(approver2).domain(esgDomain).role(approverRole).build());
-        userDomainRoleRepository.save(UserDomainRole.builder().user(approver2).domain(safetyDomain).role(approverRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter3).domain(esgDomain).role(drafterRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter3).domain(safetyDomain).role(drafterRole).build());
 
-        // 안전건설: SAFETY
-        userDomainRoleRepository.save(UserDomainRole.builder().user(approver3).domain(safetyDomain).role(approverRole).build());
+        // 안전건설: ESG(결재자) + SAFETY(기안자만) - APPROVER는 ESG 도메인에서만 존재
+        userDomainRoleRepository.save(UserDomainRole.builder().user(approver3).domain(esgDomain).role(approverRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter4).domain(safetyDomain).role(drafterRole).build());
         log.info("UserDomainRoles created");
 
         // ========================================
         // 5. Campaign (6개)
         // ========================================
+        // 캠페인 기간: 4개월 단위 (1~4월, 5~8월, 9~12월)
         Campaign esgCampaign2026 = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-ESG-2026-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(esgDomain)
-                .title("2026년 상반기 ESG 공급망 진단").content("2026년도 1차 협력사 ESG 경영 현황 진단")
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
-                .deadline(LocalDate.of(2026, 3, 31)).build());
+                .title("2026년 1분기 ESG 공급망 진단").content("2026년도 1차 협력사 ESG 경영 현황 진단")
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
+                .deadline(LocalDate.of(2026, 3, 31)).isActive(true).build());
 
         Campaign esgCampaign2025 = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-ESG-2025-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(esgDomain)
-                .title("2025년 ESG 공급망 진단 (완료)").content("2025년도 협력사 ESG 경영 현황 진단 - 완료")
-                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
-                .deadline(LocalDate.of(2025, 3, 31)).build());
+                .title("2025년 3분기 ESG 공급망 진단 (완료)").content("2025년도 협력사 ESG 경영 현황 진단 - 완료")
+                .periodStartDate(LocalDate.of(2025, 9, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2025, 11, 30)).isActive(false).build());
 
         Campaign safetyCampaign2026 = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-SAFETY-2026-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(safetyDomain)
                 .title("2026년 1분기 안전보건 점검").content("2026년 1분기 협력사 안전보건 관리 현황 점검")
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 3, 31))
-                .deadline(LocalDate.of(2026, 2, 28)).build());
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
+                .deadline(LocalDate.of(2026, 3, 31)).isActive(true).build());
 
         Campaign safetyCampaign2025 = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-SAFETY-2025-002").ownerCompanyId(ownerCompany.getCompanyId()).domain(safetyDomain)
-                .title("2025년 하반기 안전보건 점검 (완료)").content("2025년 하반기 안전보건 점검 완료")
-                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
-                .deadline(LocalDate.of(2025, 11, 30)).build());
+                .title("2025년 3분기 안전보건 점검 (완료)").content("2025년 3분기 안전보건 점검 완료")
+                .periodStartDate(LocalDate.of(2025, 9, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2025, 11, 30)).isActive(false).build());
 
         Campaign complianceCampaign2026 = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-COMPL-2026-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(complianceDomain)
-                .title("2026년 하도급 컴플라이언스 점검").content("2026년도 협력사 하도급 계약 법규 준수 점검")
-                .periodStartDate(LocalDate.of(2026, 2, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
-                .deadline(LocalDate.of(2026, 4, 15)).build());
+                .title("2026년 1분기 하도급 컴플라이언스 점검").content("2026년도 협력사 하도급 계약 법규 준수 점검")
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
+                .deadline(LocalDate.of(2026, 3, 31)).isActive(true).build());
 
         Campaign complianceCampaign2025 = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-COMPL-2025-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(complianceDomain)
-                .title("2025년 하도급 컴플라이언스 점검 (완료)").content("2025년도 하도급 점검 완료")
-                .periodStartDate(LocalDate.of(2025, 3, 1)).periodEndDate(LocalDate.of(2025, 5, 31))
-                .deadline(LocalDate.of(2025, 5, 15)).build());
+                .title("2025년 1분기 하도급 컴플라이언스 점검 (완료)").content("2025년도 하도급 점검 완료")
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 4, 30))
+                .deadline(LocalDate.of(2025, 3, 31)).isActive(false).build());
         log.info("Campaigns created: 6 campaigns");
 
         // ========================================
@@ -260,14 +259,14 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2026-001").title("테크파트너 2026 ESG 진단")
                 .campaign(esgCampaign2026).company(partnerCompany1).domain(esgDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 3, 31)).build());
 
         Diagnostic esgWriting2 = diagnosticRepository.save(Diagnostic.builder()
                 .diagnosticCode("DG-ESG-2026-002").title("그린매뉴 2026 ESG 진단")
                 .campaign(esgCampaign2026).company(partnerCompany2).domain(esgDomain)
                 .drafterId(drafter3.getUserId())
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 3, 31)).build());
 
         // SUBMITTED (제출됨) - 2건
@@ -275,7 +274,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2026-003").title("테크파트너 2026 ESG 진단 (제출)")
                 .campaign(esgCampaign2026).company(partnerCompany1).domain(esgDomain)
                 .drafterId(drafter2.getUserId())
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 3, 31)).build());
         esgSubmitted1.submit();
         diagnosticRepository.save(esgSubmitted1);
@@ -284,7 +283,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2026-004").title("정밀부품 2026 ESG 진단 (제출)")
                 .campaign(esgCampaign2026).company(partnerCompany4).domain(esgDomain)
                 .drafterId(guest1.getUserId())
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 3, 31)).build());
         esgSubmitted2.submit();
         diagnosticRepository.save(esgSubmitted2);
@@ -294,7 +293,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2026-005").title("그린매뉴 2026 ESG 진단 (반려)")
                 .campaign(esgCampaign2026).company(partnerCompany2).domain(esgDomain)
                 .drafterId(drafter3.getUserId())
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 3, 31)).build());
         esgReturned.submit();
         esgReturned.returnForRevision();
@@ -305,7 +304,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2026-006").title("테크파트너 2026 ESG 진단 (승인)")
                 .campaign(esgCampaign2026).company(partnerCompany1).domain(esgDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 3, 31)).build());
         esgApproved1.submit();
         esgApproved1.approve();
@@ -315,7 +314,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2026-007").title("안전건설 2026 ESG 진단 (승인)")
                 .campaign(esgCampaign2026).company(partnerCompany3).domain(esgDomain)
                 .drafterId(drafter4.getUserId())
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 3, 31)).build());
         esgApproved2.submit();
         esgApproved2.approve();
@@ -326,7 +325,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2025-001").title("테크파트너 2025 ESG 진단 (심사중)")
                 .campaign(esgCampaign2025).company(partnerCompany1).domain(esgDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .periodStartDate(LocalDate.of(2025, 9, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
                 .deadline(LocalDate.of(2025, 3, 31)).build());
         esgReviewing1.submit();
         esgReviewing1.approve();
@@ -337,7 +336,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2025-002").title("그린매뉴 2025 ESG 진단 (심사중)")
                 .campaign(esgCampaign2025).company(partnerCompany2).domain(esgDomain)
                 .drafterId(drafter3.getUserId())
-                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .periodStartDate(LocalDate.of(2025, 9, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
                 .deadline(LocalDate.of(2025, 3, 31)).build());
         esgReviewing2.submit();
         esgReviewing2.approve();
@@ -349,7 +348,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2025-003").title("안전건설 2025 ESG 진단 (완료)")
                 .campaign(esgCampaign2025).company(partnerCompany3).domain(esgDomain)
                 .drafterId(drafter4.getUserId())
-                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .periodStartDate(LocalDate.of(2025, 9, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
                 .deadline(LocalDate.of(2025, 3, 31)).build());
         esgCompleted1.submit();
         esgCompleted1.approve();
@@ -361,7 +360,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-ESG-2025-004").title("정밀부품 2025 ESG 진단 (완료)")
                 .campaign(esgCampaign2025).company(partnerCompany4).domain(esgDomain)
                 .drafterId(guest1.getUserId())
-                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .periodStartDate(LocalDate.of(2025, 9, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
                 .deadline(LocalDate.of(2025, 3, 31)).build());
         esgCompleted2.submit();
         esgCompleted2.approve();
@@ -374,14 +373,14 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-SAFETY-2026-001").title("그린매뉴 2026 안전보건 점검")
                 .campaign(safetyCampaign2026).company(partnerCompany2).domain(safetyDomain)
                 .drafterId(drafter3.getUserId())
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 3, 31))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 2, 28)).build());
 
         Diagnostic safetySubmitted = diagnosticRepository.save(Diagnostic.builder()
                 .diagnosticCode("DG-SAFETY-2026-002").title("안전건설 2026 안전보건 점검 (제출)")
                 .campaign(safetyCampaign2026).company(partnerCompany3).domain(safetyDomain)
                 .drafterId(drafter4.getUserId())
-                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 3, 31))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 2, 28)).build());
         safetySubmitted.submit();
         diagnosticRepository.save(safetySubmitted);
@@ -390,7 +389,7 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-SAFETY-2025-001").title("안전건설 2025 안전보건 점검 (완료)")
                 .campaign(safetyCampaign2025).company(partnerCompany3).domain(safetyDomain)
                 .drafterId(drafter4.getUserId())
-                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .periodStartDate(LocalDate.of(2025, 9, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
                 .deadline(LocalDate.of(2025, 11, 30)).build());
         safetyCompleted.submit();
         safetyCompleted.approve();
@@ -403,14 +402,14 @@ public class DataInitializer implements CommandLineRunner {
                 .diagnosticCode("DG-COMPL-2026-001").title("테크파트너 2026 컴플라이언스 점검")
                 .campaign(complianceCampaign2026).company(partnerCompany1).domain(complianceDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(2026, 2, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
+                .periodStartDate(LocalDate.of(2026, 1, 1)).periodEndDate(LocalDate.of(2026, 4, 30))
                 .deadline(LocalDate.of(2026, 4, 15)).build());
 
         Diagnostic complianceCompleted = diagnosticRepository.save(Diagnostic.builder()
                 .diagnosticCode("DG-COMPL-2025-001").title("테크파트너 2025 컴플라이언스 점검 (완료)")
                 .campaign(complianceCampaign2025).company(partnerCompany1).domain(complianceDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(2025, 3, 1)).periodEndDate(LocalDate.of(2025, 5, 31))
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 4, 30))
                 .deadline(LocalDate.of(2025, 5, 15)).build());
         complianceCompleted.submit();
         complianceCompleted.approve();

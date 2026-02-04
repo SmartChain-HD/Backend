@@ -20,6 +20,10 @@ public enum ErrorCode {
     VERIFICATION_RATE_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "U010", "잠시 후 다시 시도해주세요"),
     COMPANY_NOT_ASSIGNED(HttpStatus.BAD_REQUEST, "U011", "소속 회사가 지정되지 않았습니다"),
 
+    // reCAPTCHA
+    RECAPTCHA_FAILED(HttpStatus.BAD_REQUEST, "CAPTCHA_001", "보안 검증에 실패했습니다. 다시 시도해주세요."),
+    RECAPTCHA_LOW_SCORE(HttpStatus.BAD_REQUEST, "CAPTCHA_002", "비정상적인 접근이 감지되었습니다."),
+
     // 401 Unauthorized
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A001", "유효하지 않은 토큰입니다"),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A002", "만료된 토큰입니다"),
@@ -44,6 +48,7 @@ public enum ErrorCode {
     COMPANY_NOT_FOUND(HttpStatus.NOT_FOUND, "C001", "회사를 찾을 수 없습니다"),
     DIAGNOSTIC_NOT_FOUND(HttpStatus.NOT_FOUND, "D001", "진단을 찾을 수 없습니다"),
     CAMPAIGN_NOT_FOUND(HttpStatus.NOT_FOUND, "D002", "캠페인을 찾을 수 없습니다"),
+    CAMPAIGN_CLOSED(HttpStatus.BAD_REQUEST, "D003", "종료된 캠페인에는 진단을 생성할 수 없습니다"),
     APPROVAL_NOT_FOUND(HttpStatus.NOT_FOUND, "AP001", "결재를 찾을 수 없습니다"),
     EVIDENCE_NOT_FOUND(HttpStatus.NOT_FOUND, "E001", "증빙파일을 찾을 수 없습니다"),
     FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "RES_004", "파일을 찾을 수 없습니다"),

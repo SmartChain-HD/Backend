@@ -15,6 +15,7 @@ import java.util.List;
 public class CampaignDetailResponse {
     private Long campaignId;
     private String campaignCode;
+    private String domainCode;           // "ESG", "SAFETY", "COMPLIANCE"
     private String title;
     private String description;
     private LocalDate startDate;
@@ -22,7 +23,8 @@ public class CampaignDetailResponse {
     private LocalDate deadline;
     private String status;
     private String statusLabel;
-    
+    private Boolean isActive;            // 캠페인 활성화 여부
+
     // 통계
     private CampaignStatsDto stats;
     

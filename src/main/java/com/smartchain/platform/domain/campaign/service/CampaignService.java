@@ -4,6 +4,10 @@ import com.smartchain.platform.domain.diagnostic.entity.Campaign;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.CampaignRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
+import com.smartchain.platform.domain.user.entity.Domain;
+import com.smartchain.platform.domain.user.entity.User;
+import com.smartchain.platform.domain.user.entity.UserDomainRole;
+import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.campaign.detail.CampaignDetailResponse;
 import com.smartchain.platform.dto.campaign.detail.CampaignStatsDto;
 import com.smartchain.platform.dto.campaign.list.CampaignItemDto;
@@ -27,12 +31,49 @@ public class CampaignService {
 
     private final CampaignRepository campaignRepository;
     private final DiagnosticRepository diagnosticRepository;
+    private final UserRepository userRepository;
 
     /**
-     * 캠페인 목록 조회
+     * 캠페인 목록 조회 (사용자 권한 기반 필터링 + 종료된 캠페인 제외)
      */
-    public CampaignListResponse getCampaignList() {
-        List<Campaign> campaigns = campaignRepository.findAll();
+    public CampaignListResponse getCampaignList(Long userId) {
+        User currentUser = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        LocalDate today = LocalDate.now();
+        List<Campaign> campaigns;
+
+        // 사용자의 도메인별 역할 확인
+        List<UserDomainRole> domainRoles = currentUser.getDomainRoles();
+
+        if (domainRoles.isEmpty()) {
+            // 도메인 역할이 없는 경우 (레거시 또는 GUEST) - 빈 목록 반환
+            log.info("User {} has no domain roles, returning empty campaign list", userId);
+            return CampaignListResponse.builder()
+                    .campaigns(List.of())
+                    .totalCount(0)
+                    .build();
+        }
+
+        // REVIEWER 권한이 있는지 확인 (REVIEWER는 모든 캠페인 조회 가능)
+        boolean isReviewer = domainRoles.stream()
+                .anyMatch(udr -> "REVIEWER".equals(udr.getRole().getCode()));
+
+        if (isReviewer) {
+            // REVIEWER는 종료되지 않은 모든 캠페인 조회
+            campaigns = campaignRepository.findAllNotClosed(today);
+            log.info("Reviewer {} fetching all active campaigns, count={}", userId, campaigns.size());
+        } else {
+            // DRAFTER/APPROVER는 자신의 도메인 권한에 해당하는 캠페인만 조회
+            List<Domain> userDomains = domainRoles.stream()
+                    .map(UserDomainRole::getDomain)
+                    .distinct()
+                    .toList();
+
+            campaigns = campaignRepository.findByDomainsAndNotClosed(userDomains, today);
+            log.info("User {} fetching campaigns for domains {}, count={}",
+                    userId, userDomains.stream().map(Domain::getCode).toList(), campaigns.size());
+        }
 
         List<CampaignItemDto> items = campaigns.stream()
                 .map(this::toCampaignItemDto)
@@ -83,6 +124,7 @@ public class CampaignService {
         return CampaignDetailResponse.builder()
                 .campaignId(campaign.getCampaignId())
                 .campaignCode(campaign.getCampaignCode())
+                .domainCode(campaign.getDomain() != null ? campaign.getDomain().getCode() : null)
                 .title(campaign.getTitle())
                 .description(campaign.getContent())
                 .startDate(campaign.getPeriodStartDate())
@@ -90,6 +132,7 @@ public class CampaignService {
                 .deadline(campaign.getDeadline())
                 .status(determineCampaignStatus(campaign))
                 .statusLabel(determineCampaignStatusLabel(campaign))
+                .isActive(campaign.getIsActive())
                 .stats(stats)
                 .targetCompanies(List.of())
                 .templates(List.of())
@@ -108,6 +151,7 @@ public class CampaignService {
         return CampaignItemDto.builder()
                 .campaignId(campaign.getCampaignId())
                 .campaignCode(campaign.getCampaignCode())
+                .domainCode(campaign.getDomain() != null ? campaign.getDomain().getCode() : null)
                 .title(campaign.getTitle())
                 .description(campaign.getContent())
                 .startDate(campaign.getPeriodStartDate())
@@ -115,6 +159,7 @@ public class CampaignService {
                 .deadline(campaign.getDeadline())
                 .status(determineCampaignStatus(campaign))
                 .statusLabel(determineCampaignStatusLabel(campaign))
+                .isActive(campaign.getIsActive())
                 .targetCompanyCount(targetCount)
                 .submittedCount(submittedCount)
                 .progressRate(progressRate)

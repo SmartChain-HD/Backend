@@ -1,5 +1,117 @@
 # Claude Code Learnings
 
+## 2026-02-04: Google reCAPTCHA v3 로그인 보안 검증 구현
+
+### 원인
+- 로그인 API에 봇/자동화 공격 방지 보안 레이어 부재
+- 프론트엔드에서 reCAPTCHA v3 구현 요청에 따른 백엔드 검증 필요
+
+### 해결
+- `RecaptchaConfig`: reCAPTCHA 설정 (secretKey, scoreThreshold, enabled)
+- `RecaptchaService`: Google reCAPTCHA API 검증 서비스
+  - POST `https://www.google.com/recaptcha/api/siteverify`로 토큰 검증
+  - success 체크, action 변조 방지, score 임계값(0.5) 검증
+- `LoginRequest`에 `recaptchaToken` 필드 추가
+- `AuthService.login()`에 reCAPTCHA 검증 로직 추가 (비밀번호 검증 전 수행)
+- `ErrorCode`에 `RECAPTCHA_FAILED` (CAPTCHA_001), `RECAPTCHA_LOW_SCORE` (CAPTCHA_002) 추가
+
+### 재발방지
+- 보안 검증 로직은 주요 인증 로직 앞에 배치
+- 환경변수로 enabled 플래그 제공하여 개발/테스트 환경에서 비활성화 가능
+- score 임계값은 환경변수로 조정 가능 (기본 0.5)
+
+### 검증방법
+```bash
+./gradlew build -x test
+./gradlew test --tests "*AuthServiceTest*login*"
+```
+
+### 관련커밋
+- (이 세션에서 구현)
+
+### 생성/수정 파일
+```
+src/main/java/.../global/config/RecaptchaConfig.java (신규)
+src/main/java/.../domain/auth/service/RecaptchaService.java (신규)
+src/main/java/.../dto/auth/login/LoginRequest.java (recaptchaToken 추가)
+src/main/java/.../domain/auth/service/AuthService.java (검증 로직 추가)
+src/main/java/.../global/error/ErrorCode.java (CAPTCHA_001, CAPTCHA_002 추가)
+src/main/resources/application.yaml (recaptcha 설정 추가)
+src/test/java/.../domain/auth/service/AuthServiceTest.java (mock 추가)
+```
+
+---
+
+## 2026-02-03: 캠페인/기안/회원가입 버그 수정 (#134)
+
+### 원인
+1. **이메일 인증 버그**: 회원가입 전 이메일 인증 시 User가 없어서 `ifPresent()`가 동작 안함
+2. **회사 연결 버그**: `RoleRequestService.processRoleRequest()`에서 `user.company` 설정 누락
+3. **캠페인 필터링 버그**: `CampaignService.getCampaignList()`가 권한/상태 필터링 없이 전체 반환
+4. **종료 캠페인 진단 생성**: `DiagnosticService.createDiagnostic()`에서 캠페인 종료 검증 없음
+
+### 해결
+1. 회원가입 시 `findTopByEmailAndVerifiedTrueOrderByCreatedAtDesc()`로 인증 완료 여부 확인, `emailVerified=true`로 생성
+2. `User.changeCompany()` 메서드 추가, 승인 시 회사 연결 로직 추가
+3. `CampaignRepository`에 도메인/상태 필터링 쿼리 추가, 사용자 권한 기반 필터링 구현
+4. 캠페인 `periodEndDate` 검증 추가, `CAMPAIGN_CLOSED` 에러 코드 추가
+
+### 재발방지
+- 회원가입/인증 플로우에서 관련 엔티티 상태 동기화 체크리스트 확인
+- 권한 승인 시 연관 엔티티(User.company, UserDomainRole) 양방향 업데이트 확인
+- 목록 조회 API는 권한/상태 필터링 기본 적용
+
+### 검증방법
+1. 회원가입 → 이메일 인증 → 로그인 성공 확인
+2. 권한 요청 승인 → `/auth/me`에서 company 확인
+3. 캠페인 목록 → 권한에 따른 필터링 확인
+
+### 관련커밋
+- fix/campaign-auth-bugs 브랜치, PR #134
+
+### 생성/수정 파일
+```
+AuthService.java (회원가입 시 인증 확인)
+EmailVerificationCodeRepository.java (verified 조회 메서드)
+User.java (changeCompany 메서드)
+RoleRequestService.java (승인 시 회사 연결)
+CampaignRepository.java (필터링 쿼리)
+CampaignService.java (권한 기반 필터링)
+CampaignController.java (userId 기반 API)
+DiagnosticService.java (캠페인 종료 검증)
+ErrorCode.java (CAMPAIGN_CLOSED)
+```
+
+---
+
+## 2026-02-03: DataInitializer 데이터 정합성 수정 (#132)
+
+### 원인
+- SAFETY/COMPLIANCE 도메인에서도 APPROVER 역할 부여 (비즈니스 규칙 위반)
+- 캠페인 기간이 4개월 단위 규칙을 따르지 않음
+
+### 해결
+- APPROVER 역할을 ESG 도메인으로 제한
+- 캠페인 기간을 4개월 단위로 통일 (1~4월, 5~8월, 9~12월)
+
+### 재발방지
+- 도메인별 역할 정책: ESG만 결재자(APPROVER) 존재
+- 캠페인 기간 규칙: 4개월 단위, 첫달 1일 ~ 마지막달 말일
+
+### 검증방법
+- 로컬 실행 후 테스트 계정 권한 확인
+- 캠페인 기간 데이터 확인
+
+### 관련커밋
+- refactor/data-initializer-132 브랜치, PR #135
+
+### 생성/수정 파일
+```
+DataInitializer.java (UserDomainRole, Campaign 데이터 수정)
+```
+
+---
+
 ## 2026-02-02: 이메일 인증 코드 실제 발송 기능 구현 (#116)
 
 ### 원인

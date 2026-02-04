@@ -11,14 +11,5 @@ public record SlotHint(
     String fileId,
 
     @JsonProperty("slot_name")
-    String slotName,
-
-    Double confidence,
-
-    @JsonProperty("match_reason")
-    String matchReason
-) {
-    public SlotHint(String fileId, String slotName) {
-        this(fileId, slotName, null, null);
-    }
-}
+    String slotName
+) {}

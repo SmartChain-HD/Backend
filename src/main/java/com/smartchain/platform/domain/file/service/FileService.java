@@ -7,6 +7,7 @@ import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository
 import com.smartchain.platform.domain.file.storage.FileStorageService;
 import com.smartchain.platform.domain.job.entity.AsyncJob;
 import com.smartchain.platform.domain.job.repository.AsyncJobRepository;
+import com.smartchain.platform.domain.job.service.FileParsingJobService;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.common.file.*;
@@ -39,6 +40,7 @@ public class FileService {
     private final EvidenceFileRepository evidenceFileRepository;
     private final AsyncJobRepository asyncJobRepository;
     private final FileStorageService fileStorageService;
+    private final FileParsingJobService fileParsingJobService;
 
     private static final long MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
     private static final Set<String> ALLOWED_MIME_TYPES = Set.of(
@@ -94,6 +96,9 @@ public class FileService {
                 .build();
 
         AsyncJob savedJob = asyncJobRepository.save(parsingJob);
+
+        // 비동기 파싱 실행
+        fileParsingJobService.executeParsingAsync(savedJob.getJobId());
 
         log.info("File uploaded: fileId={}, diagnosticId={}, uploadedBy={}",
                 savedFile.getResultFileId(), diagnosticId, userId);

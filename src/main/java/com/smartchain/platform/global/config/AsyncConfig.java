@@ -24,4 +24,15 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    @Bean(name = "fileParsingExecutor")
+    public Executor fileParsingExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(5);
+        executor.setQueueCapacity(20);
+        executor.setThreadNamePrefix("file-parsing-");
+        executor.initialize();
+        return executor;
+    }
 }
