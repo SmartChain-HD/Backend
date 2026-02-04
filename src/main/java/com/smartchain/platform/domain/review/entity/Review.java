@@ -104,6 +104,21 @@ public class Review extends BaseTimeEntity {
         return this.status == ReviewStatus.REVIEWING;
     }
 
+    public boolean isRevisionRequired() {
+        return this.status == ReviewStatus.REVISION_REQUIRED;
+    }
+
+    /**
+     * REVISION_REQUIRED 상태에서 다시 REVIEWING 상태로 되돌림
+     * 수신자가 반려 결정을 철회하고 재심사하려는 경우 사용
+     */
+    public void revertToReviewing() {
+        this.status = ReviewStatus.REVIEWING;
+        this.processedBy = null;
+        this.processedAt = null;
+        this.comment = null;
+    }
+
     public void updateScore(Integer score) {
         this.score = score;
         this.riskLevel = RiskLevel.fromScore(score);
