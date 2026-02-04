@@ -46,7 +46,12 @@ public class User extends BaseTimeEntity {
     private boolean emailVerified = false;
 
     @Column(nullable = false)
-    private boolean locked = false;
+    private int failedLoginAttempts = 0;
+
+    private LocalDateTime lockedUntil;
+
+    @Column(nullable = false)
+    private boolean permanentlyLocked = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -57,14 +62,14 @@ public class User extends BaseTimeEntity {
 
     @Builder
     public User(String name, String email, String userPassword, Company company, Role role,
-                Boolean emailVerified, Boolean locked, UserStatus status) {
+                Boolean emailVerified, Boolean permanentlyLocked, UserStatus status) {
         this.name = name;
         this.email = email;
         this.userPassword = userPassword;
         this.company = company;
         this.role = role;
         this.emailVerified = emailVerified != null ? emailVerified : false;
-        this.locked = locked != null ? locked : false;
+        this.permanentlyLocked = permanentlyLocked != null ? permanentlyLocked : false;
         this.status = status != null ? status : UserStatus.ACTIVE;
     }
 
@@ -74,6 +79,78 @@ public class User extends BaseTimeEntity {
 
     public void verifyEmail() {
         this.emailVerified = true;
+    }
+
+    // ========== 계정 잠금 관련 메서드 ==========
+
+    /**
+     * 로그인 실패 횟수 증가
+     * @return 증가 후 실패 횟수
+     */
+    public int incrementFailedAttempts() {
+        return ++this.failedLoginAttempts;
+    }
+
+    /**
+     * 로그인 실패 횟수 초기화 (로그인 성공 시)
+     */
+    public void resetFailedAttempts() {
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
+    }
+
+    /**
+     * 임시 잠금 설정
+     */
+    public void lockTemporarily(int minutes) {
+        this.lockedUntil = LocalDateTime.now().plusMinutes(minutes);
+    }
+
+    /**
+     * 영구 잠금 설정
+     */
+    public void lockPermanently() {
+        this.permanentlyLocked = true;
+    }
+
+    /**
+     * 영구 잠금 해제 (관리자용)
+     */
+    public void unlockPermanently() {
+        this.permanentlyLocked = false;
+        this.failedLoginAttempts = 0;
+        this.lockedUntil = null;
+    }
+
+    /**
+     * 임시 잠금 상태 확인
+     */
+    public boolean isTemporarilyLocked() {
+        return lockedUntil != null && LocalDateTime.now().isBefore(lockedUntil);
+    }
+
+    /**
+     * 잠금 상태 확인 (임시 또는 영구)
+     */
+    public boolean isLocked() {
+        return permanentlyLocked || isTemporarilyLocked();
+    }
+
+    /**
+     * 남은 잠금 시간(분) 반환
+     */
+    public long getRemainingLockMinutes() {
+        if (lockedUntil == null || !isTemporarilyLocked()) {
+            return 0;
+        }
+        return java.time.Duration.between(LocalDateTime.now(), lockedUntil).toMinutes();
+    }
+
+    /**
+     * 남은 로그인 시도 횟수 (5회 기준)
+     */
+    public int getRemainingAttempts() {
+        return Math.max(0, 5 - failedLoginAttempts);
     }
 
     public void changeRole(Role newRole) {

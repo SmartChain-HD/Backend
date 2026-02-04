@@ -34,10 +34,13 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.smartchain.platform.dto.auth.login.AccountLockInfo;
+
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -61,6 +64,11 @@ public class AuthService {
     private static final int VERIFICATION_CODE_LENGTH = 6;
     private static final int VERIFICATION_CODE_EXPIRY_MINUTES = 5;
     private static final int RESEND_LIMIT_SECONDS = 60;
+
+    // 계정 잠금 정책
+    private static final int TEMP_LOCK_THRESHOLD = 5;      // 임시 잠금 기준 (5회 실패)
+    private static final int PERM_LOCK_THRESHOLD = 10;     // 영구 잠금 기준 (10회 실패)
+    private static final int TEMP_LOCK_MINUTES = 15;       // 임시 잠금 시간 (15분)
 
     // 비밀번호 패턴: 8자 이상, 영문+숫자+특수문자
     private static final Pattern PASSWORD_PATTERN = Pattern.compile(
@@ -136,26 +144,28 @@ public class AuthService {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));
 
-        // 2. 비밀번호 검증
+        // 2. 잠금 상태 확인
+        checkAccountLockStatus(user);
+
+        // 3. 비밀번호 검증
         if (!passwordEncoder.matches(request.getPassword(), user.getUserPassword())) {
-            throw new CustomException(ErrorCode.INVALID_CREDENTIALS);
+            handleLoginFailure(user);
         }
 
-        // 3. 계정 상태 검증
+        // 4. 계정 상태 검증
         if (user.getStatus() == UserStatus.INACTIVE) {
             throw new CustomException(ErrorCode.ACCOUNT_DISABLED);
-        }
-        if (user.isLocked()) {
-            throw new CustomException(ErrorCode.ACCOUNT_LOCKED);
         }
         if (!user.isEmailVerified()) {
             throw new CustomException(ErrorCode.ACCOUNT_NOT_VERIFIED);
         }
 
-        // 4. 마지막 로그인 시간 업데이트
+        // 5. 로그인 성공 - 실패 횟수 초기화 및 경고 메시지 생성
+        int previousFailedAttempts = user.getFailedLoginAttempts();
+        user.resetFailedAttempts();
         user.updateLastLoginAt();
 
-        // 5. 토큰 생성
+        // 6. 토큰 생성
         String roleCode = user.getRole() != null ? user.getRole().getCode() : GUEST_ROLE_CODE;
         String accessToken = jwtTokenProvider.createAccessToken(
                 user.getUserId(), user.getEmail(), roleCode);
@@ -163,14 +173,76 @@ public class AuthService {
 
         log.info("User logged in: userId={}, email={}", user.getUserId(), user.getEmail());
 
-        // 6. 응답 생성
-        return LoginResponse.builder()
+        // 7. 응답 생성 (이전 실패 횟수가 3회 이상이면 경고 포함)
+        LoginResponse.LoginResponseBuilder responseBuilder = LoginResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessTokenValidityInSeconds())
-                .user(buildUserInfoDto(user))
+                .user(buildUserInfoDto(user));
+
+        if (previousFailedAttempts >= 3) {
+            responseBuilder
+                    .remainingAttempts(TEMP_LOCK_THRESHOLD - previousFailedAttempts)
+                    .warningMessage(String.format("로그인 실패 %d회. %d회 추가 실패 시 계정이 잠깁니다.",
+                            previousFailedAttempts, TEMP_LOCK_THRESHOLD - previousFailedAttempts));
+        }
+
+        return responseBuilder.build();
+    }
+
+    /**
+     * 계정 잠금 상태 확인
+     */
+    private void checkAccountLockStatus(User user) {
+        // 영구 잠금 확인
+        if (user.isPermanentlyLocked()) {
+            throw new CustomException(ErrorCode.ACCOUNT_PERMANENTLY_LOCKED);
+        }
+
+        // 임시 잠금 확인
+        if (user.isTemporarilyLocked()) {
+            AccountLockInfo lockInfo = AccountLockInfo.builder()
+                    .lockedUntil(user.getLockedUntil())
+                    .remainingMinutes(user.getRemainingLockMinutes())
+                    .remainingAttempts(0)
+                    .build();
+            throw new CustomException(ErrorCode.ACCOUNT_TEMPORARILY_LOCKED, lockInfo);
+        }
+    }
+
+    /**
+     * 로그인 실패 처리
+     */
+    private void handleLoginFailure(User user) {
+        int failedAttempts = user.incrementFailedAttempts();
+        log.warn("Login failed for user: email={}, attempts={}", user.getEmail(), failedAttempts);
+
+        // 10회 실패 - 영구 잠금
+        if (failedAttempts >= PERM_LOCK_THRESHOLD) {
+            user.lockPermanently();
+            log.warn("Account permanently locked: email={}", user.getEmail());
+            throw new CustomException(ErrorCode.ACCOUNT_PERMANENTLY_LOCKED);
+        }
+
+        // 5회 실패 - 임시 잠금
+        if (failedAttempts >= TEMP_LOCK_THRESHOLD) {
+            user.lockTemporarily(TEMP_LOCK_MINUTES);
+            log.warn("Account temporarily locked: email={}, until={}", user.getEmail(), user.getLockedUntil());
+
+            AccountLockInfo lockInfo = AccountLockInfo.builder()
+                    .lockedUntil(user.getLockedUntil())
+                    .remainingMinutes((long) TEMP_LOCK_MINUTES)
+                    .remainingAttempts(0)
+                    .build();
+            throw new CustomException(ErrorCode.ACCOUNT_TEMPORARILY_LOCKED, lockInfo);
+        }
+
+        // 일반 실패 - 남은 시도 횟수 포함
+        AccountLockInfo lockInfo = AccountLockInfo.builder()
+                .remainingAttempts(TEMP_LOCK_THRESHOLD - failedAttempts)
                 .build();
+        throw new CustomException(ErrorCode.INVALID_CREDENTIALS, lockInfo);
     }
 
     public EmailCheckResponse checkEmail(EmailCheckRequest request) {

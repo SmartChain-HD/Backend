@@ -58,6 +58,55 @@ docs/FE_AI_CHATBOT_INTEGRATION.md (FE 통합 가이드)
 
 ---
 
+## 2026-02-04: 계정 잠금 기능 구현 (로그인 실패 제한)
+
+### 원인
+- 로그인 시도 무제한으로 브루트포스 공격에 취약
+- 프론트엔드 요청: 5회 실패 시 임시 잠금, 10회 실패 시 영구 잠금
+
+### 해결
+- **User 엔티티 수정**:
+  - `failedLoginAttempts`: 로그인 실패 횟수
+  - `lockedUntil`: 임시 잠금 해제 시간
+  - `permanentlyLocked`: 영구 잠금 여부
+- **잠금 정책**:
+  - 5회 연속 실패 → 15분 임시 잠금 (A006)
+  - 10회 연속 실패 → 영구 잠금 (A005)
+- **ErrorCode 변경**:
+  - A005: `ACCOUNT_PERMANENTLY_LOCKED` (영구 잠금)
+  - A006: `ACCOUNT_TEMPORARILY_LOCKED` (임시 잠금)
+  - A009: `ACCOUNT_NOT_VERIFIED` (기존 A005에서 이동)
+- **응답에 잠금 정보 포함**:
+  - `lockedUntil`, `remainingMinutes`, `remainingAttempts`
+- **CustomException, ErrorResponse에 data 필드 추가**
+
+### 재발방지
+- 보안 관련 에러 코드는 프론트엔드와 사전 협의 필수
+- 계정 상태 관련 검증은 비밀번호 검증보다 먼저 수행
+
+### 검증방법
+```bash
+./gradlew test --tests "*AuthServiceTest*login*"
+```
+
+### 관련커밋
+- dev 브랜치 직접 푸시
+
+### 생성/수정 파일
+```
+User.java (잠금 필드 및 메서드 추가)
+AuthService.java (잠금 처리 로직)
+ErrorCode.java (A005, A006, A009 변경)
+CustomException.java (data 필드 추가)
+ErrorResponse.java (data 필드 추가)
+GlobalExceptionHandler.java (data 포함 응답)
+LoginResponse.java (경고 메시지 필드)
+AccountLockInfo.java (신규 - 잠금 정보 DTO)
+AuthServiceTest.java (테스트 수정)
+```
+
+---
+
 ## 2026-02-04: Google reCAPTCHA v3 로그인 보안 검증 구현
 
 ### 원인

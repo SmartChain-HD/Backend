@@ -17,9 +17,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleCustomException(CustomException e) {
         log.error("CustomException: {}", e.getMessage());
         ErrorCode errorCode = e.getErrorCode();
+        ErrorResponse response = e.getData() != null
+                ? ErrorResponse.of(errorCode, e.getData())
+                : ErrorResponse.of(errorCode);
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(ErrorResponse.of(errorCode));
+                .body(response);
     }
 
     // Validation 예외 처리

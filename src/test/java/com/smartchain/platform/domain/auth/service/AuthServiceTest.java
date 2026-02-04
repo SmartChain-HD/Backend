@@ -307,8 +307,8 @@ class AuthServiceTest {
         }
 
         @Test
-        @DisplayName("잠긴 계정 로그인 시 ACCOUNT_LOCKED")
-        void login_LockedAccount_ThrowsException() {
+        @DisplayName("영구 잠긴 계정 로그인 시 ACCOUNT_PERMANENTLY_LOCKED")
+        void login_PermanentlyLockedAccount_ThrowsException() {
             // given
             LoginRequest request = LoginRequest.builder()
                     .email("test@test.com")
@@ -320,18 +320,17 @@ class AuthServiceTest {
                     .email("test@test.com")
                     .userPassword("encodedPassword")
                     .role(guestRole)
-                    .locked(true)
+                    .permanentlyLocked(true)
                     .build();
 
             given(userRepository.findByEmail("test@test.com")).willReturn(Optional.of(user));
-            given(passwordEncoder.matches("Password123!", "encodedPassword")).willReturn(true);
 
             // when & then
             assertThatThrownBy(() -> authService.login(request))
                     .isInstanceOf(CustomException.class)
                     .satisfies(ex -> {
                         CustomException ce = (CustomException) ex;
-                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_LOCKED);
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.ACCOUNT_PERMANENTLY_LOCKED);
                     });
         }
 
