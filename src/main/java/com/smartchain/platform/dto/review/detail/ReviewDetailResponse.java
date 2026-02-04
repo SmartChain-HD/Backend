@@ -19,6 +19,7 @@ public class ReviewDetailResponse {
     private CompanyDetailInfoDto company;        // v3.0: 회사 정보 구조화
     private String domainCode;           // 도메인 코드 (ESG, SAFETY, COMPLIANCE)
     private String domainName;           // 도메인 이름
+    private List<String> allowedCategoryKeys; // 도메인별 허용 카테고리 키 (ESG: [E,S,G], SAFETY/COMPLIANCE: [])
     private int score;                   // v3.0: 점수
     private String riskLevel;            // HIGH, MEDIUM, LOW
     private String riskLevelLabel;

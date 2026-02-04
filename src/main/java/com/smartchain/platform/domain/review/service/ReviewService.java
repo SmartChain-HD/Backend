@@ -59,6 +59,12 @@ public class ReviewService {
             "REVISION_REQUIRED", "보완요청"
     );
 
+    private static final Map<String, List<String>> DOMAIN_CATEGORY_KEYS = Map.of(
+            "ESG", List.of("E", "S", "G"),
+            "SAFETY", List.of(),
+            "COMPLIANCE", List.of()
+    );
+
     /**
      * 진단 현황 대시보드 조회
      * - domainCode가 지정된 경우 해당 도메인만 통계에 포함
@@ -257,6 +263,8 @@ public class ReviewService {
         String domainCode = domain != null ? domain.getCode() : null;
         String domainName = domain != null ? domain.getName() : null;
 
+        List<String> allowedCategoryKeys = getAllowedCategoryKeys(domainCode);
+
         return ReviewDetailResponse.builder()
                 .reviewId(review.getReviewId())
                 .reviewIdLabel("심사 ID: REVIEW-" + String.format("%04d", review.getReviewId()))
@@ -264,6 +272,7 @@ public class ReviewService {
                 .company(companyDto)
                 .domainCode(domainCode)
                 .domainName(domainName)
+                .allowedCategoryKeys(allowedCategoryKeys)
                 .score(review.getScore() != null ? review.getScore() : 0)
                 .riskLevel(riskLevelStr)
                 .riskLevelLabel(riskLevelStr != null ? RISK_LEVEL_LABEL_MAP.get(riskLevelStr) : null)
@@ -295,14 +304,23 @@ public class ReviewService {
             throw new CustomException(ErrorCode.ALREADY_PROCESSED_REVIEW);
         }
 
+        // 도메인별 categoryComments 키 검증
+        String reviewDomainCode = review.getDomain() != null ? review.getDomain().getCode() : null;
+        validateCategoryComments(reviewDomainCode, request.getCategoryComments());
+
         String decision = request.getDecision().toUpperCase();
         String message;
         String nextStep;
 
         if ("APPROVED".equals(decision)) {
-            String commentE = request.getCategoryComments() != null ? request.getCategoryComments().get("E") : null;
-            String commentS = request.getCategoryComments() != null ? request.getCategoryComments().get("S") : null;
-            String commentG = request.getCategoryComments() != null ? request.getCategoryComments().get("G") : null;
+            String commentE = null;
+            String commentS = null;
+            String commentG = null;
+            if ("ESG".equals(reviewDomainCode) && request.getCategoryComments() != null) {
+                commentE = request.getCategoryComments().get("E");
+                commentS = request.getCategoryComments().get("S");
+                commentG = request.getCategoryComments().get("G");
+            }
 
             review.approve(currentUser, request.getComment(), commentE, commentS, commentG);
             review.getDiagnostic().complete();
@@ -356,6 +374,28 @@ public class ReviewService {
             throw new CustomException(ErrorCode.PERMISSION_DENIED_ACTION);
         }
         return domains;
+    }
+
+    private List<String> getAllowedCategoryKeys(String domainCode) {
+        if (domainCode == null) {
+            return List.of();
+        }
+        return DOMAIN_CATEGORY_KEYS.getOrDefault(domainCode, List.of());
+    }
+
+    private void validateCategoryComments(String domainCode, Map<String, String> categoryComments) {
+        if (categoryComments == null || categoryComments.isEmpty()) {
+            return;
+        }
+        List<String> allowedKeys = getAllowedCategoryKeys(domainCode);
+        if (allowedKeys.isEmpty()) {
+            throw new CustomException(ErrorCode.INVALID_CATEGORY_FOR_DOMAIN);
+        }
+        for (String key : categoryComments.keySet()) {
+            if (!allowedKeys.contains(key)) {
+                throw new CustomException(ErrorCode.INVALID_CATEGORY_FOR_DOMAIN);
+            }
+        }
     }
 
     private void validateDomainReviewerAccess(User user, Review review) {

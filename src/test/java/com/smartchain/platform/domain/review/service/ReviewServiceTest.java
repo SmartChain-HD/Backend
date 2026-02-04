@@ -34,6 +34,7 @@ import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -94,6 +95,12 @@ class ReviewServiceTest {
     @Mock
     private Domain socDomain;
 
+    @Mock
+    private Domain esgDomain;
+
+    @Mock
+    private Domain safetyDomain;
+
     @BeforeEach
     void setUp() {
         lenient().when(reviewerRole.getCode()).thenReturn("REVIEWER");
@@ -107,6 +114,14 @@ class ReviewServiceTest {
         lenient().when(socDomain.getName()).thenReturn("사회");
         lenient().when(socDomain.getDomainId()).thenReturn(2L);
 
+        lenient().when(esgDomain.getCode()).thenReturn("ESG");
+        lenient().when(esgDomain.getName()).thenReturn("ESG 실사");
+        lenient().when(esgDomain.getDomainId()).thenReturn(3L);
+
+        lenient().when(safetyDomain.getCode()).thenReturn("SAFETY");
+        lenient().when(safetyDomain.getName()).thenReturn("안전보건");
+        lenient().when(safetyDomain.getDomainId()).thenReturn(4L);
+
         lenient().when(reviewerUser.getUserId()).thenReturn(1L);
         lenient().when(reviewerUser.getName()).thenReturn("심사자");
         lenient().when(reviewerUser.getEmail()).thenReturn("reviewer@test.com");
@@ -114,6 +129,8 @@ class ReviewServiceTest {
         lenient().when(reviewerUser.getDomainsWithRole("REVIEWER")).thenReturn(List.of(envDomain));
         lenient().when(reviewerUser.hasRoleInDomain("ENV", "REVIEWER")).thenReturn(true);
         lenient().when(reviewerUser.hasRoleInDomain("SOC", "REVIEWER")).thenReturn(false);
+        lenient().when(reviewerUser.hasRoleInDomain("ESG", "REVIEWER")).thenReturn(true);
+        lenient().when(reviewerUser.hasRoleInDomain("SAFETY", "REVIEWER")).thenReturn(true);
 
         lenient().when(guestUser.getUserId()).thenReturn(2L);
         lenient().when(guestUser.getName()).thenReturn("게스트");
@@ -527,6 +544,196 @@ class ReviewServiceTest {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.INVALID_DECISION);
                     });
+        }
+    }
+
+    @Nested
+    @DisplayName("도메인별 카테고리 코멘트 검증 테스트")
+    class DomainCategoryValidationTest {
+
+        @Test
+        @DisplayName("SAFETY 도메인에서 ESG 카테고리 코멘트 전송 시 RV004 에러")
+        void processReview_SafetyDomain_WithEsgCategoryComments_ThrowsException() {
+            // given
+            Review safetyReview = mock(Review.class);
+            lenient().when(safetyReview.getDomain()).thenReturn(safetyDomain);
+            lenient().when(safetyReview.isReviewing()).thenReturn(true);
+            lenient().when(safetyReview.getReviewId()).thenReturn(10L);
+
+            ReviewDecisionRequest request = ReviewDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .comment("안전보건 검토 완료")
+                    .categoryComments(Map.of("E", "환경 의견", "S", "사회 의견"))
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(10L)).willReturn(Optional.of(safetyReview));
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.processReview(1L, 10L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.INVALID_CATEGORY_FOR_DOMAIN);
+                    });
+        }
+
+        @Test
+        @DisplayName("ESG 도메인에서 유효한 카테고리 코멘트로 승인 성공")
+        void processReview_EsgDomain_WithValidCategoryComments_Success() {
+            // given
+            Review esgReview = mock(Review.class);
+            Diagnostic esgDiagnostic = mock(Diagnostic.class);
+            lenient().when(esgReview.getDomain()).thenReturn(esgDomain);
+            lenient().when(esgReview.isReviewing()).thenReturn(true);
+            lenient().when(esgReview.getReviewId()).thenReturn(20L);
+            lenient().when(esgReview.getDiagnostic()).thenReturn(esgDiagnostic);
+            lenient().when(esgReview.getStatus()).thenReturn(ReviewStatus.APPROVED);
+            lenient().when(esgReview.getProcessedAt()).thenReturn(LocalDateTime.now());
+
+            ReviewDecisionRequest request = ReviewDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .comment("ESG 전체 양호")
+                    .categoryComments(Map.of("E", "환경 우수", "S", "사회 양호", "G", "지배구조 개선 필요"))
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(20L)).willReturn(Optional.of(esgReview));
+
+            // when
+            ReviewDecisionResponse response = reviewService.processReview(1L, 20L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getStatus()).isEqualTo("APPROVED");
+            verify(esgReview).approve(eq(reviewerUser), eq("ESG 전체 양호"),
+                    eq("환경 우수"), eq("사회 양호"), eq("지배구조 개선 필요"));
+            verify(esgDiagnostic).complete();
+        }
+
+        @Test
+        @DisplayName("ESG 도메인에서 허용되지 않는 카테고리 키 전송 시 RV004 에러")
+        void processReview_EsgDomain_WithInvalidCategoryKey_ThrowsException() {
+            // given
+            Review esgReview = mock(Review.class);
+            lenient().when(esgReview.getDomain()).thenReturn(esgDomain);
+            lenient().when(esgReview.isReviewing()).thenReturn(true);
+            lenient().when(esgReview.getReviewId()).thenReturn(21L);
+
+            ReviewDecisionRequest request = ReviewDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .categoryComments(Map.of("E", "환경", "INVALID_KEY", "잘못된 키"))
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(21L)).willReturn(Optional.of(esgReview));
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.processReview(1L, 21L, request))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.INVALID_CATEGORY_FOR_DOMAIN);
+                    });
+        }
+
+        @Test
+        @DisplayName("SAFETY 도메인에서 카테고리 코멘트 없이 승인 성공")
+        void processReview_SafetyDomain_WithoutCategoryComments_Success() {
+            // given
+            Review safetyReview = mock(Review.class);
+            Diagnostic safetyDiagnostic = mock(Diagnostic.class);
+            lenient().when(safetyReview.getDomain()).thenReturn(safetyDomain);
+            lenient().when(safetyReview.isReviewing()).thenReturn(true);
+            lenient().when(safetyReview.getReviewId()).thenReturn(30L);
+            lenient().when(safetyReview.getDiagnostic()).thenReturn(safetyDiagnostic);
+            lenient().when(safetyReview.getStatus()).thenReturn(ReviewStatus.APPROVED);
+            lenient().when(safetyReview.getProcessedAt()).thenReturn(LocalDateTime.now());
+
+            ReviewDecisionRequest request = ReviewDecisionRequest.builder()
+                    .decision("APPROVED")
+                    .comment("안전보건 검토 완료")
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(30L)).willReturn(Optional.of(safetyReview));
+
+            // when
+            ReviewDecisionResponse response = reviewService.processReview(1L, 30L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getStatus()).isEqualTo("APPROVED");
+            verify(safetyReview).approve(eq(reviewerUser), eq("안전보건 검토 완료"),
+                    isNull(), isNull(), isNull());
+        }
+
+        @Test
+        @DisplayName("ESG 도메인 상세 조회 시 allowedCategoryKeys로 [E, S, G] 반환")
+        void getReviewDetail_EsgDomain_ReturnsAllowedCategoryKeys() {
+            // given
+            Review esgReview = mock(Review.class);
+            Diagnostic esgDiagnostic = mock(Diagnostic.class);
+            Company esgCompany = mock(Company.class);
+            lenient().when(esgReview.getDomain()).thenReturn(esgDomain);
+            lenient().when(esgReview.getReviewId()).thenReturn(40L);
+            lenient().when(esgReview.getDiagnostic()).thenReturn(esgDiagnostic);
+            lenient().when(esgReview.getCompany()).thenReturn(esgCompany);
+            lenient().when(esgReview.getStatus()).thenReturn(ReviewStatus.REVIEWING);
+            lenient().when(esgReview.getScore()).thenReturn(80);
+            lenient().when(esgReview.getRiskLevel()).thenReturn(RiskLevel.LOW);
+            lenient().when(esgReview.getSubmittedAt()).thenReturn(LocalDateTime.now());
+            lenient().when(esgDiagnostic.getDiagnosticId()).thenReturn(200L);
+            lenient().when(esgDiagnostic.getDiagnosticCode()).thenReturn("DG-2026-00002");
+            lenient().when(esgDiagnostic.getTitle()).thenReturn("ESG 진단");
+            lenient().when(esgCompany.getCompanyId()).thenReturn(20L);
+            lenient().when(esgCompany.getName()).thenReturn("ESG회사");
+            lenient().when(esgCompany.getIndustry()).thenReturn(null);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(40L)).willReturn(Optional.of(esgReview));
+
+            // when
+            ReviewDetailResponse response = reviewService.getReviewDetail(1L, 40L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDomainCode()).isEqualTo("ESG");
+            assertThat(response.getAllowedCategoryKeys()).containsExactly("E", "S", "G");
+        }
+
+        @Test
+        @DisplayName("SAFETY 도메인 상세 조회 시 allowedCategoryKeys로 빈 리스트 반환")
+        void getReviewDetail_SafetyDomain_ReturnsEmptyAllowedCategoryKeys() {
+            // given
+            Review safetyReview = mock(Review.class);
+            Diagnostic safetyDiagnostic = mock(Diagnostic.class);
+            Company safetyCompany = mock(Company.class);
+            lenient().when(safetyReview.getDomain()).thenReturn(safetyDomain);
+            lenient().when(safetyReview.getReviewId()).thenReturn(50L);
+            lenient().when(safetyReview.getDiagnostic()).thenReturn(safetyDiagnostic);
+            lenient().when(safetyReview.getCompany()).thenReturn(safetyCompany);
+            lenient().when(safetyReview.getStatus()).thenReturn(ReviewStatus.REVIEWING);
+            lenient().when(safetyReview.getScore()).thenReturn(60);
+            lenient().when(safetyReview.getRiskLevel()).thenReturn(RiskLevel.MEDIUM);
+            lenient().when(safetyReview.getSubmittedAt()).thenReturn(LocalDateTime.now());
+            lenient().when(safetyDiagnostic.getDiagnosticId()).thenReturn(300L);
+            lenient().when(safetyDiagnostic.getDiagnosticCode()).thenReturn("DG-2026-00003");
+            lenient().when(safetyDiagnostic.getTitle()).thenReturn("안전보건 진단");
+            lenient().when(safetyCompany.getCompanyId()).thenReturn(30L);
+            lenient().when(safetyCompany.getName()).thenReturn("안전회사");
+            lenient().when(safetyCompany.getIndustry()).thenReturn(null);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(50L)).willReturn(Optional.of(safetyReview));
+
+            // when
+            ReviewDetailResponse response = reviewService.getReviewDetail(1L, 50L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDomainCode()).isEqualTo("SAFETY");
+            assertThat(response.getAllowedCategoryKeys()).isEmpty();
         }
     }
 }

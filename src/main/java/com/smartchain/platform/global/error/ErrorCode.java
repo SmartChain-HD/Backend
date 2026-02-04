@@ -80,6 +80,7 @@ public enum ErrorCode {
     DIAGNOSTIC_NOT_APPROVED(HttpStatus.CONFLICT, "AP004", "승인된 진단만 원청에 제출할 수 있습니다"),
     ALREADY_PROCESSED_REVIEW(HttpStatus.CONFLICT, "RV002", "이미 처리된 심사입니다"),
     INVALID_REVIEW_DECISION(HttpStatus.BAD_REQUEST, "RV003", "유효하지 않은 심사 결과입니다"),
+    INVALID_CATEGORY_FOR_DOMAIN(HttpStatus.BAD_REQUEST, "RV004", "해당 도메인에서 허용되지 않는 카테고리입니다"),
     JOB_NOT_RETRYABLE(HttpStatus.BAD_REQUEST, "JOB002", "재시도할 수 없는 작업입니다"),
     JOB_NOT_FAILED(HttpStatus.BAD_REQUEST, "JOB003", "실패한 작업만 재시도할 수 있습니다"),
 
