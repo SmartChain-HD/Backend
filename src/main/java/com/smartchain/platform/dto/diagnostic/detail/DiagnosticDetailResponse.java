@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 public class DiagnosticDetailResponse {
     private Long diagnosticId;
     private String diagnosticCode;
+    private String title;                    // 기안 제목
     private DomainSimpleDto domain;          // v3.0: 도메인 정보
     private CampaignDetailDto campaign;      // v3.0: 구조화
     private CompanySimpleDto company;        // v3.0: 구조화
