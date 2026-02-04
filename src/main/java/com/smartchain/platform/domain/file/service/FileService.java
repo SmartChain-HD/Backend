@@ -20,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
@@ -97,8 +99,17 @@ public class FileService {
 
         AsyncJob savedJob = asyncJobRepository.save(parsingJob);
 
-        // 비동기 파싱 실행
-        fileParsingJobService.executeParsingAsync(savedJob.getJobId());
+        // 트랜잭션 커밋 후 비동기 파싱 실행 (커밋 전에 실행하면 DB에서 job을 찾을 수 없음)
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    fileParsingJobService.executeParsingAsync(savedJob.getJobId());
+                }
+            });
+        } else {
+            fileParsingJobService.executeParsingAsync(savedJob.getJobId());
+        }
 
         log.info("File uploaded: fileId={}, diagnosticId={}, uploadedBy={}",
                 savedFile.getResultFileId(), diagnosticId, userId);

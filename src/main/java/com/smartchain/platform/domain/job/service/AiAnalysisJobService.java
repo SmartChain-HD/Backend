@@ -98,7 +98,7 @@ public class AiAnalysisJobService {
             job.updateProgress(60, "AI 분석 수행 중");
             asyncJobRepository.save(job);
 
-            aiAnalysisService.submit(job.getTargetId());
+            aiAnalysisService.submit(job.getTargetId(), null);
 
             job.updateProgress(90, "결과 정리 중");
             asyncJobRepository.save(job);

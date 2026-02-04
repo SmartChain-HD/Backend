@@ -57,10 +57,12 @@ public class AiAnalysisController {
         @PathVariable Long diagnosticId,
         @RequestBody(required = false) AiAnalysisRequest request
     ) {
-        log.info("AI 분석 요청 - diagnosticId: {}", diagnosticId);
+        log.info("AI 분석 요청 - diagnosticId: {}, slotHints: {}", diagnosticId,
+            request != null && request.slotHints() != null ? request.slotHints().size() : 0);
 
-        // 비동기로 분석 시작
-        aiAnalysisAsyncService.submitAsync(diagnosticId);
+        // 비동기로 분석 시작 (프론트에서 보낸 slotHints 전달)
+        aiAnalysisAsyncService.submitAsync(diagnosticId,
+            request != null ? request.slotHints() : null);
 
         Map<String, Object> response = Map.of(
             "diagnosticId", diagnosticId,

@@ -25,7 +25,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * AI 분석 서비스
@@ -96,7 +98,7 @@ public class AiAnalysisService {
      * Submit 호출 - 전체 검증 및 판정 (동기)
      */
     @Transactional
-    public AiAnalysisResult submit(Long diagnosticId) {
+    public AiAnalysisResult submit(Long diagnosticId, List<SlotHint> frontendSlotHints) {
         Diagnostic diagnostic = getDiagnostic(diagnosticId);
         String domainCode = getDomainCode(diagnostic);
 
@@ -115,13 +117,8 @@ public class AiAnalysisService {
             ))
             .toList();
 
-        // SlotHint 생성 (파일명 기반 자동 매핑)
-        List<SlotHint> slotHints = evidenceFiles.stream()
-            .map(ef -> new SlotHint(
-                ef.getResultFileId().toString(),
-                guessSlotName(ef.getOriginalFileName(), domainCode)
-            ))
-            .toList();
+        // SlotHint: 프론트에서 보낸 매핑 우선, 없는 파일만 파일명 기반 추측
+        List<SlotHint> slotHints = buildSlotHints(evidenceFiles, frontendSlotHints, domainCode);
 
         // TODO: 필수 슬롯 검증 임시 비활성화 (테스트용)
         List<String> missingRequiredSlots = validateRequiredSlots(slotHints, domainCode);
@@ -219,6 +216,41 @@ public class AiAnalysisService {
             ef.getFilePath(),
             ef.getOriginalFileName()
         );
+    }
+
+    /**
+     * 프론트에서 보낸 slotHints를 우선 사용하고, 매핑이 없는 파일만 파일명 기반 추측
+     */
+    private List<SlotHint> buildSlotHints(List<EvidenceFile> evidenceFiles,
+                                          List<SlotHint> frontendSlotHints,
+                                          String domainCode) {
+        // 프론트 매핑이 없으면 전부 파일명 기반 추측
+        if (frontendSlotHints == null || frontendSlotHints.isEmpty()) {
+            return evidenceFiles.stream()
+                .map(ef -> new SlotHint(
+                    ef.getResultFileId().toString(),
+                    guessSlotName(ef.getOriginalFileName(), domainCode)
+                ))
+                .toList();
+        }
+
+        // 프론트 매핑을 fileId 기준으로 인덱싱
+        Map<String, String> frontendMapping = frontendSlotHints.stream()
+            .collect(Collectors.toMap(
+                SlotHint::fileId,
+                SlotHint::slotName,
+                (a, b) -> b  // 중복 시 후자 우선
+            ));
+
+        // 프론트 매핑 우선, 없는 파일만 fallback
+        return evidenceFiles.stream()
+            .map(ef -> {
+                String fileId = ef.getResultFileId().toString();
+                String slotName = frontendMapping.getOrDefault(fileId,
+                    guessSlotName(ef.getOriginalFileName(), domainCode));
+                return new SlotHint(fileId, slotName);
+            })
+            .toList();
     }
 
     private String guessSlotName(String fileName, String domainCode) {
