@@ -145,8 +145,53 @@ public class AiAnalysisService {
         // AI API 호출
         RunSubmitResponse response = aiRunApiClient.submitSync(request);
 
+        // slotResults에 displayName 매핑
+        RunSubmitResponse enrichedResponse = enrichWithDisplayNames(response, slotHints, domainCode);
+
         // 결과 저장
-        return saveAnalysisResult(diagnostic, domainCode, response);
+        return saveAnalysisResult(diagnostic, domainCode, enrichedResponse);
+    }
+
+    /**
+     * AI 응답의 slotResults에 displayName 추가
+     * 프론트에서 보낸 slotHints의 displayName 우선, 없으면 설정에서 조회
+     */
+    private RunSubmitResponse enrichWithDisplayNames(RunSubmitResponse response,
+                                                      List<SlotHint> slotHints,
+                                                      String domainCode) {
+        if (response.slotResults() == null || response.slotResults().isEmpty()) {
+            return response;
+        }
+
+        // 프론트에서 보낸 displayName 매핑 (slotName -> displayName)
+        Map<String, String> frontendDisplayNames = slotHints.stream()
+            .filter(h -> h.displayName() != null && !h.displayName().isBlank())
+            .collect(Collectors.toMap(
+                SlotHint::slotName,
+                SlotHint::displayName,
+                (a, b) -> a  // 중복 시 첫 번째 우선
+            ));
+
+        // slotResults에 displayName 추가
+        List<SlotResult> enrichedResults = response.slotResults().stream()
+            .map(result -> {
+                String displayName = frontendDisplayNames.getOrDefault(
+                    result.slotName(),
+                    slotConfigProperties.getDisplayName(result.slotName(), domainCode)
+                );
+                return result.withDisplayName(displayName);
+            })
+            .toList();
+
+        return new RunSubmitResponse(
+            response.packageId(),
+            response.riskLevel(),
+            response.verdict(),
+            response.why(),
+            enrichedResults,
+            response.clarifications(),
+            response.extras()
+        );
     }
 
     /**
