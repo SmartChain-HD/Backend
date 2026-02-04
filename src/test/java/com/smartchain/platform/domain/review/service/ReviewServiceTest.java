@@ -486,69 +486,13 @@ class ReviewServiceTest {
         }
 
         @Test
-        @DisplayName("이미 승인된 심사 재처리 시 실패")
-        void processReview_AlreadyApproved_ThrowsException() {
-            // given - 이미 APPROVED 상태인 심사
+        @DisplayName("이미 처리된 심사 재처리 시 실패")
+        void processReview_AlreadyProcessed_ThrowsException() {
+            // given
             when(testReview.isReviewing()).thenReturn(false);
-            when(testReview.isRevisionRequired()).thenReturn(false);
 
             ReviewDecisionRequest request = ReviewDecisionRequest.builder()
                     .decision("APPROVED")
-                    .build();
-
-            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
-            given(reviewRepository.findById(1L)).willReturn(Optional.of(testReview));
-
-            // when & then
-            assertThatThrownBy(() -> reviewService.processReview(1L, 1L, request))
-                    .isInstanceOf(CustomException.class)
-                    .satisfies(ex -> {
-                        CustomException ce = (CustomException) ex;
-                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.ALREADY_PROCESSED_REVIEW);
-                    });
-        }
-
-        @Test
-        @DisplayName("REVISION_REQUIRED 상태에서 재승인 성공 (#155)")
-        void processReview_RevisionRequired_ReApprove_Success() {
-            // given - REVISION_REQUIRED 상태의 심사
-            when(testReview.isReviewing()).thenReturn(false);
-            when(testReview.isRevisionRequired()).thenReturn(true);
-            when(testReview.getStatus()).thenReturn(ReviewStatus.APPROVED);
-            when(testReview.getProcessedAt()).thenReturn(LocalDateTime.now());
-
-            ReviewDecisionRequest request = ReviewDecisionRequest.builder()
-                    .decision("APPROVED")
-                    .comment("재검토 결과 승인합니다")
-                    .build();
-
-            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
-            given(reviewRepository.findById(1L)).willReturn(Optional.of(testReview));
-
-            // when
-            ReviewDecisionResponse response = reviewService.processReview(1L, 1L, request);
-
-            // then
-            assertThat(response).isNotNull();
-            assertThat(response.getStatus()).isEqualTo("APPROVED");
-            assertThat(response.getMessage()).isEqualTo("심사가 승인되었습니다");
-
-            // 기안 상태가 REVIEWING으로 되돌려진 후 완료 처리됨
-            verify(testDiagnostic).markAsReviewing();
-            verify(testReview).approve(eq(reviewerUser), eq("재검토 결과 승인합니다"), any(), any(), any());
-            verify(testDiagnostic).complete();
-        }
-
-        @Test
-        @DisplayName("REVISION_REQUIRED 상태에서 다시 보완요청 시 실패 (#155)")
-        void processReview_RevisionRequired_DoubleRevision_ThrowsException() {
-            // given - REVISION_REQUIRED 상태의 심사에서 또 보완요청 시도
-            when(testReview.isReviewing()).thenReturn(false);
-            when(testReview.isRevisionRequired()).thenReturn(true);
-
-            ReviewDecisionRequest request = ReviewDecisionRequest.builder()
-                    .decision("REVISION_REQUIRED")
-                    .comment("추가 보완 필요")
                     .build();
 
             given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));

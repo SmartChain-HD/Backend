@@ -280,7 +280,6 @@ public class ReviewService {
     /**
      * 심사 결과 입력 (승인/보완요청)
      * - 해당 심사의 도메인에 REVIEWER 권한이 있는지 검증
-     * - REVISION_REQUIRED 상태의 심사도 재승인 가능 (반려→재승인 지원)
      */
     @Transactional
     public ReviewDecisionResponse processReview(Long userId, Long reviewId, ReviewDecisionRequest request) {
@@ -291,9 +290,7 @@ public class ReviewService {
 
         validateDomainReviewerAccess(currentUser, review);
 
-        // REVIEWING 또는 REVISION_REQUIRED 상태에서만 처리 가능
-        // REVISION_REQUIRED 상태에서는 재승인만 가능 (보완요청 중복 방지)
-        if (!review.isReviewing() && !review.isRevisionRequired()) {
+        if (!review.isReviewing()) {
             throw new CustomException(ErrorCode.ALREADY_PROCESSED_REVIEW);
         }
 
@@ -306,23 +303,12 @@ public class ReviewService {
             String commentS = request.getCategoryComments() != null ? request.getCategoryComments().get("S") : null;
             String commentG = request.getCategoryComments() != null ? request.getCategoryComments().get("G") : null;
 
-            // REVISION_REQUIRED 상태에서 재승인하는 경우
-            if (review.isRevisionRequired()) {
-                // 기안 상태를 REVIEWING으로 되돌린 후 완료 처리
-                review.getDiagnostic().markAsReviewing();
-                log.info("Review re-approved from REVISION_REQUIRED: reviewId={}, reapprovedBy={}", reviewId, userId);
-            }
-
             review.approve(currentUser, request.getComment(), commentE, commentS, commentG);
             review.getDiagnostic().complete();
             message = "심사가 승인되었습니다";
             nextStep = "보고서 발행이 가능합니다";
             log.info("Review approved: reviewId={}, approvedBy={}", reviewId, userId);
         } else if ("REVISION_REQUIRED".equals(decision)) {
-            // 이미 REVISION_REQUIRED 상태에서 다시 보완요청 시도하면 에러
-            if (review.isRevisionRequired()) {
-                throw new CustomException(ErrorCode.ALREADY_PROCESSED_REVIEW);
-            }
             review.requestRevision(currentUser, request.getComment());
             review.getDiagnostic().returnForRevision();
             message = "보완 요청이 완료되었습니다";
