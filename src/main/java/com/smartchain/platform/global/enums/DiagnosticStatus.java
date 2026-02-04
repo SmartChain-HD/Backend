@@ -17,7 +17,7 @@ public enum DiagnosticStatus {
     WRITING("작성중", "기안자가 진단 작성 중"),
     SUBMITTED("제출됨", "결재자에게 제출됨"),
     RETURNED("반려됨", "결재자가 반려함 (보완 요청)"),
-    APPROVED("내부승인", "협력사 내부 승인 완료"),
+    APPROVED("승인됨", "협력사 내부 승인 완료"),
     REVIEWING("심사중", "원청에서 심사 진행 중"),
     COMPLETED("완료", "심사 완료 (최종 상태)");
 
