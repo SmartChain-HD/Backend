@@ -1,5 +1,6 @@
 package com.smartchain.platform.domain.job.service;
 
+import com.smartchain.platform.domain.ai.service.AiAnalysisService;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.job.entity.AsyncJob;
@@ -50,6 +51,9 @@ class AiAnalysisJobServiceTest {
 
     @Mock
     private NotificationService notificationService;
+
+    @Mock
+    private AiAnalysisService aiAnalysisService;
 
     private User testUser;
     private Diagnostic testDiagnostic;
@@ -211,6 +215,8 @@ class AiAnalysisJobServiceTest {
             given(asyncJobRepository.findByJobId(job.getJobId())).willReturn(Optional.of(job));
             given(asyncJobRepository.save(any(AsyncJob.class))).willAnswer(inv -> inv.getArgument(0));
             given(userRepository.findById(1L)).willReturn(Optional.of(testUser));
+            // aiAnalysisService.submit() mock 추가
+            given(aiAnalysisService.submit(eq(100L), any())).willReturn(null);
 
             // when
             aiAnalysisJobService.executeAnalysisAsync(job.getJobId());
@@ -222,7 +228,7 @@ class AiAnalysisJobServiceTest {
                     eq(NotificationType.AI_ANALYSIS_COMPLETE),
                     eq("AI 분석 완료"),
                     eq("ESG 진단 AI 분석이 완료되었습니다. 결과를 확인해주세요."),
-                    eq("/api/v1/diagnostics/100/ai-analysis"));
+                    eq("/api/v1/ai/run/diagnostics/100/result"));
         }
 
         @Test

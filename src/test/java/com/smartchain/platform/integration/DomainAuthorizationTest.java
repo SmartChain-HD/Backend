@@ -159,6 +159,7 @@ class DomainAuthorizationTest {
         void getApprovalList_ByDrafter_Forbidden() throws Exception {
             mockMvc.perform(get("/api/v1/approvals")
                             .header("Authorization", "Bearer " + drafterToken)
+                            .param("domainCode", "ESG")  // domainCode 필수 (#162)
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isForbidden());
         }
