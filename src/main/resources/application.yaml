@@ -64,7 +64,7 @@ logging:
 recaptcha:
   secret-key: ${RECAPTCHA_SECRET_KEY:6LcC-V8sAAAAAHpYoUj5q31vQh9hDduj-4m7hvGc}
   score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
-  enabled: ${RECAPTCHA_ENABLED:true}
+  enabled: ${RECAPTCHA_ENABLED:false}
 
 # 파일 저장소 설정 (로컬)
 file:
