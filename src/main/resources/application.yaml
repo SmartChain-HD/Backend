@@ -60,6 +60,12 @@ logging:
     com.smartchain.platform: DEBUG
     org.hibernate.SQL: DEBUG
 
+# reCAPTCHA v3 설정
+recaptcha:
+  secret-key: ${RECAPTCHA_SECRET_KEY:6LcC-V8sAAAAAHpYoUj5q31vQh9hDduj-4m7hvGc}
+  score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
+  enabled: ${RECAPTCHA_ENABLED:true}
+
 # 파일 저장소 설정 (로컬)
 file:
   storage:

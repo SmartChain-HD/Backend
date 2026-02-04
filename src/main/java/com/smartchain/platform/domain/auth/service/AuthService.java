@@ -55,6 +55,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final EmailService emailService;
+    private final RecaptchaService recaptchaService;
 
     private static final String GUEST_ROLE_CODE = "GUEST";
     private static final int VERIFICATION_CODE_LENGTH = 6;
@@ -128,6 +129,9 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(LoginRequest request) {
+        // 0. reCAPTCHA 검증
+        recaptchaService.verify(request.getRecaptchaToken(), "login");
+
         // 1. 사용자 조회
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException(ErrorCode.INVALID_CREDENTIALS));

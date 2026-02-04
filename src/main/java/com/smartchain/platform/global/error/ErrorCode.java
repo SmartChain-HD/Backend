@@ -20,6 +20,10 @@ public enum ErrorCode {
     VERIFICATION_RATE_LIMIT(HttpStatus.TOO_MANY_REQUESTS, "U010", "잠시 후 다시 시도해주세요"),
     COMPANY_NOT_ASSIGNED(HttpStatus.BAD_REQUEST, "U011", "소속 회사가 지정되지 않았습니다"),
 
+    // reCAPTCHA
+    RECAPTCHA_FAILED(HttpStatus.BAD_REQUEST, "CAPTCHA_001", "보안 검증에 실패했습니다. 다시 시도해주세요."),
+    RECAPTCHA_LOW_SCORE(HttpStatus.BAD_REQUEST, "CAPTCHA_002", "비정상적인 접근이 감지되었습니다."),
+
     // 401 Unauthorized
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A001", "유효하지 않은 토큰입니다"),
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "A002", "만료된 토큰입니다"),
