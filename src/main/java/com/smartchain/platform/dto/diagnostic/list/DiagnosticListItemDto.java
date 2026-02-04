@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 public class DiagnosticListItemDto {
     private Long diagnosticId;
     private String diagnosticCode;       // v3.0: "DG-2026-00001"
+    private String title;                // 기안 제목
     private DomainSimpleDto domain;      // v3.0: 도메인 정보
     private CampaignSimpleDto campaign;  // v3.0: 구조화
     private String summary;              // "○ 25년도 상반기 ESG 보고서 제..."
