@@ -5,6 +5,7 @@ import com.smartchain.platform.domain.review.service.ReviewService;
 import com.smartchain.platform.dto.review.dashboard.ReviewDashboardResponse;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionRequest;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionResponse;
+import com.smartchain.platform.dto.review.decision.RevisionDraftResponse;
 import com.smartchain.platform.dto.review.detail.ReviewDetailResponse;
 import com.smartchain.platform.dto.review.export.ExportRequest;
 import com.smartchain.platform.dto.review.export.ExportResponse;
@@ -82,6 +83,17 @@ public class ReviewController {
             @PathVariable Long reviewId) {
         Long userId = extractUserIdFromRequest(request);
         ReviewDetailResponse response = reviewService.getReviewDetail(userId, reviewId);
+        return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    @Operation(summary = "AI 보완요청 초안 조회", description = "AI가 생성한 보완요청 초안을 조회합니다. 보완요청 작성 시 자동 입력을 위해 사용합니다. REVIEWER 권한이 필요합니다.")
+    @GetMapping("/{reviewId}/revision-draft")
+    public ResponseEntity<BaseResponse<RevisionDraftResponse>> getRevisionDraft(
+            HttpServletRequest request,
+            @Parameter(description = "심사 ID")
+            @PathVariable Long reviewId) {
+        Long userId = extractUserIdFromRequest(request);
+        RevisionDraftResponse response = reviewService.getRevisionDraft(userId, reviewId);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 

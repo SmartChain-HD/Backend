@@ -17,6 +17,7 @@ import com.smartchain.platform.dto.ai.AiAnalysisResultDetailResponse;
 import com.smartchain.platform.dto.review.dashboard.ReviewDashboardResponse;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionRequest;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionResponse;
+import com.smartchain.platform.dto.review.decision.RevisionDraftResponse;
 import com.smartchain.platform.dto.review.detail.ReviewDetailResponse;
 import com.smartchain.platform.dto.review.list.ReviewListResponse;
 import com.smartchain.platform.global.enums.ReviewStatus;
@@ -806,6 +807,130 @@ class ReviewServiceTest {
             assertThat(response).isNotNull();
             assertThat(response.getDomainCode()).isEqualTo("SAFETY");
             assertThat(response.getAllowedCategoryKeys()).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("AI 보완요청 초안 조회 테스트")
+    class GetRevisionDraftTest {
+
+        @Test
+        @DisplayName("AI 분석 결과가 있는 경우 초안 조회 성공")
+        void getRevisionDraft_WithAiAnalysisResult_Success() {
+            // given
+            String resultJson = """
+                {
+                    "slotResults": [
+                        {"slotName": "esg.energy.electricity.usage", "verdict": "PASS", "reasons": ["검토 완료"]}
+                    ],
+                    "clarifications": [
+                        {"slotName": "esg.hazmat.msds", "message": "MSDS 문서가 누락되었습니다"},
+                        {"slotName": "esg.ethics.code", "message": "윤리강령 최신 버전 필요"}
+                    ]
+                }
+                """;
+
+            AiAnalysisResult aiResult = AiAnalysisResult.builder()
+                    .diagnostic(testDiagnostic)
+                    .domainCode("ESG")
+                    .packageId("PKG_001")
+                    .riskLevel("MEDIUM")
+                    .verdict("WARN")
+                    .whySummary("일부 필수 문서가 누락되었습니다")
+                    .resultJson(resultJson)
+                    .analyzedAt(LocalDateTime.now())
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(1L)).willReturn(Optional.of(testReview));
+            given(aiAnalysisResultRepository.findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(100L))
+                    .willReturn(Optional.of(aiResult));
+
+            // when
+            RevisionDraftResponse response = reviewService.getRevisionDraft(1L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.reviewId()).isEqualTo(1L);
+            assertThat(response.diagnosticId()).isEqualTo(100L);
+            assertThat(response.hasDraft()).isTrue();
+            assertThat(response.riskLevel()).isEqualTo("MEDIUM");
+            assertThat(response.verdict()).isEqualTo("WARN");
+            assertThat(response.draftComment()).isEqualTo("일부 필수 문서가 누락되었습니다");
+            assertThat(response.draftItems()).hasSize(2);
+            assertThat(response.draftItems().get(0).slotName()).isEqualTo("esg.hazmat.msds");
+            assertThat(response.draftItems().get(0).message()).isEqualTo("MSDS 문서가 누락되었습니다");
+            assertThat(response.draftItems().get(1).slotName()).isEqualTo("esg.ethics.code");
+        }
+
+        @Test
+        @DisplayName("AI 분석 결과가 없는 경우 빈 응답 반환")
+        void getRevisionDraft_WithoutAiAnalysisResult_ReturnsEmptyResponse() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(1L)).willReturn(Optional.of(testReview));
+            given(aiAnalysisResultRepository.findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(100L))
+                    .willReturn(Optional.empty());
+
+            // when
+            RevisionDraftResponse response = reviewService.getRevisionDraft(1L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.reviewId()).isEqualTo(1L);
+            assertThat(response.diagnosticId()).isEqualTo(100L);
+            assertThat(response.hasDraft()).isFalse();
+            assertThat(response.draftItems()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("권한 없는 도메인의 심사 초안 조회 시 403 에러")
+        void getRevisionDraft_WithoutDomainPermission_ThrowsException() {
+            // given
+            Review socReview = mock(Review.class);
+            when(socReview.getDomain()).thenReturn(socDomain);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(2L)).willReturn(Optional.of(socReview));
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.getRevisionDraft(1L, 2L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
+        }
+
+        @Test
+        @DisplayName("REVIEWER가 아닌 사용자가 초안 조회 시 403 에러")
+        void getRevisionDraft_AsGuest_ThrowsException() {
+            // given
+            given(userRepository.findById(2L)).willReturn(Optional.of(guestUser));
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.getRevisionDraft(2L, 1L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                    });
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 심사 초안 조회 시 404 에러")
+        void getRevisionDraft_ReviewNotFound_ThrowsException() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> reviewService.getRevisionDraft(1L, 999L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.REVIEW_NOT_FOUND);
+                    });
         }
     }
 }

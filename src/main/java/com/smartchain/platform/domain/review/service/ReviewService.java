@@ -15,6 +15,7 @@ import com.smartchain.platform.dto.review.common.*;
 import com.smartchain.platform.dto.review.dashboard.*;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionRequest;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionResponse;
+import com.smartchain.platform.dto.review.decision.RevisionDraftResponse;
 import com.smartchain.platform.dto.review.detail.*;
 import com.smartchain.platform.dto.review.list.*;
 import com.smartchain.platform.global.enums.ReviewStatus;
@@ -360,6 +361,54 @@ public class ReviewService {
                 .processedBy(processedByDto)
                 .message(message)
                 .nextStep(nextStep)
+                .build();
+    }
+
+    /**
+     * AI 보완요청 초안 조회
+     * - 해당 심사의 도메인에 REVIEWER 권한이 있는지 검증
+     * - AI 분석 결과의 clarifications를 보완요청 초안으로 변환
+     */
+    public RevisionDraftResponse getRevisionDraft(Long userId, Long reviewId) {
+        User currentUser = validateReviewerRole(userId);
+
+        Review review = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new CustomException(ErrorCode.REVIEW_NOT_FOUND));
+
+        validateDomainReviewerAccess(currentUser, review);
+
+        Long diagnosticId = review.getDiagnostic().getDiagnosticId();
+
+        // AI 분석 결과에서 clarifications 추출
+        Optional<AiAnalysisResult> latestResult = aiAnalysisResultRepository
+                .findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(diagnosticId);
+
+        if (latestResult.isEmpty()) {
+            return RevisionDraftResponse.empty(reviewId, diagnosticId);
+        }
+
+        AiAnalysisResult result = latestResult.get();
+        AiAnalysisResultDetailResponse detailResponse = AiAnalysisResultDetailResponse.from(result);
+
+        // clarifications를 RevisionDraftItemDto로 변환
+        List<RevisionDraftResponse.RevisionDraftItemDto> draftItems = detailResponse.clarifications() != null
+                ? detailResponse.clarifications().stream()
+                    .map(RevisionDraftResponse.RevisionDraftItemDto::from)
+                    .toList()
+                : List.of();
+
+        // why 필드를 초안 코멘트로 사용
+        String draftComment = detailResponse.whySummary();
+
+        return RevisionDraftResponse.builder()
+                .reviewId(reviewId)
+                .diagnosticId(diagnosticId)
+                .hasDraft(!draftItems.isEmpty() || (draftComment != null && !draftComment.isBlank()))
+                .riskLevel(detailResponse.riskLevel())
+                .verdict(detailResponse.verdict())
+                .draftComment(draftComment)
+                .draftItems(draftItems)
+                .analyzedAt(detailResponse.analyzedAt())
                 .build();
     }
 
