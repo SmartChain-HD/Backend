@@ -1,5 +1,63 @@
 # Claude Code Learnings
 
+## 2026-02-04: AI Chatbot 백엔드 통합 구현 (#140, #141)
+
+### 원인
+- AI 팀에서 FastAPI 기반 RAG 챗봇 서비스 개발 완료
+- 백엔드에서 AI Chat API를 래핑하여 프론트엔드에 통합 API 제공 필요
+- 인증/권한 관리, 에러 핸들링, 세션 관리 등 백엔드 레이어 추가 필요
+
+### 해결
+- **Issue #140 (기반 구조)**:
+  - DTO 7개 생성: ChatRequest, ChatMessage, ChatResponse, SourceItem, SourceLocation, AdminSyncResponse, AdminInspectResponse
+  - AiChatConfig: WebClient 설정 (@ConfigurationProperties)
+  - AiChatApiClient: AI FastAPI 서버 통신 (chat, syncData, inspectDb)
+  - ErrorCode 3개 추가: AI_CHAT_SERVICE_ERROR, AI_CHAT_TIMEOUT, AI_CHAT_INVALID_DOMAIN
+  - SecurityConfig: /api/v1/chat/**, /api/v1/admin/chat/** 경로 권한 설정
+
+- **Issue #141 (비즈니스 로직)**:
+  - ChatService: 채팅 처리, 도메인 검증, REVIEWER 권한 검증
+  - ChatController: REST API 엔드포인트 3개
+  - ChatServiceTest: 단위 테스트 10개
+
+### 재발방지
+- 외부 AI 서비스 연동 시 WebClient 기반 클라이언트 + Config 분리 패턴 사용
+- Admin API는 REVIEWER 권한으로 제한, SecurityConfig에서 경로별 권한 명시
+- 도메인 유효성 검증 (safety, compliance, esg, all)은 서비스 레이어에서 수행
+- sessionId 자동 생성으로 클라이언트 부담 감소
+
+### 검증방법
+```bash
+./gradlew test --tests "ChatServiceTest"
+./gradlew build -x test
+```
+
+### 관련커밋
+- PR #142 (기반 구조), PR #143 (비즈니스 로직)
+
+### 생성/수정 파일
+```
+src/main/java/.../dto/chat/ (7개 DTO)
+src/main/java/.../domain/chat/config/AiChatConfig.java
+src/main/java/.../domain/chat/client/AiChatApiClient.java
+src/main/java/.../domain/chat/service/ChatService.java
+src/main/java/.../domain/chat/controller/ChatController.java
+src/main/java/.../global/error/ErrorCode.java (CHAT001-003 추가)
+src/main/java/.../global/config/SecurityConfig.java (경로 추가)
+src/main/resources/application.yaml (ai.chat 설정 추가)
+src/test/java/.../domain/chat/service/ChatServiceTest.java
+docs/FE_AI_CHATBOT_INTEGRATION.md (FE 통합 가이드)
+```
+
+### API 엔드포인트
+| Method | Path | 설명 | 권한 |
+|--------|------|------|------|
+| POST | `/api/v1/chat` | AI 채팅 | DRAFTER, APPROVER, REVIEWER |
+| POST | `/api/v1/admin/chat/sync` | Vector DB 동기화 | REVIEWER |
+| GET | `/api/v1/admin/chat/inspect` | DB 현황 조회 | REVIEWER |
+
+---
+
 ## 2026-02-04: Google reCAPTCHA v3 로그인 보안 검증 구현
 
 ### 원인
