@@ -3,6 +3,8 @@ package com.smartchain.platform.domain.approval.service;
 import com.smartchain.platform.domain.approval.entity.Approval;
 import com.smartchain.platform.domain.approval.repository.ApprovalRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
+import com.smartchain.platform.domain.review.entity.Review;
+import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.User;
@@ -48,6 +50,7 @@ public class ApprovalService {
     private final ApprovalRepository approvalRepository;
     private final UserRepository userRepository;
     private final DomainRepository domainRepository;
+    private final ReviewRepository reviewRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
@@ -300,18 +303,29 @@ public class ApprovalService {
             throw new CustomException(ErrorCode.DIAGNOSTIC_NOT_APPROVED);
         }
 
-        String previousStatus = approval.getDiagnostic().getStatus().name();
+        Diagnostic diagnostic = approval.getDiagnostic();
+        String previousStatus = diagnostic.getStatus().name();
 
         approval.submitToReviewer();
-        approval.getDiagnostic().markAsReviewing();
+        diagnostic.markAsReviewing();
 
-        log.info("Submitted to reviewer: approvalId={}, diagnosticId={}, submittedBy={}",
-                approvalId, approval.getDiagnostic().getDiagnosticId(), userId);
+        // Review 엔티티 생성 (#158)
+        Review review = Review.builder()
+                .diagnostic(diagnostic)
+                .company(diagnostic.getCompany())
+                .domain(diagnostic.getDomain())
+                .score(diagnostic.getOverallScore())
+                .submittedAt(approval.getSubmittedToReviewerAt())
+                .build();
+        Review savedReview = reviewRepository.save(review);
+
+        log.info("Submitted to reviewer: approvalId={}, diagnosticId={}, reviewId={}, submittedBy={}",
+                approvalId, diagnostic.getDiagnosticId(), savedReview.getReviewId(), userId);
 
         return SubmitToReviewerResponse.builder()
                 .approvalId(approval.getApprovalId())
-                .diagnosticId(approval.getDiagnostic().getDiagnosticId())
-                .reviewId(null)  // Review entity not yet created - will be created by Review API
+                .diagnosticId(diagnostic.getDiagnosticId())
+                .reviewId(savedReview.getReviewId())
                 .previousStatus(previousStatus)
                 .newStatus(DiagnosticStatus.REVIEWING.name())
                 .submittedAt(approval.getSubmittedToReviewerAt())
