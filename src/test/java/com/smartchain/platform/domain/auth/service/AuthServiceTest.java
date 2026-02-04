@@ -78,6 +78,9 @@ class AuthServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private RecaptchaService recaptchaService;
+
     private Role guestRole;
 
     @BeforeEach
