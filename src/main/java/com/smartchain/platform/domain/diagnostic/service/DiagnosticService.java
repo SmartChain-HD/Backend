@@ -50,7 +50,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -67,15 +66,6 @@ public class DiagnosticService {
     private final DomainRepository domainRepository;
 
     private static final List<String> ALLOWED_ROLES = Arrays.asList("DRAFTER", "APPROVER");
-
-    private static final Map<String, String> STATUS_LABEL_MAP = Map.of(
-            "WRITING", "작성중",
-            "SUBMITTED", "제출됨",
-            "RETURNED", "반려됨",
-            "APPROVED", "내부승인",
-            "REVIEWING", "심사중",
-            "COMPLETED", "완료"
-    );
 
     public DiagnosticListResponse getDiagnosticList(Long userId, String domainCode, String statuses,
                                                      String keyword, LocalDate deadlineFrom,
@@ -257,7 +247,7 @@ public class DiagnosticService {
                 .period(periodDto)
                 .deadline(diagnostic.getDeadline())
                 .status(diagnostic.getStatus().name())
-                .statusLabel(STATUS_LABEL_MAP.getOrDefault(diagnostic.getStatus().name(), diagnostic.getStatus().name()))
+                .statusLabel(diagnostic.getStatus().getDisplayName())
                 .qualitativeProgress(diagnostic.getQualitativeProgress())
                 .quantitativeProgress(diagnostic.getQuantitativeProgress())
                 .overallProgress(diagnostic.getOverallProgress())
@@ -700,7 +690,7 @@ public class DiagnosticService {
                 .period(periodDto)
                 .deadline(diagnostic.getDeadline())
                 .status(diagnostic.getStatus().name())
-                .statusLabel(STATUS_LABEL_MAP.getOrDefault(diagnostic.getStatus().name(), diagnostic.getStatus().name()))
+                .statusLabel(diagnostic.getStatus().getDisplayName())
                 .progress(progressDto)
                 .createdAt(diagnostic.getCreatedAt())
                 .updatedAt(diagnostic.getUpdatedAt())
