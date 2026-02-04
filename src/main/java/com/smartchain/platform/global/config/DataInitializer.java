@@ -193,10 +193,11 @@ public class DataInitializer implements CommandLineRunner {
         userDomainRoleRepository.save(UserDomainRole.builder().user(reviewerSafety).domain(safetyDomain).role(reviewerRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(reviewerCompliance).domain(complianceDomain).role(reviewerRole).build());
 
-        // 테크파트너: ESG(결재자+기안자) + COMPLIANCE(기안자만)
+        // 테크파트너: ESG(결재자+기안자) + COMPLIANCE(기안자만) + SAFETY(drafter1만)
         userDomainRoleRepository.save(UserDomainRole.builder().user(approver1).domain(esgDomain).role(approverRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter1).domain(esgDomain).role(drafterRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter1).domain(complianceDomain).role(drafterRole).build());
+        userDomainRoleRepository.save(UserDomainRole.builder().user(drafter1).domain(safetyDomain).role(drafterRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter2).domain(esgDomain).role(drafterRole).build());
 
         // 그린매뉴팩처링: ESG(결재자+기안자) + SAFETY(기안자만)
@@ -668,9 +669,10 @@ public class DataInitializer implements CommandLineRunner {
         log.info("  안전건설:   approver@safebuild.co.kr (SAFETY)");
         log.info("");
         log.info("[협력사 기안자 - DRAFTER]");
-        log.info("  테크파트너: drafter1@techpartner.co.kr, drafter2@techpartner.co.kr");
-        log.info("  그린매뉴:   drafter@greenmanu.co.kr");
-        log.info("  안전건설:   drafter@safebuild.co.kr");
+        log.info("  테크파트너: drafter1@techpartner.co.kr (ESG, COMPLIANCE, SAFETY)");
+        log.info("              drafter2@techpartner.co.kr (ESG)");
+        log.info("  그린매뉴:   drafter@greenmanu.co.kr (ESG, SAFETY)");
+        log.info("  안전건설:   drafter@safebuild.co.kr (SAFETY)");
         log.info("");
         log.info("[게스트 - GUEST]");
         log.info("  정밀부품:   newbie1@precision.co.kr, newbie2@precision.co.kr");
