@@ -1,5 +1,7 @@
 package com.smartchain.platform.domain.review.service;
 
+import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
+import com.smartchain.platform.domain.ai.repository.AiAnalysisResultRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
@@ -11,6 +13,7 @@ import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
 import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
+import com.smartchain.platform.dto.ai.AiAnalysisResultDetailResponse;
 import com.smartchain.platform.dto.review.dashboard.ReviewDashboardResponse;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionRequest;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionResponse;
@@ -60,6 +63,9 @@ class ReviewServiceTest {
 
     @Mock
     private DomainRepository domainRepository;
+
+    @Mock
+    private AiAnalysisResultRepository aiAnalysisResultRepository;
 
     @Mock
     private User reviewerUser;
@@ -401,6 +407,72 @@ class ReviewServiceTest {
                         CustomException ce = (CustomException) ex;
                         assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.REVIEW_NOT_FOUND);
                     });
+        }
+
+        @Test
+        @DisplayName("AI 분석 결과가 있는 경우 aiAnalysis 필드에 포함")
+        void getReviewDetail_WithAiAnalysisResult_IncludesSlotResults() {
+            // given
+            String resultJson = """
+                {
+                    "slotResults": [
+                        {"slotName": "compliance.contract.sample", "verdict": "PASS", "reasons": ["검토 완료"]}
+                    ],
+                    "clarifications": [
+                        {"slotName": "compliance.fair.trade", "message": "추가 자료 필요"}
+                    ]
+                }
+                """;
+
+            AiAnalysisResult aiResult = AiAnalysisResult.builder()
+                    .diagnostic(testDiagnostic)
+                    .domainCode("COMPLIANCE")
+                    .packageId("PKG_001")
+                    .riskLevel("MEDIUM")
+                    .verdict("WARN")
+                    .whySummary("일부 항목 보완 필요")
+                    .resultJson(resultJson)
+                    .analyzedAt(LocalDateTime.now())
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(1L)).willReturn(Optional.of(testReview));
+            given(aiAnalysisResultRepository.findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(100L))
+                    .willReturn(Optional.of(aiResult));
+
+            // when
+            ReviewDetailResponse response = reviewService.getReviewDetail(1L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnostic().getAiAnalysis()).isNotNull();
+
+            // AI 분석 결과가 AiAnalysisResultDetailResponse 타입으로 반환됨
+            AiAnalysisResultDetailResponse aiAnalysis =
+                    (AiAnalysisResultDetailResponse) response.getDiagnostic().getAiAnalysis();
+            assertThat(aiAnalysis.verdict()).isEqualTo("WARN");
+            assertThat(aiAnalysis.riskLevel()).isEqualTo("MEDIUM");
+            assertThat(aiAnalysis.slotResults()).hasSize(1);
+            assertThat(aiAnalysis.slotResults().get(0).slotName()).isEqualTo("compliance.contract.sample");
+            assertThat(aiAnalysis.clarifications()).hasSize(1);
+            assertThat(aiAnalysis.clarifications().get(0).message()).isEqualTo("추가 자료 필요");
+        }
+
+        @Test
+        @DisplayName("AI 분석 결과가 없는 경우 aiAnalysis 필드는 null")
+        void getReviewDetail_WithoutAiAnalysisResult_NullAiAnalysis() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(1L)).willReturn(Optional.of(testReview));
+            given(aiAnalysisResultRepository.findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(100L))
+                    .willReturn(Optional.empty());
+
+            // when
+            ReviewDetailResponse response = reviewService.getReviewDetail(1L, 1L);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getDiagnostic().getAiAnalysis()).isNull();
         }
     }
 
