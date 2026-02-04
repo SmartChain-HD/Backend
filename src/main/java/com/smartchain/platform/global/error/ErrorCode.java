@@ -76,6 +76,7 @@ public enum ErrorCode {
     ALREADY_PROCESSED_REQUEST(HttpStatus.CONFLICT, "PERM_003", "이미 처리된 권한 요청입니다"),
     INVALID_DECISION(HttpStatus.BAD_REQUEST, "R005", "유효하지 않은 처리 결과입니다"),
     ALREADY_PROCESSED_APPROVAL(HttpStatus.CONFLICT, "AP002", "이미 처리된 결재 요청입니다"),
+    DOMAIN_CODE_REQUIRED(HttpStatus.BAD_REQUEST, "AP005", "도메인 코드가 필요합니다"),
     APPROVAL_NOT_APPROVED(HttpStatus.CONFLICT, "AP003", "승인된 결재만 원청에 제출할 수 있습니다"),
     DIAGNOSTIC_NOT_APPROVED(HttpStatus.CONFLICT, "AP004", "승인된 진단만 원청에 제출할 수 있습니다"),
     ALREADY_PROCESSED_REVIEW(HttpStatus.CONFLICT, "RV002", "이미 처리된 심사입니다"),
