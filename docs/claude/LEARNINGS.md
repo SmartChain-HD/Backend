@@ -1425,3 +1425,38 @@ src/main/java/.../global/error/ErrorCode.java (AI007 추가)
 src/test/java/.../ai/service/AiAnalysisServiceTest.java (신규)
 docs/STATUS_AND_ERROR_CODES.md (AI007 문서화)
 ```
+
+---
+
+## 2026-02-04: 심사 상세 조회 시 AI 분석 결과 슬롯별 상세 누락 (#153)
+
+### 원인
+- `ReviewService.getReviewDetail()`에서 `aiAnalysis(null)`로 설정하여 AI 분석 결과 미포함
+- 프론트엔드 제출 결과 페이지에서 위험도만 표시되고 항목별 상세 분석(slotResults, clarifications) 누락
+- 별도 `/api/v1/ai/run/diagnostics/{id}/result/detail` API를 호출하지 않는 한 상세 정보 조회 불가
+
+### 해결
+- `ReviewService`에 `AiAnalysisResultRepository` 의존성 추가
+- `getReviewDetail()` 메서드에서 진단 ID로 최신 AI 분석 결과 조회
+- `fetchAiAnalysisResult()` 헬퍼 메서드로 `AiAnalysisResultDetailResponse.from()` 호출
+- `DiagnosticDetailInfoDto.aiAnalysis` 필드에 구조화된 슬롯별 상세 정보 설정
+- 테스트 2건 추가: AI 분석 결과 있는 경우/없는 경우
+
+### 재발 방지
+- 상세 조회 API에서 연관 데이터(AI 분석 결과 등) 포함 여부 확인
+- `Object` 타입 필드는 실제로 채워지는지 서비스 레이어에서 검증
+- API 응답에 null 필드가 많으면 실제 데이터 조회 로직 구현 여부 점검
+
+### 검증방법
+```bash
+./gradlew test --tests "ReviewServiceTest"
+```
+
+### 관련커밋
+- PR #166
+
+### 생성/수정 파일
+```
+src/main/java/.../domain/review/service/ReviewService.java (AiAnalysisResultRepository 추가, fetchAiAnalysisResult 메서드)
+src/test/java/.../domain/review/service/ReviewServiceTest.java (AI 분석 결과 테스트 2건)
+```
