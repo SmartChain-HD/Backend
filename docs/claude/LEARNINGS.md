@@ -1,5 +1,37 @@
 # Claude Code Learnings
 
+## 2026-02-04: 권한 요청 반려 API 오류 (#154)
+
+### 원인
+- `RoleRequest.isPending()` 메서드에서 `this.status == RequestStatus.PENDING` 비교 사용
+- status가 null인 경우 `false`를 반환하여 "이미 처리된 요청입니다" 에러 발생
+- `==` 비교는 null-safe하지 않음
+
+### 해결
+- `isPending()` 메서드를 `RequestStatus.PENDING.equals(this.status)`로 수정
+- null-safe 비교로 변경하여 NullPointerException 및 잘못된 false 반환 방지
+
+### 재발방지
+- enum 비교 시 `==` 대신 `EnumType.VALUE.equals(field)` 패턴 사용 권장
+- 특히 DB에서 조회한 엔티티의 필드는 null일 수 있음을 고려
+- 상태 검증 메서드는 null-safe하게 구현
+
+### 검증방법
+```bash
+./gradlew test --tests "RoleRequestServiceTest"
+```
+
+### 관련커밋
+- fix/154-role-request-reject 브랜치
+
+### 생성/수정 파일
+```
+src/main/java/.../domain/user/entity/RoleRequest.java (isPending 메서드 수정)
+docs/claude/LEARNINGS.md (엔트리 추가)
+```
+
+---
+
 ## 2026-02-04: AI Chatbot 백엔드 통합 구현 (#140, #141)
 
 ### 원인

@@ -72,6 +72,6 @@ public class RoleRequest {
     }
 
     public boolean isPending() {
-        return this.status == RequestStatus.PENDING;
+        return RequestStatus.PENDING.equals(this.status);
     }
 }
