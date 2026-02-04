@@ -232,6 +232,7 @@ public class ReviewService {
         DiagnosticDetailInfoDto diagnosticDto = DiagnosticDetailInfoDto.builder()
                 .diagnosticId(review.getDiagnostic().getDiagnosticId())
                 .diagnosticCode(review.getDiagnostic().getDiagnosticCode())
+                .title(review.getDiagnostic().getTitle())
                 .qualitativeData(null)
                 .quantitativeData(null)
                 .aiAnalysis(null)
@@ -452,6 +453,7 @@ public class ReviewService {
         DiagnosticSimpleDto diagnosticDto = DiagnosticSimpleDto.builder()
                 .diagnosticId(review.getDiagnostic().getDiagnosticId())
                 .diagnosticCode(review.getDiagnostic().getDiagnosticCode())
+                .title(review.getDiagnostic().getTitle())
                 .build();
 
         CompanySimpleDto companyDto = CompanySimpleDto.builder()
