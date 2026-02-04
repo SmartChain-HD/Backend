@@ -191,6 +191,7 @@ class ApprovalIntegrationTest {
         void getApprovalList_Success() throws Exception {
             mockMvc.perform(get("/api/v1/approvals")
                             .header("Authorization", "Bearer " + approverToken)
+                            .param("domainCode", "ESG")  // domainCode 필수 (#162)
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
@@ -213,6 +214,7 @@ class ApprovalIntegrationTest {
         void getApprovalList_FilterByStatus() throws Exception {
             mockMvc.perform(get("/api/v1/approvals")
                             .header("Authorization", "Bearer " + approverToken)
+                            .param("domainCode", "ESG")  // domainCode 필수 (#162)
                             .param("status", "WAITING")
                             .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isOk())

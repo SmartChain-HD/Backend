@@ -108,7 +108,17 @@ class AuthServiceTest {
                             .build())
                     .build();
 
+            // 이메일 인증 완료 mock 추가
+            EmailVerificationCode verifiedCode = EmailVerificationCode.builder()
+                    .email("test@test.com")
+                    .code("123456")
+                    .expiresAt(LocalDateTime.now().plusMinutes(5))
+                    .build();
+            verifiedCode.markAsVerified();
+
             given(userRepository.existsByEmail(anyString())).willReturn(false);
+            given(verificationCodeRepository.findTopByEmailAndVerifiedTrueOrderByCreatedAtDesc("test@test.com"))
+                    .willReturn(Optional.of(verifiedCode));
             given(roleRepository.findByCode("GUEST")).willReturn(Optional.of(guestRole));
             given(passwordEncoder.encode(anyString())).willReturn("encodedPassword");
             given(userRepository.save(any(User.class))).willAnswer(invocation -> {

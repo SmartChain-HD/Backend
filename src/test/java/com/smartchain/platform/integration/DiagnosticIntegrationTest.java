@@ -198,6 +198,7 @@ class DiagnosticIntegrationTest {
         @DisplayName("기안 생성 성공")
         void createDiagnostic_Success() throws Exception {
             DiagnosticCreateRequest request = DiagnosticCreateRequest.builder()
+                    .title("2026년 1분기 ESG 자가진단")  // 필수 필드 추가
                     .campaignId(campaign.getCampaignId())
                     .domainCode("ESG")
                     .build();
