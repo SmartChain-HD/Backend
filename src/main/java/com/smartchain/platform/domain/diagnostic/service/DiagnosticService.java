@@ -502,6 +502,35 @@ public class DiagnosticService {
     }
 
     /**
+     * 기안 삭제
+     * - WRITING 상태인 기안만 삭제 가능
+     * - 본인이 생성한 기안만 삭제 가능
+     */
+    @Transactional
+    public void deleteDiagnostic(Long userId, Long diagnosticId) {
+        userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        Diagnostic diagnostic = diagnosticRepository.findById(diagnosticId)
+                .orElseThrow(() -> new CustomException(ErrorCode.DIAGNOSTIC_NOT_FOUND));
+
+        // 본인 기안인지 확인
+        if (!diagnostic.getDrafterId().equals(userId)) {
+            throw new CustomException(ErrorCode.DIAGNOSTIC_NOT_OWNER);
+        }
+
+        // WRITING 상태인지 확인
+        if (diagnostic.getStatus() != DiagnosticStatus.WRITING) {
+            throw new CustomException(ErrorCode.DIAGNOSTIC_DELETE_NOT_ALLOWED);
+        }
+
+        // 삭제 실행 (연관 파일은 Cascade로 삭제됨)
+        diagnosticRepository.delete(diagnostic);
+
+        log.info("Diagnostic deleted: diagnosticId={}, deletedBy={}", diagnosticId, userId);
+    }
+
+    /**
      * 도메인 기반 접근 권한 검증 (DRAFTER 또는 APPROVER)
      */
     private void validateDomainAccess(User user, Diagnostic diagnostic) {

@@ -1202,6 +1202,109 @@ class DiagnosticServiceTest {
     }
 
     @Nested
+    @DisplayName("기안 삭제 테스트")
+    class DeleteDiagnosticTest {
+
+        @Test
+        @DisplayName("WRITING 상태의 본인 기안 삭제 성공")
+        void deleteDiagnostic_WritingStatus_Success() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            lenient().when(diagnostic.getDiagnosticId()).thenReturn(100L);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.WRITING);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(100L)).willReturn(Optional.of(diagnostic));
+
+            // when
+            diagnosticService.deleteDiagnostic(1L, 100L);
+
+            // then
+            verify(diagnosticRepository).delete(diagnostic);
+        }
+
+        @Test
+        @DisplayName("본인 기안이 아닌 경우 DIAGNOSTIC_NOT_OWNER 에러")
+        void deleteDiagnostic_NotOwner_ThrowsException() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(999L); // 다른 사용자
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(100L)).willReturn(Optional.of(diagnostic));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.deleteDiagnostic(1L, 100L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_NOT_OWNER);
+                    });
+
+            verify(diagnosticRepository, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("SUBMITTED 상태 기안 삭제 시 DIAGNOSTIC_DELETE_NOT_ALLOWED 에러")
+        void deleteDiagnostic_SubmittedStatus_ThrowsException() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.SUBMITTED);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(100L)).willReturn(Optional.of(diagnostic));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.deleteDiagnostic(1L, 100L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_DELETE_NOT_ALLOWED);
+                    });
+
+            verify(diagnosticRepository, never()).delete(any());
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 기안 삭제 시 DIAGNOSTIC_NOT_FOUND 에러")
+        void deleteDiagnostic_NotFound_ThrowsException() {
+            // given
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(999L)).willReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.deleteDiagnostic(1L, 999L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_NOT_FOUND);
+                    });
+        }
+
+        @Test
+        @DisplayName("APPROVED 상태 기안 삭제 시 DIAGNOSTIC_DELETE_NOT_ALLOWED 에러")
+        void deleteDiagnostic_ApprovedStatus_ThrowsException() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+            when(diagnostic.getStatus()).thenReturn(DiagnosticStatus.APPROVED);
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(100L)).willReturn(Optional.of(diagnostic));
+
+            // when & then
+            assertThatThrownBy(() -> diagnosticService.deleteDiagnostic(1L, 100L))
+                    .isInstanceOf(CustomException.class)
+                    .satisfies(ex -> {
+                        CustomException ce = (CustomException) ex;
+                        assertThat(ce.getErrorCode()).isEqualTo(ErrorCode.DIAGNOSTIC_DELETE_NOT_ALLOWED);
+                    });
+        }
+    }
+
+    @Nested
     @DisplayName("캠페인 상태 일관성 테스트 (Issue #156)")
     class CampaignStatusConsistencyTest {
 

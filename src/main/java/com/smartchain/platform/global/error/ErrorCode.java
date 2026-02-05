@@ -82,6 +82,10 @@ public enum ErrorCode {
     ALREADY_PROCESSED_REVIEW(HttpStatus.CONFLICT, "RV002", "이미 처리된 심사입니다"),
     INVALID_REVIEW_DECISION(HttpStatus.BAD_REQUEST, "RV003", "유효하지 않은 심사 결과입니다"),
     INVALID_CATEGORY_FOR_DOMAIN(HttpStatus.BAD_REQUEST, "RV004", "해당 도메인에서 허용되지 않는 카테고리입니다"),
+
+    // Diagnostic Delete
+    DIAGNOSTIC_NOT_OWNER(HttpStatus.FORBIDDEN, "DIAG001", "본인이 생성한 기안만 삭제할 수 있습니다"),
+    DIAGNOSTIC_DELETE_NOT_ALLOWED(HttpStatus.FORBIDDEN, "DIAG002", "작성 중인 기안만 삭제할 수 있습니다"),
     JOB_NOT_RETRYABLE(HttpStatus.BAD_REQUEST, "JOB002", "재시도할 수 없는 작업입니다"),
     JOB_NOT_FAILED(HttpStatus.BAD_REQUEST, "JOB003", "실패한 작업만 재시도할 수 있습니다"),
 

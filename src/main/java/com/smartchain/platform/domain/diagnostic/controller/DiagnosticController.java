@@ -127,6 +127,16 @@ public class DiagnosticController {
         return ResponseEntity.ok(BaseResponse.success(response));
     }
 
+    @Operation(summary = "기안 삭제", description = "기안을 삭제합니다. 작성 중(WRITING) 상태인 본인 기안만 삭제 가능합니다.")
+    @DeleteMapping("/{diagnosticId}")
+    public ResponseEntity<BaseResponse<Void>> deleteDiagnostic(
+            HttpServletRequest request,
+            @PathVariable Long diagnosticId) {
+        Long userId = extractUserIdFromRequest(request);
+        diagnosticService.deleteDiagnostic(userId, diagnosticId);
+        return ResponseEntity.ok(BaseResponse.success("기안이 삭제되었습니다.", null));
+    }
+
     private Long extractUserIdFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
