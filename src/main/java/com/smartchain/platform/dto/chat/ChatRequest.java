@@ -9,10 +9,17 @@ import java.util.List;
 
 /**
  * AI Chat API 요청 DTO
+ * FE → BE: fileId로 파일 지정, BE → Python: fileUrl(presigned URL)로 변환하여 전달
  */
 public record ChatRequest(
     @NotBlank(message = "메시지는 필수입니다")
     String message,
+
+    @JsonProperty("file_id")
+    Long fileId,
+
+    @JsonProperty("file_url")
+    String fileUrl,
 
     List<ChatMessage> history,
 
