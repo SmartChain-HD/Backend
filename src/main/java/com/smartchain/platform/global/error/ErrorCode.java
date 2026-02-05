@@ -105,7 +105,13 @@ public enum ErrorCode {
     // AI Chat Service
     AI_CHAT_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "CHAT001", "AI 채팅 서비스 오류가 발생했습니다"),
     AI_CHAT_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "CHAT002", "AI 채팅 서비스 응답 시간이 초과되었습니다"),
-    AI_CHAT_INVALID_DOMAIN(HttpStatus.BAD_REQUEST, "CHAT003", "유효하지 않은 도메인입니다");
+    AI_CHAT_INVALID_DOMAIN(HttpStatus.BAD_REQUEST, "CHAT003", "유효하지 않은 도메인입니다"),
+
+    // External Risk Detection
+    RISK_COMPANY_NOT_FOUND(HttpStatus.NOT_FOUND, "RISK001", "리스크 분석 대상 회사를 찾을 수 없습니다"),
+    RISK_DETECT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "RISK002", "외부 위험 감지 API 호출에 실패했습니다"),
+    RISK_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "RISK003", "리스크 분석 결과를 찾을 수 없습니다"),
+    RISK_PERMISSION_DENIED(HttpStatus.FORBIDDEN, "RISK004", "REVIEWER만 리스크 분석을 요청할 수 있습니다");
 
     private final HttpStatus status;
     private final String code;

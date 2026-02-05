@@ -82,6 +82,10 @@ ai:
     base-url: http://127.0.0.1:8001
     admin-api-key: ${AI_CHAT_ADMIN_KEY:test-key}
     timeout-seconds: 30
+  risk-api:
+    url: ${AI_RISK_API_URL:http://127.0.0.1:8000}
+    timeout-seconds: 60
+    max-retry: 3
   slots:
     # 슬롯 정의: docs/API_CONTRACT_SSOT.md §8.6 기준
     domains:
