@@ -35,6 +35,7 @@ import com.smartchain.platform.dto.role.request.RoleRequestStatusDto;
 import com.smartchain.platform.global.enums.RequestStatus;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
+import com.smartchain.platform.global.util.NameMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -234,6 +235,7 @@ public class RoleRequestService {
             processedByDto = ProcessedByDto.builder()
                     .userId(roleRequest.getProcessedBy().getUserId())
                     .name(roleRequest.getProcessedBy().getName())
+                    .maskedName(NameMaskingUtil.mask(roleRequest.getProcessedBy().getName()))
                     .build();
         }
 
@@ -334,6 +336,7 @@ public class RoleRequestService {
         UserSimpleDto userDto = UserSimpleDto.builder()
                 .userId(roleRequest.getUser().getUserId())
                 .name(roleRequest.getUser().getName())
+                .maskedName(NameMaskingUtil.mask(roleRequest.getUser().getName()))
                 .email(roleRequest.getUser().getEmail())
                 .build();
 
@@ -399,6 +402,7 @@ public class RoleRequestService {
         UserSimpleDto userDto = UserSimpleDto.builder()
                 .userId(roleRequest.getUser().getUserId())
                 .name(roleRequest.getUser().getName())
+                .maskedName(NameMaskingUtil.mask(roleRequest.getUser().getName()))
                 .email(roleRequest.getUser().getEmail())
                 .build();
 
@@ -521,6 +525,7 @@ public class RoleRequestService {
         ProcessedByDto processedByDto = ProcessedByDto.builder()
                 .userId(currentUser.getUserId())
                 .name(currentUser.getName())
+                .maskedName(NameMaskingUtil.mask(currentUser.getName()))
                 .build();
 
         return RoleDecisionResponse.builder()

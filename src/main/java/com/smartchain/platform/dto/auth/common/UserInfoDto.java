@@ -16,6 +16,7 @@ public class UserInfoDto {
     private Long userId;
     private String email;
     private String name;
+    private String maskedName;
     private String profileImageUrl;
     private CompanyInfoDto company;
     private RoleInfoDto role;

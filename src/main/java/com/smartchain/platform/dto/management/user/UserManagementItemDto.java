@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 public class UserManagementItemDto {
     private Long userId;
     private String name;
+    private String maskedName;
     private String email;
     private CompanySimpleDto company;
     private RoleSimpleDto role;

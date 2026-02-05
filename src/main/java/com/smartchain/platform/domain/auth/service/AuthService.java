@@ -23,6 +23,7 @@ import com.smartchain.platform.dto.auth.register.RegisterRequest;
 import com.smartchain.platform.dto.auth.register.RegisterResponse;
 import com.smartchain.platform.dto.auth.token.TokenRefreshRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshResponse;
+import com.smartchain.platform.global.util.NameMaskingUtil;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.enums.RequestStatus;
 import com.smartchain.platform.global.enums.UserStatus;
@@ -377,6 +378,7 @@ public class AuthService {
                 .userId(user.getUserId())
                 .email(user.getEmail())
                 .name(user.getName())
+                .maskedName(NameMaskingUtil.mask(user.getName()))
                 .lastLoginAt(user.getLastLoginAt())
                 .createdAt(user.getCreatedAt());
 
@@ -432,7 +434,8 @@ public class AuthService {
         UserInfoDto.UserInfoDtoBuilder builder = UserInfoDto.builder()
                 .userId(user.getUserId())
                 .email(user.getEmail())
-                .name(user.getName());
+                .name(user.getName())
+                .maskedName(NameMaskingUtil.mask(user.getName()));
 
         if (user.getRole() != null) {
             builder.role(RoleInfoDto.builder()

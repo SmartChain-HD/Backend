@@ -22,6 +22,7 @@ import com.smartchain.platform.global.enums.ReviewStatus;
 import com.smartchain.platform.global.enums.RiskLevel;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
+import com.smartchain.platform.global.util.NameMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -365,6 +366,7 @@ public class ReviewService {
         ProcessedByDto processedByDto = ProcessedByDto.builder()
                 .userId(currentUser.getUserId())
                 .name(currentUser.getName())
+                .maskedName(NameMaskingUtil.mask(currentUser.getName()))
                 .build();
 
         return ReviewDecisionResponse.builder()
@@ -594,6 +596,7 @@ public class ReviewService {
             assignedToDto = AssignedToDto.builder()
                     .userId(review.getAssignedReviewer().getUserId())
                     .name(review.getAssignedReviewer().getName())
+                    .maskedName(NameMaskingUtil.mask(review.getAssignedReviewer().getName()))
                     .build();
         }
 

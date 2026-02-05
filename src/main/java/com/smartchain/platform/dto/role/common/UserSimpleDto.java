@@ -12,5 +12,6 @@ import lombok.NoArgsConstructor;
 public class UserSimpleDto {
     private Long userId;
     private String name;
+    private String maskedName;
     private String email;
 }
