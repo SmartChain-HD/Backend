@@ -1,5 +1,33 @@
 # Claude Code Learnings
 
+## 2026-02-05: 외부 위험 감지 API 연동 - REVIEWER 전용 (#183)
+
+### 원인
+- REVIEWER 전용 외부 리스크 감지 기능 필요 (협력사 리스크 분석)
+- 기존 AI Run API 패턴 재사용하여 새로운 `/risk/external/detect` API 연동
+
+### 해결
+- **ErrorCode**: RISK001~004 에러코드 추가
+- **ExternalRiskApiConfig**: `ai.risk-api` 설정 기반 WebClient 빈 생성 (AiRunApiConfig 패턴 복사)
+- **DTO 4개**: Backend↔AI 통신용 + Frontend↔Backend 통신용 분리
+- **ExternalRiskApiClient**: WebClient 기반 AI 서버 통신 (retry/에러핸들링)
+- **ExternalRiskResult**: JPA 엔티티 (리스크 결과 저장, BaseTimeEntity 상속)
+- **ExternalRiskService**: userId 기반 User 조회 + REVIEWER 권한 검증 + AI 호출 + 결과 저장
+- **ExternalRiskController**: REST 엔드포인트 3개 (detect, results/{companyId}, results)
+- **SecurityConfig**: `/api/v1/risk/**` REVIEWER 전용 제한 추가
+
+### 재발방지
+- 새 도메인 API 추가 시 SecurityConfig에 경로 권한 설정 필수
+- 서비스 메서드는 Controller에서 userId(Long)를 받아 내부에서 User 조회하는 패턴 준수
+- WebClient 빈 이름 충돌 주의 (@Qualifier로 구분)
+
+### 검증방법
+- `./gradlew test --tests "ExternalRiskServiceTest"` (단위 테스트 8개)
+- `./gradlew test && ./gradlew build` (전체 빌드 통과)
+
+### 관련커밋
+- feature/refactor-data-initializer 브랜치에서 작업
+
 ## 2026-02-04: 기안 상태 불일치 - 심사중/완료 동시 존재 (#156)
 
 ### 원인

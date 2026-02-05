@@ -54,7 +54,8 @@ public class SecurityConfig {
                                 "/api/v1/jobs/**",
                                 "/api/v1/chat/**"
                         ).hasAnyRole("DRAFTER", "APPROVER", "REVIEWER")
-                        // Admin Chat API는 REVIEWER만 접근 가능
+                        // REVIEWER 전용 API
+                        .requestMatchers("/api/v1/risk/**").hasRole("REVIEWER")
                         .requestMatchers("/api/v1/admin/chat/**").hasRole("REVIEWER")
                         .anyRequest().authenticated()
                 )
