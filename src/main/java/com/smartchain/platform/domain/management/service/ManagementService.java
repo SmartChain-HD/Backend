@@ -26,6 +26,7 @@ import com.smartchain.platform.dto.management.user.*;
 import com.smartchain.platform.global.enums.*;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
+import com.smartchain.platform.global.util.NameMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -429,6 +430,7 @@ public class ManagementService {
                 .user(UserSimpleDto.builder()
                         .userId(user.getUserId())
                         .name(user.getName())
+                        .maskedName(NameMaskingUtil.mask(user.getName()))
                         .email(user.getEmail())
                         .build())
                 .company(user.getCompany() != null ? CompanySimpleDto.builder()
@@ -451,6 +453,7 @@ public class ManagementService {
         return UserManagementItemDto.builder()
                 .userId(user.getUserId())
                 .name(user.getName())
+                .maskedName(NameMaskingUtil.mask(user.getName()))
                 .email(user.getEmail())
                 .company(user.getCompany() != null ? CompanySimpleDto.builder()
                         .companyId(user.getCompany().getCompanyId())
@@ -510,6 +513,7 @@ public class ManagementService {
             userInfo = UserLogInfoDto.builder()
                     .userId(user.getUserId())
                     .name(user.getName())
+                    .maskedUserName(NameMaskingUtil.mask(user.getName()))
                     .role(user.getRole() != null ? user.getRole().getCode() : null)
                     .build();
         }

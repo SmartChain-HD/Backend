@@ -1,5 +1,31 @@
 # Claude Code Learnings
 
+## 2026-02-05: 서버 사이드 이름 마스킹 (개인정보 보호법 제29조 준수)
+
+### 원인
+- API 응답에서 사용자 이름이 평문으로 노출되어 네트워크 탭에서 원본 이름 확인 가능
+- 프론트엔드 마스킹만으로는 개인정보 보호법 제29조(안전조치의무) 미충족
+
+### 해결
+- `NameMaskingUtil` 유틸리티 클래스 신설 (`global/util/NameMaskingUtil.java`)
+- 마스킹 규칙: 1글자 → 그대로, 2글자 → 첫+*, 3글자 → 첫+*+끝, 4글자+ → 첫+**...+끝
+- 10개 API 대상 DTO에 `maskedName` 필드 추가 (기존 `name` 필드 유지)
+- 6개 서비스 (Auth, Approval, Diagnostic, Review, RoleRequest, Management)에서 빌더 호출 시 마스킹 적용
+- 동일 구조의 ProcessedByDto가 3개 패키지(approval/detail, review/common, role/common)에 분산되어 있어 모두 통일 수정
+
+### 재발방지
+- 신규 사용자 이름 포함 DTO 추가 시 반드시 `maskedName` 필드 포함
+- `NameMaskingUtil.mask()` 사용하여 서비스 레이어에서 마스킹 적용
+
+### 검증방법
+- `NameMaskingUtilTest` 단위 테스트 (null/빈값, 1~4+글자, 영문 포함)
+- `./gradlew build` 전체 빌드 및 테스트 통과
+
+### 관련커밋
+- (커밋 전)
+
+---
+
 ## 2026-02-05: 외부 위험 감지 API 연동 - REVIEWER 전용 (#183)
 
 ### 원인

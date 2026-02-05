@@ -28,6 +28,7 @@ import com.smartchain.platform.global.enums.ApprovalStatus;
 import com.smartchain.platform.global.enums.DiagnosticStatus;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
+import com.smartchain.platform.global.util.NameMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -209,6 +210,7 @@ public class ApprovalService {
             processedByDto = ProcessedByDto.builder()
                     .userId(approval.getApprover().getUserId())
                     .name(approval.getApprover().getName())
+                    .maskedName(NameMaskingUtil.mask(approval.getApprover().getName()))
                     .build();
         }
 
@@ -272,6 +274,7 @@ public class ApprovalService {
         ProcessedByDto processedByDto = ProcessedByDto.builder()
                 .userId(currentUser.getUserId())
                 .name(currentUser.getName())
+                .maskedName(NameMaskingUtil.mask(currentUser.getName()))
                 .build();
 
         return ApprovalDecisionResponse.builder()
@@ -384,6 +387,7 @@ public class ApprovalService {
         RequesterDto requesterDto = RequesterDto.builder()
                 .userId(approval.getRequester().getUserId())
                 .name(approval.getRequester().getName())
+                .maskedName(NameMaskingUtil.mask(approval.getRequester().getName()))
                 .build();
 
         String requestedAtLabel = approval.getCreatedAt() != null

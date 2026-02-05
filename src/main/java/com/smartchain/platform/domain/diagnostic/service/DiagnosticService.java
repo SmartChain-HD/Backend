@@ -35,6 +35,7 @@ import com.smartchain.platform.dto.diagnostic.submit.DiagnosticSubmitResponse;
 import com.smartchain.platform.global.enums.DiagnosticStatus;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
+import com.smartchain.platform.global.util.NameMaskingUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -224,6 +225,7 @@ public class DiagnosticService {
             createdByDto = CreatedByDto.builder()
                     .userId(drafter.getUserId())
                     .name(drafter.getName())
+                    .maskedName(NameMaskingUtil.mask(drafter.getName()))
                     .build();
         }
 

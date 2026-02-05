@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 public class CreatedByDto {
     private Long userId;
     private String name;
+    private String maskedName;
 }

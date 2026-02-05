@@ -12,5 +12,6 @@ import lombok.NoArgsConstructor;
 public class UserLogInfoDto {
     private Long userId;
     private String name;
+    private String maskedUserName;
     private String role;
 }
