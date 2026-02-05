@@ -1,6 +1,11 @@
 package com.smartchain.platform.domain.chat.service;
 
 import com.smartchain.platform.domain.chat.client.AiChatApiClient;
+import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
+import com.smartchain.platform.domain.evidence.entity.EvidenceFile;
+import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
+import com.smartchain.platform.domain.file.storage.FileStorageService;
+import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.dto.chat.AdminInspectResponse;
@@ -20,11 +25,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,11 +41,18 @@ class ChatServiceTest {
     @Mock
     private AiChatApiClient aiChatApiClient;
 
+    @Mock
+    private EvidenceFileRepository evidenceFileRepository;
+
+    @Mock
+    private FileStorageService fileStorageService;
+
     private ChatService chatService;
 
     @BeforeEach
     void setUp() {
-        chatService = new ChatService(aiChatApiClient);
+        chatService = new ChatService(aiChatApiClient, evidenceFileRepository, fileStorageService);
+        ReflectionTestUtils.setField(chatService, "serverPort", 8080);
     }
 
     @Nested
@@ -51,11 +66,10 @@ class ChatServiceTest {
             User user = createTestUser("DRAFTER");
             ChatRequest request = new ChatRequest(
                 "하도급법 위반 시 벌점은?",
+                null, null,
                 List.of(),
                 "compliance",
-                null,
-                8,
-                null
+                null, 8, null
             );
 
             ChatResponse expectedResponse = new ChatResponse(
@@ -89,11 +103,10 @@ class ChatServiceTest {
             String existingSessionId = "existing-session-123";
             ChatRequest request = new ChatRequest(
                 "추가 질문입니다",
+                null, null,
                 List.of(),
                 "esg",
-                null,
-                8,
-                existingSessionId
+                null, 8, existingSessionId
             );
 
             ChatResponse expectedResponse = new ChatResponse("답변입니다.", "medium", null, List.of());
@@ -115,11 +128,10 @@ class ChatServiceTest {
             User user = createTestUser("DRAFTER");
             ChatRequest request = new ChatRequest(
                 "질문입니다",
+                null, null,
                 List.of(),
                 "invalid_domain",
-                null,
-                8,
-                null
+                null, 8, null
             );
 
             // when & then
@@ -140,11 +152,10 @@ class ChatServiceTest {
             User user = createTestUser("DRAFTER");
             ChatRequest request = new ChatRequest(
                 "질문입니다",
+                null, null,
                 List.of(),
                 "all",
-                null,
-                8,
-                null
+                null, 8, null
             );
 
             when(aiChatApiClient.chatSync(any(ChatRequest.class)))
@@ -157,6 +168,173 @@ class ChatServiceTest {
                     CustomException customEx = (CustomException) ex;
                     assertThat(customEx.getErrorCode()).isEqualTo(ErrorCode.AI_CHAT_SERVICE_ERROR);
                 });
+        }
+    }
+
+    @Nested
+    @DisplayName("chat - fileId")
+    class ChatFileTest {
+
+        @Test
+        @DisplayName("fileId가 있으면 presigned URL로 변환하여 Python에 전달한다")
+        void chat_withFileId_resolvesFileUrl() {
+            // given
+            Company company = createTestCompany(1L);
+            User user = createTestUserWithCompany("DRAFTER", company);
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getCompany()).thenReturn(company);
+
+            EvidenceFile evidenceFile = mock(EvidenceFile.class);
+            when(evidenceFile.getFilePath()).thenReturn("diagnostics/1/abc_report.pdf");
+            when(evidenceFile.getOriginalFileName()).thenReturn("report.pdf");
+            when(evidenceFile.getDiagnostic()).thenReturn(diagnostic);
+
+            when(evidenceFileRepository.findById(42L)).thenReturn(Optional.of(evidenceFile));
+            when(fileStorageService.getPresignedUrl(eq("diagnostics/1/abc_report.pdf"), any(Duration.class)))
+                .thenReturn("https://account.blob.core.windows.net/container/diagnostics/1/abc_report.pdf?sv=...");
+
+            ChatRequest request = new ChatRequest(
+                "이 문서를 요약해줘",
+                42L, null,
+                List.of(), "esg", null, 8, null
+            );
+
+            ChatResponse expectedResponse = new ChatResponse("문서 요약입니다.", "high", null, List.of());
+            when(aiChatApiClient.chatSync(any(ChatRequest.class))).thenReturn(expectedResponse);
+
+            // when
+            ChatResponse response = chatService.chat(request, user);
+
+            // then
+            assertThat(response).isNotNull();
+
+            ArgumentCaptor<ChatRequest> requestCaptor = ArgumentCaptor.forClass(ChatRequest.class);
+            verify(aiChatApiClient).chatSync(requestCaptor.capture());
+            ChatRequest sentRequest = requestCaptor.getValue();
+            assertThat(sentRequest.fileUrl()).startsWith("https://");
+            assertThat(sentRequest.fileId()).isNull(); // Python에 보내는 요청에는 fileId 제거
+        }
+
+        @Test
+        @DisplayName("로컬 환경에서는 상대 경로를 절대 URL로 변환한다")
+        void chat_withFileId_localEnv_convertsToAbsoluteUrl() {
+            // given
+            Company company = createTestCompany(1L);
+            User user = createTestUserWithCompany("DRAFTER", company);
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getCompany()).thenReturn(company);
+
+            EvidenceFile evidenceFile = mock(EvidenceFile.class);
+            when(evidenceFile.getFilePath()).thenReturn("diagnostics/1/abc_report.pdf");
+            when(evidenceFile.getOriginalFileName()).thenReturn("report.pdf");
+            when(evidenceFile.getDiagnostic()).thenReturn(diagnostic);
+
+            when(evidenceFileRepository.findById(10L)).thenReturn(Optional.of(evidenceFile));
+            when(fileStorageService.getPresignedUrl(eq("diagnostics/1/abc_report.pdf"), any(Duration.class)))
+                .thenReturn("/api/v1/files/local/diagnostics/1/abc_report.pdf");
+
+            ChatRequest request = new ChatRequest(
+                "이 문서를 분석해줘",
+                10L, null,
+                List.of(), "esg", null, 8, null
+            );
+
+            ChatResponse expectedResponse = new ChatResponse("분석 결과입니다.", "medium", null, List.of());
+            when(aiChatApiClient.chatSync(any(ChatRequest.class))).thenReturn(expectedResponse);
+
+            // when
+            chatService.chat(request, user);
+
+            // then
+            ArgumentCaptor<ChatRequest> requestCaptor = ArgumentCaptor.forClass(ChatRequest.class);
+            verify(aiChatApiClient).chatSync(requestCaptor.capture());
+            assertThat(requestCaptor.getValue().fileUrl())
+                .isEqualTo("http://localhost:8080/api/v1/files/local/diagnostics/1/abc_report.pdf");
+        }
+
+        @Test
+        @DisplayName("fileId가 null이면 fileUrl 없이 정상 동작한다")
+        void chat_withoutFileId_worksNormally() {
+            // given
+            User user = createTestUser("DRAFTER");
+            ChatRequest request = new ChatRequest(
+                "일반 질문입니다",
+                null, null,
+                List.of(), "all", null, 8, null
+            );
+
+            ChatResponse expectedResponse = new ChatResponse("답변입니다.", "high", null, List.of());
+            when(aiChatApiClient.chatSync(any(ChatRequest.class))).thenReturn(expectedResponse);
+
+            // when
+            ChatResponse response = chatService.chat(request, user);
+
+            // then
+            assertThat(response).isNotNull();
+            verify(evidenceFileRepository, never()).findById(any());
+
+            ArgumentCaptor<ChatRequest> requestCaptor = ArgumentCaptor.forClass(ChatRequest.class);
+            verify(aiChatApiClient).chatSync(requestCaptor.capture());
+            assertThat(requestCaptor.getValue().fileUrl()).isNull();
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 fileId면 FILE_NOT_FOUND 에러를 발생시킨다")
+        void chat_fileNotFound_throwsException() {
+            // given
+            User user = createTestUser("DRAFTER");
+            ChatRequest request = new ChatRequest(
+                "이 문서를 분석해줘",
+                999L, null,
+                List.of(), "esg", null, 8, null
+            );
+
+            when(evidenceFileRepository.findById(999L)).thenReturn(Optional.empty());
+
+            // when & then
+            assertThatThrownBy(() -> chatService.chat(request, user))
+                .isInstanceOf(CustomException.class)
+                .satisfies(ex -> {
+                    CustomException customEx = (CustomException) ex;
+                    assertThat(customEx.getErrorCode()).isEqualTo(ErrorCode.FILE_NOT_FOUND);
+                });
+
+            verify(aiChatApiClient, never()).chatSync(any());
+        }
+
+        @Test
+        @DisplayName("다른 회사의 파일에 접근하면 PERMISSION_DENIED_ACTION 에러를 발생시킨다")
+        void chat_differentCompany_throwsException() {
+            // given
+            Company userCompany = createTestCompany(1L);
+            Company fileCompany = createTestCompany(2L);
+            User user = createTestUserWithCompany("DRAFTER", userCompany);
+
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getCompany()).thenReturn(fileCompany);
+
+            EvidenceFile evidenceFile = mock(EvidenceFile.class);
+            when(evidenceFile.getDiagnostic()).thenReturn(diagnostic);
+
+            when(evidenceFileRepository.findById(42L)).thenReturn(Optional.of(evidenceFile));
+
+            ChatRequest request = new ChatRequest(
+                "이 문서를 분석해줘",
+                42L, null,
+                List.of(), "esg", null, 8, null
+            );
+
+            // when & then
+            assertThatThrownBy(() -> chatService.chat(request, user))
+                .isInstanceOf(CustomException.class)
+                .satisfies(ex -> {
+                    CustomException customEx = (CustomException) ex;
+                    assertThat(customEx.getErrorCode()).isEqualTo(ErrorCode.PERMISSION_DENIED_ACTION);
+                });
+
+            verify(aiChatApiClient, never()).chatSync(any());
         }
     }
 
@@ -274,5 +452,29 @@ class ChatServiceTest {
         ReflectionTestUtils.setField(user, "userId", 1L);
 
         return user;
+    }
+
+    private User createTestUserWithCompany(String roleCode, Company company) {
+        Role role = new Role(roleCode + " 역할", roleCode);
+
+        User user = User.builder()
+            .email("test@example.com")
+            .userPassword("password")
+            .name("테스트 사용자")
+            .role(role)
+            .company(company)
+            .build();
+        ReflectionTestUtils.setField(user, "userId", 1L);
+
+        return user;
+    }
+
+    private Company createTestCompany(Long companyId) {
+        Company company = Company.builder()
+            .name("테스트 회사 " + companyId)
+            .businessNumber("123-45-6789" + companyId)
+            .build();
+        ReflectionTestUtils.setField(company, "companyId", companyId);
+        return company;
     }
 }
