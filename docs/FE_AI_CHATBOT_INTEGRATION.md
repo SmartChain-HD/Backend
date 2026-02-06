@@ -1,11 +1,21 @@
 # AI Chatbot 프론트엔드 통합 가이드
 
-> 작성일: 2026-02-04
-> 관련 이슈: #140, #141
+> 작성일: 2026-02-04 | 수정일: 2026-02-05
+> 관련 이슈: #140, #141, #186, #187, #188
 
 ## 개요
 
 AI 기반 RAG 챗봇 API가 백엔드에 통합되었습니다. 이 문서는 프론트엔드에서 API를 연동하기 위한 가이드입니다.
+
+---
+
+## v1.1 변경사항 (2026-02-05)
+
+| 항목 | 변경 내용 |
+|------|----------|
+| `file_id` 필드 추가 | 증빙파일 ID를 보내면 AI가 해당 문서를 분석하여 답변 생성 |
+| `file_url` 필드 | **FE는 사용하지 않음** (BE가 내부적으로 Python에 전달하는 용도) |
+| 권한 검증 강화 | 다른 회사의 파일 접근 시 403 에러 |
 
 ---
 
@@ -31,30 +41,52 @@ Authorization: Bearer {token}
 Content-Type: application/json
 ```
 
+#### 기본 채팅 (텍스트만)
+
 ```json
 {
   "message": "하도급법 위반 시 벌점은?",
+  "domain": "compliance"
+}
+```
+
+#### 파일 분석 채팅 (v1.1 신규)
+
+```json
+{
+  "message": "이 문서의 핵심 내용을 요약해줘",
+  "file_id": 42,
+  "domain": "esg"
+}
+```
+
+#### 멀티턴 대화
+
+```json
+{
+  "message": "좀 더 자세히 설명해줘",
   "history": [
-    {"role": "user", "content": "이전 질문"},
-    {"role": "assistant", "content": "이전 답변"}
+    {"role": "user", "content": "하도급법이 뭐야?"},
+    {"role": "assistant", "content": "하도급 거래 공정화에 관한 법률입니다..."}
   ],
   "domain": "compliance",
-  "docName": null,
-  "topK": 8,
-  "sessionId": null
+  "session_id": "이전-응답에서-받은-세션ID"
 }
 ```
 
 ### Request 필드
 
-| 필드 | 타입 | 필수 | 기본값 | 설명 |
-|------|------|------|--------|------|
-| `message` | string | **Yes** | - | 사용자의 질문 내용 |
-| `history` | array | No | `[]` | 이전 대화 기록 (멀티턴 문맥 파악용) |
-| `domain` | string | No | `"all"` | 검색 영역 필터: `safety`, `compliance`, `esg`, `all` |
-| `docName` | string | No | `null` | 특정 문서 내 검색 시 파일명 |
-| `topK` | integer | No | `8` | 검색할 문서 개수 (1~30) |
-| `sessionId` | string | No | `null` | 세션 식별자 (null이면 서버에서 자동 생성) |
+| 필드 | JSON key | 타입 | 필수 | 기본값 | 설명 |
+|------|----------|------|------|--------|------|
+| message | `message` | string | **Yes** | - | 사용자의 질문 내용 |
+| fileId | `file_id` | number | No | `null` | **[v1.1]** 분석할 증빙파일 ID (`EvidenceFile.resultFileId`) |
+| history | `history` | array | No | `[]` | 이전 대화 기록 (멀티턴 문맥 파악용) |
+| domain | `domain` | string | No | `"all"` | 검색 영역 필터: `safety`, `compliance`, `esg`, `all` |
+| docName | `doc_name` | string | No | `null` | 특정 문서 내 검색 시 파일명 |
+| topK | `top_k` | integer | No | `8` | 검색할 문서 개수 (1~30) |
+| sessionId | `session_id` | string | No | `null` | 세션 식별자 (null이면 서버에서 자동 생성) |
+
+> **참고**: `file_url` 필드는 BE 내부 전용입니다. FE에서 보내지 마세요. `file_id`만 보내면 BE가 presigned URL을 생성하여 AI 서비스에 전달합니다.
 
 ### Response
 
@@ -79,7 +111,7 @@ Content-Type: application/json
       }
     ]
   },
-  "timestamp": "2026-02-04T13:40:00"
+  "timestamp": "2026-02-05T13:40:00"
 }
 ```
 
@@ -126,7 +158,7 @@ Authorization: Bearer {token}
     "status": "accepted",
     "message": "동기화 작업이 백그라운드에서 시작되었습니다."
   },
-  "timestamp": "2026-02-04T13:40:00"
+  "timestamp": "2026-02-05T13:40:00"
 }
 ```
 
@@ -156,7 +188,7 @@ Authorization: Bearer {token}
       "[code] validators.py (ID: code:validators.py:L10-L50...)"
     ]
   },
-  "timestamp": "2026-02-04T13:40:00"
+  "timestamp": "2026-02-05T13:40:00"
 }
 ```
 
@@ -169,7 +201,8 @@ Authorization: Bearer {token}
 | `CHAT001` | 500 | AI 채팅 서비스 오류가 발생했습니다 |
 | `CHAT002` | 504 | AI 채팅 서비스 응답 시간이 초과되었습니다 |
 | `CHAT003` | 400 | 유효하지 않은 도메인입니다 |
-| `PERM_002` | 403 | 해당 작업을 수행할 권한이 없습니다 |
+| `FILE_001` | 404 | **[v1.1]** 파일을 찾을 수 없습니다 (`file_id`가 잘못된 경우) |
+| `PERM_002` | 403 | 해당 작업을 수행할 권한이 없습니다 (다른 회사 파일 접근 포함) |
 | `A001` | 401 | 유효하지 않은 토큰입니다 |
 
 ### 에러 응답 예시
@@ -177,11 +210,44 @@ Authorization: Bearer {token}
 ```json
 {
   "success": false,
-  "code": "CHAT003",
-  "message": "유효하지 않은 도메인입니다",
-  "timestamp": "2026-02-04T13:40:00"
+  "code": "FILE_001",
+  "message": "파일을 찾을 수 없습니다",
+  "timestamp": "2026-02-05T13:40:00"
 }
 ```
+
+---
+
+## 파일 분석 연동 가이드 (v1.1)
+
+### 사용 시나리오
+
+1. 사용자가 진단 상세 화면에서 증빙파일을 보고 있음
+2. 챗봇을 열고 "이 문서 요약해줘" + 파일 선택
+3. FE는 해당 파일의 `resultFileId`를 `file_id`로 전달
+4. AI가 문서를 분석하여 답변 생성
+
+### file_id 얻는 방법
+
+증빙파일 목록 API 응답에서 `resultFileId` 사용:
+
+```
+GET /api/v1/diagnostics/{id}/files
+→ response.data[].resultFileId  ← 이 값을 file_id로 사용
+```
+
+### 권한 규칙
+
+- 자기 회사의 파일만 분석 가능
+- 다른 회사 파일 → `403 PERM_002`
+- 존재하지 않는 file_id → `404 FILE_001`
+
+### UI 구현 포인트
+
+- 챗봇 입력창 옆에 **파일 첨부 버튼** (클립 아이콘 등)
+- 클릭 시 현재 진단의 증빙파일 목록에서 선택
+- 선택된 파일명을 입력창 위에 칩/태그로 표시
+- 파일 없이도 일반 채팅은 정상 동작
 
 ---
 
@@ -190,6 +256,7 @@ Authorization: Bearer {token}
 ### 1. 채팅 UI
 
 - **메시지 입력**: 텍스트 입력 필드 + 전송 버튼
+- **파일 첨부**: 파일 선택 버튼 (optional)
 - **도메인 선택**: 드롭다운 (safety, compliance, esg, all)
 - **히스토리 관리**: 클라이언트에서 대화 기록 유지 후 `history` 파라미터로 전달
 - **세션 관리**: 첫 응답에서 받은 sessionId를 이후 요청에 재사용 (또는 서버 자동 생성)
@@ -207,6 +274,7 @@ Authorization: Bearer {token}
 ### 3. 로딩 상태
 
 - AI 응답은 최대 30초까지 소요될 수 있음
+- 파일 분석 시 더 오래 걸릴 수 있음
 - 로딩 인디케이터 또는 타이핑 애니메이션 권장
 
 ### 4. Admin 페이지 (REVIEWER 전용)
@@ -216,17 +284,18 @@ Authorization: Bearer {token}
 
 ---
 
-## TypeScript 타입 정의 (참고용)
+## TypeScript 타입 정의
 
 ```typescript
 // Request
 interface ChatRequest {
   message: string;
+  file_id?: number;         // [v1.1] 분석할 증빙파일 ID
   history?: ChatMessage[];
   domain?: 'safety' | 'compliance' | 'esg' | 'all';
-  docName?: string;
-  topK?: number;
-  sessionId?: string;
+  doc_name?: string;
+  top_k?: number;
+  session_id?: string;
 }
 
 interface ChatMessage {
@@ -271,3 +340,4 @@ interface AdminInspectResponse {
 | 날짜 | 버전 | 변경 내용 |
 |------|------|----------|
 | 2026-02-04 | 1.0 | 최초 작성 |
+| 2026-02-05 | 1.1 | `file_id` 파일 분석 기능 추가, 에러코드 추가, TS 타입 업데이트 |
