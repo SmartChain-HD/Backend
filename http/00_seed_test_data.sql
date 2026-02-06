@@ -47,6 +47,9 @@ SELECT '(주)협력사A', '중소기업', '234-56-78901', '김철수', '경기�
 FROM industry i WHERE i.code = 'MANUFACTURING'
 AND NOT EXISTS (SELECT 1 FROM company WHERE business_number = '234-56-78901');
 
+-- ========== 3-1. 외부 리스크 분석 대상 협력사 ==========
+-- DataInitializer.java로 이동됨 (섹션 2-1)
+
 -- ========== 4. Campaign ==========
 -- ESG 캠페인
 INSERT INTO campaign (campaign_code, title, content, domain_id, owner_company_id,
@@ -74,3 +77,5 @@ ON CONFLICT (campaign_code) DO NOTHING;
 -- SELECT * FROM industry;
 -- SELECT * FROM company;
 -- SELECT * FROM campaign;
+
+-- 외부 리스크 대상 회사는 DataInitializer에서 생성됨
