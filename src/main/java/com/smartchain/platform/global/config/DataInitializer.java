@@ -69,10 +69,7 @@ public class DataInitializer implements CommandLineRunner {
         }
 
         log.info("=== Starting Data Initialization ===");
-
-        // 날짜 동적 처리
-        int currentYear = LocalDate.now().getYear();
-        int lastYear = currentYear - 1;
+        log.info("=== 시나리오: 2025년 하반기 데이터 수집 캠페인 (2026년 초 진행) ===");
 
         // ========================================
         // 1. 기본 데이터: Role, Domain, Industry
@@ -92,14 +89,14 @@ public class DataInitializer implements CommandLineRunner {
         log.info("Domains created: ESG, SAFETY, COMPLIANCE");
 
         Industry manufacturing = industryRepository.save(new Industry("제조업", "MANUFACTURING"));
-        Industry it = industryRepository.save(new Industry("IT/소프트웨어", "IT"));
-        Industry construction = industryRepository.save(new Industry("건설업", "CONSTRUCTION"));
+        industryRepository.save(new Industry("IT/소프트웨어", "IT"));
+        industryRepository.save(new Industry("건설업", "CONSTRUCTION"));
         industryRepository.save(new Industry("금융업", "FINANCE"));
         industryRepository.save(new Industry("유통/소매", "RETAIL"));
         log.info("Industries created: 5 industries");
 
         // ========================================
-        // 2. 회사 데이터 (5개)
+        // 2. 회사 데이터 (1 원청 + 5 협력사 = 외부 리스크 대상)
         // ========================================
         Company ownerCompany = companyRepository.save(Company.builder()
                 .industry(manufacturing).name("HD현대중공업").scale("대기업")
@@ -108,37 +105,45 @@ public class DataInitializer implements CommandLineRunner {
                 .address("울산광역시 동구 방어진순환도로 1000").contactEmail("contact@hdhhi.co.kr")
                 .contactPhone("052-202-2114").status(CompanyStatus.ACTIVE).build());
 
-        Company partnerCompany1 = companyRepository.save(Company.builder()
-                .industry(it).name("(주)테크파트너").scale("중견기업")
-                .sales(50000000000L).asset(100000000000L).businessNumber("234-56-78901")
-                .companyType(CompanyType.TIER2).ceoName("이사장")
-                .address("서울시 서초구 서초대로 456").contactEmail("info@techpartner.co.kr")
-                .contactPhone("02-2345-6789").status(CompanyStatus.ACTIVE).build());
+        Company posco = companyRepository.save(Company.builder()
+                .industry(manufacturing).name("포스코홀딩스").scale("대기업")
+                .sales(70000000000000L).asset(90000000000000L).businessNumber("110-81-18323")
+                .companyType(CompanyType.TIER1).ceoName("장인화")
+                .address("서울특별시 강남구 테헤란로 440").contactEmail("contact@posco.com")
+                .contactPhone("02-3457-0114").status(CompanyStatus.ACTIVE).build());
 
-        Company partnerCompany2 = companyRepository.save(Company.builder()
-                .industry(manufacturing).name("(주)그린매뉴팩처링").scale("중소기업")
-                .sales(10000000000L).asset(20000000000L).businessNumber("345-67-89012")
-                .companyType(CompanyType.TIER2).ceoName("박공장")
-                .address("경기도 안산시 단원구 산단로 789").contactEmail("contact@greenmanu.co.kr")
-                .contactPhone("031-345-6789").status(CompanyStatus.ACTIVE).build());
+        Company hyundaiSteel = companyRepository.save(Company.builder()
+                .industry(manufacturing).name("현대제철").scale("대기업")
+                .sales(20000000000000L).asset(25000000000000L).businessNumber("130-81-26150")
+                .companyType(CompanyType.TIER1).ceoName("서강현")
+                .address("충청남도 당진시 송악읍 현대제철로 70").contactEmail("contact@hyundai-steel.com")
+                .contactPhone("041-530-1114").status(CompanyStatus.ACTIVE).build());
 
-        Company partnerCompany3 = companyRepository.save(Company.builder()
-                .industry(construction).name("(주)안전건설").scale("중견기업")
-                .sales(30000000000L).asset(50000000000L).businessNumber("456-78-90123")
-                .companyType(CompanyType.TIER2).ceoName("최건설")
-                .address("부산시 해운대구 센텀중앙로 97").contactEmail("contact@safebuild.co.kr")
-                .contactPhone("051-456-7890").status(CompanyStatus.ACTIVE).build());
+        Company skBend = companyRepository.save(Company.builder()
+                .industry(manufacturing).name("성광벤드").scale("중소기업")
+                .sales(200000000000L).asset(300000000000L).businessNumber("609-81-15798")
+                .companyType(CompanyType.TIER1).ceoName("이재영")
+                .address("부산광역시 강서구 녹산산업중로 333").contactEmail("contact@skbend.com")
+                .contactPhone("051-831-3100").status(CompanyStatus.ACTIVE).build());
 
-        Company partnerCompany4 = companyRepository.save(Company.builder()
-                .industry(manufacturing).name("(주)정밀부품").scale("중소기업")
-                .sales(8000000000L).asset(15000000000L).businessNumber("567-89-01234")
-                .companyType(CompanyType.TIER2).ceoName("정부품")
-                .address("경남 창원시 성산구 공단로 123").contactEmail("contact@precision.co.kr")
-                .contactPhone("055-567-8901").status(CompanyStatus.ACTIVE).build());
-        log.info("Companies created: 5 companies");
+        Company dongkuk = companyRepository.save(Company.builder()
+                .industry(manufacturing).name("동국제강").scale("대기업")
+                .sales(5000000000000L).asset(6000000000000L).businessNumber("110-81-04804")
+                .companyType(CompanyType.TIER1).ceoName("장세주")
+                .address("서울특별시 중구 을지로5길 19").contactEmail("contact@dongkuk.com")
+                .contactPhone("02-317-1114").status(CompanyStatus.ACTIVE).build());
+
+        Company hdElectric = companyRepository.save(Company.builder()
+                .industry(manufacturing).name("HD현대일렉트릭").scale("대기업")
+                .sales(3000000000000L).asset(4000000000000L).businessNumber("689-81-00032")
+                .companyType(CompanyType.TIER1).ceoName("조석")
+                .address("경상남도 창원시 성산구 현대로 2").contactEmail("contact@hd-hyundai-electric.com")
+                .contactPhone("055-278-1114").status(CompanyStatus.ACTIVE).build());
+
+        log.info("Companies created: 6 (1 owner + 5 partners = external risk targets)");
 
         // ========================================
-        // 3. 사용자 데이터 (14명) - 마스터 계정 추가
+        // 3. 사용자 데이터 (14명 + 마스터 2명)
         // ========================================
         String encodedPassword = passwordEncoder.encode("Test1234!");
 
@@ -153,51 +158,53 @@ public class DataInitializer implements CommandLineRunner {
                 .name("박심사(컴플)").email("reviewer.compliance@hdhhi.co.kr").userPassword(encodedPassword)
                 .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
 
-        // 테크파트너 직원들 (결재자1, 기안자2)
+        // 포스코홀딩스 직원들 (결재자1, 기안자2)
         User approver1 = userRepository.save(User.builder()
-                .name("김결재(테크)").email("approver@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(approverRole).emailVerified(true).build());
+                .name("김결재(포스코)").email("approver@posco.com").userPassword(encodedPassword)
+                .company(posco).role(approverRole).emailVerified(true).build());
         User drafter1 = userRepository.save(User.builder()
-                .name("이기안(테크)").email("drafter1@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(drafterRole).emailVerified(true).build());
+                .name("이기안(포스코)").email("drafter1@posco.com").userPassword(encodedPassword)
+                .company(posco).role(drafterRole).emailVerified(true).build());
         User drafter2 = userRepository.save(User.builder()
-                .name("박기안(테크)").email("drafter2@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(drafterRole).emailVerified(true).build());
+                .name("박기안(포스코)").email("drafter2@posco.com").userPassword(encodedPassword)
+                .company(posco).role(drafterRole).emailVerified(true).build());
 
-        // 그린매뉴팩처링 직원들
+        // 현대제철 직원들
         User approver2 = userRepository.save(User.builder()
-                .name("최결재(그린)").email("approver@greenmanu.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany2).role(approverRole).emailVerified(true).build());
+                .name("최결재(현대제철)").email("approver@hyundai-steel.com").userPassword(encodedPassword)
+                .company(hyundaiSteel).role(approverRole).emailVerified(true).build());
         User drafter3 = userRepository.save(User.builder()
-                .name("정기안(그린)").email("drafter@greenmanu.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany2).role(drafterRole).emailVerified(true).build());
+                .name("정기안(현대제철)").email("drafter@hyundai-steel.com").userPassword(encodedPassword)
+                .company(hyundaiSteel).role(drafterRole).emailVerified(true).build());
 
-        // 안전건설 직원들
+        // 성광벤드 직원들
         User approver3 = userRepository.save(User.builder()
-                .name("강결재(안전)").email("approver@safebuild.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany3).role(approverRole).emailVerified(true).build());
+                .name("강결재(성광벤드)").email("approver@skbend.com").userPassword(encodedPassword)
+                .company(skBend).role(approverRole).emailVerified(true).build());
         User drafter4 = userRepository.save(User.builder()
-                .name("윤기안(안전)").email("drafter@safebuild.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany3).role(drafterRole).emailVerified(true).build());
+                .name("윤기안(성광벤드)").email("drafter@skbend.com").userPassword(encodedPassword)
+                .company(skBend).role(drafterRole).emailVerified(true).build());
 
-        // 게스트 (신규 가입자)
+        // 동국제강 - 게스트 (신규 가입자)
         User guest1 = userRepository.save(User.builder()
-                .name("신입1").email("newbie1@precision.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany4).role(guestRole).emailVerified(true).build());
-        User guest2 = userRepository.save(User.builder()
-                .name("신입2").email("newbie2@precision.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany4).role(guestRole).emailVerified(true).build());
+                .name("신입(동국제강)").email("newbie@dongkuk.com").userPassword(encodedPassword)
+                .company(dongkuk).role(guestRole).emailVerified(true).build());
 
-        // [NEW] 마스터 계정 (모든 도메인 권한)
+        // HD현대일렉트릭 - 게스트 (신규 가입자)
+        User guest2 = userRepository.save(User.builder()
+                .name("신입(HD일렉)").email("newbie@hd-hyundai-electric.com").userPassword(encodedPassword)
+                .company(hdElectric).role(guestRole).emailVerified(true).build());
+
+        // 마스터 계정 (모든 도메인 권한)
         User masterReviewer = userRepository.save(User.builder()
                 .name("마스터심사").email("master.reviewer@hdhhi.co.kr").userPassword(encodedPassword)
                 .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
 
         User masterDrafter = userRepository.save(User.builder()
-                .name("마스터기안").email("master.drafter@techpartner.co.kr").userPassword(encodedPassword)
-                .company(partnerCompany1).role(drafterRole).emailVerified(true).build());
+                .name("마스터기안").email("master.drafter@posco.com").userPassword(encodedPassword)
+                .company(posco).role(drafterRole).emailVerified(true).build());
 
-        log.info("Users created: 14 users (including masters)");
+        log.info("Users created: 14 users (including 2 masters)");
 
         // ========================================
         // 4. UserDomainRole (도메인별 권한)
@@ -207,29 +214,23 @@ public class DataInitializer implements CommandLineRunner {
         userDomainRoleRepository.save(UserDomainRole.builder().user(reviewerSafety).domain(safetyDomain).role(reviewerRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(reviewerCompliance).domain(complianceDomain).role(reviewerRole).build());
 
-        // [MODIFIED] 테크파트너: ESG(결재자+기안자) + COMPLIANCE(기안자만) + SAFETY(drafter1만)
-        // 결재자는 ESG만 권한 부여
+        // 포스코홀딩스: ESG(결재자+기안자) + COMPLIANCE(기안자만) + SAFETY(drafter1만)
         userDomainRoleRepository.save(UserDomainRole.builder().user(approver1).domain(esgDomain).role(approverRole).build());
-        
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter1).domain(esgDomain).role(drafterRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter1).domain(complianceDomain).role(drafterRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter1).domain(safetyDomain).role(drafterRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter2).domain(esgDomain).role(drafterRole).build());
 
-        // [MODIFIED] 그린매뉴팩처링: ESG(결재자+기안자) + SAFETY(기안자만)
-        // 결재자는 ESG만 권한 부여
+        // 현대제철: ESG(결재자+기안자) + SAFETY(기안자만)
         userDomainRoleRepository.save(UserDomainRole.builder().user(approver2).domain(esgDomain).role(approverRole).build());
-        
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter3).domain(esgDomain).role(drafterRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter3).domain(safetyDomain).role(drafterRole).build());
 
-        // [MODIFIED] 안전건설: ESG(결재자) + SAFETY(기안자만)
-        // 결재자는 ESG만 권한 부여
+        // 성광벤드: ESG(결재자) + SAFETY(기안자만)
         userDomainRoleRepository.save(UserDomainRole.builder().user(approver3).domain(esgDomain).role(approverRole).build());
-        
         userDomainRoleRepository.save(UserDomainRole.builder().user(drafter4).domain(safetyDomain).role(drafterRole).build());
 
-        // [NEW] 마스터 계정 권한 부여 (모든 도메인)
+        // 마스터 계정 권한 부여 (모든 도메인)
         List<Domain> allDomains = List.of(esgDomain, safetyDomain, complianceDomain);
         for (Domain domain : allDomains) {
             userDomainRoleRepository.save(UserDomainRole.builder().user(masterReviewer).domain(domain).role(reviewerRole).build());
@@ -238,260 +239,251 @@ public class DataInitializer implements CommandLineRunner {
         log.info("UserDomainRoles created");
 
         // ========================================
-        // 5. Campaign (6개) - 날짜 동적 적용
+        // 5. Campaign (6개) - 2025년 하반기 시나리오
         // ========================================
-        // 현재 연도 캠페인 (1~4월)
+        // 현재 활성: 2025 하반기 데이터 수집 (기간: 2025.07~12, 마감: 2026.02)
         Campaign esgCampaignCurrent = campaignRepository.save(Campaign.builder()
-                .campaignCode("CAMP-ESG-" + currentYear + "-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(esgDomain)
-                .title(currentYear + "년 1분기 ESG 공급망 진단").content(currentYear + "년도 1차 협력사 ESG 경영 현황 진단")
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).isActive(true).build());
+                .campaignCode("CAMP-ESG-2025-H2").ownerCompanyId(ownerCompany.getCompanyId()).domain(esgDomain)
+                .title("2025년 하반기 ESG 공급망 진단").content("2025년 하반기 협력사 ESG 경영 현황 진단")
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).isActive(true).build());
 
-        // 작년 캠페인 (9~12월)
+        // 과거 완료: 2025 상반기
         Campaign esgCampaignPast = campaignRepository.save(Campaign.builder()
-                .campaignCode("CAMP-ESG-" + lastYear + "-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(esgDomain)
-                .title(lastYear + "년 3분기 ESG 공급망 진단 (완료)").content(lastYear + "년도 협력사 ESG 경영 현황 진단 - 완료")
-                .periodStartDate(LocalDate.of(lastYear, 9, 1)).periodEndDate(LocalDate.of(lastYear, 12, 31))
-                .deadline(LocalDate.of(lastYear, 11, 30)).isActive(false).build());
+                .campaignCode("CAMP-ESG-2025-H1").ownerCompanyId(ownerCompany.getCompanyId()).domain(esgDomain)
+                .title("2025년 상반기 ESG 공급망 진단 (완료)").content("2025년 상반기 협력사 ESG 경영 현황 진단 - 완료")
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 6, 30))
+                .deadline(LocalDate.of(2025, 8, 31)).isActive(false).build());
 
         Campaign safetyCampaignCurrent = campaignRepository.save(Campaign.builder()
-                .campaignCode("CAMP-SAFETY-" + currentYear + "-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(safetyDomain)
-                .title(currentYear + "년 1분기 안전보건 점검").content(currentYear + "년 1분기 협력사 안전보건 관리 현황 점검")
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).isActive(true).build());
+                .campaignCode("CAMP-SAFETY-2025-H2").ownerCompanyId(ownerCompany.getCompanyId()).domain(safetyDomain)
+                .title("2025년 하반기 안전보건 점검").content("2025년 하반기 협력사 안전보건 관리 현황 점검")
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).isActive(true).build());
 
         Campaign safetyCampaignPast = campaignRepository.save(Campaign.builder()
-                .campaignCode("CAMP-SAFETY-" + lastYear + "-002").ownerCompanyId(ownerCompany.getCompanyId()).domain(safetyDomain)
-                .title(lastYear + "년 3분기 안전보건 점검 (완료)").content(lastYear + "년 3분기 안전보건 점검 완료")
-                .periodStartDate(LocalDate.of(lastYear, 9, 1)).periodEndDate(LocalDate.of(lastYear, 12, 31))
-                .deadline(LocalDate.of(lastYear, 11, 30)).isActive(false).build());
+                .campaignCode("CAMP-SAFETY-2025-H1").ownerCompanyId(ownerCompany.getCompanyId()).domain(safetyDomain)
+                .title("2025년 상반기 안전보건 점검 (완료)").content("2025년 상반기 안전보건 점검 완료")
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 6, 30))
+                .deadline(LocalDate.of(2025, 8, 31)).isActive(false).build());
 
         Campaign complianceCampaignCurrent = campaignRepository.save(Campaign.builder()
-                .campaignCode("CAMP-COMPL-" + currentYear + "-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(complianceDomain)
-                .title(currentYear + "년 1분기 하도급 컴플라이언스 점검").content(currentYear + "년도 협력사 하도급 계약 법규 준수 점검")
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).isActive(true).build());
+                .campaignCode("CAMP-COMPL-2025-H2").ownerCompanyId(ownerCompany.getCompanyId()).domain(complianceDomain)
+                .title("2025년 하반기 하도급 컴플라이언스 점검").content("2025년 하반기 협력사 하도급 계약 법규 준수 점검")
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).isActive(true).build());
 
         Campaign complianceCampaignPast = campaignRepository.save(Campaign.builder()
-                .campaignCode("CAMP-COMPL-" + lastYear + "-001").ownerCompanyId(ownerCompany.getCompanyId()).domain(complianceDomain)
-                .title(lastYear + "년 1분기 하도급 컴플라이언스 점검 (완료)").content(lastYear + "년도 하도급 점검 완료")
-                .periodStartDate(LocalDate.of(lastYear, 1, 1)).periodEndDate(LocalDate.of(lastYear, 4, 30))
-                .deadline(LocalDate.of(lastYear, 3, 31)).isActive(false).build());
-        log.info("Campaigns created: 6 campaigns");
+                .campaignCode("CAMP-COMPL-2025-H1").ownerCompanyId(ownerCompany.getCompanyId()).domain(complianceDomain)
+                .title("2025년 상반기 하도급 컴플라이언스 점검 (완료)").content("2025년 상반기 하도급 점검 완료")
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 6, 30))
+                .deadline(LocalDate.of(2025, 8, 31)).isActive(false).build());
+        log.info("Campaigns created: 6 campaigns (2025 H2 active, 2025 H1 past)");
 
         // ========================================
-        // 6. Diagnostic - 모든 상태 커버 (15개)
+        // 6. Diagnostic - 모든 상태 커버 (17개)
         // ========================================
-        // ESG 진단들
+        // === ESG 진단들 ===
         // WRITING (작성중) - 2건
         Diagnostic esgWriting1 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + currentYear + "-001").title("테크파트너 " + currentYear + " ESG 진단")
-                .campaign(esgCampaignCurrent).company(partnerCompany1).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H2-001").title("포스코홀딩스 2025 하반기 ESG 진단")
+                .campaign(esgCampaignCurrent).company(posco).domain(esgDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
 
         Diagnostic esgWriting2 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + currentYear + "-002").title("그린매뉴 " + currentYear + " ESG 진단")
-                .campaign(esgCampaignCurrent).company(partnerCompany2).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H2-002").title("현대제철 2025 하반기 ESG 진단")
+                .campaign(esgCampaignCurrent).company(hyundaiSteel).domain(esgDomain)
                 .drafterId(drafter3.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
 
         // SUBMITTED (제출됨) - 2건
         Diagnostic esgSubmitted1 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + currentYear + "-003").title("테크파트너 " + currentYear + " ESG 진단 (제출)")
-                .campaign(esgCampaignCurrent).company(partnerCompany1).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H2-003").title("포스코홀딩스 2025 하반기 ESG 진단 (제출)")
+                .campaign(esgCampaignCurrent).company(posco).domain(esgDomain)
                 .drafterId(drafter2.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
         esgSubmitted1.submit();
         diagnosticRepository.save(esgSubmitted1);
 
         Diagnostic esgSubmitted2 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + currentYear + "-004").title("정밀부품 " + currentYear + " ESG 진단 (제출)")
-                .campaign(esgCampaignCurrent).company(partnerCompany4).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H2-004").title("동국제강 2025 하반기 ESG 진단 (제출)")
+                .campaign(esgCampaignCurrent).company(dongkuk).domain(esgDomain)
                 .drafterId(guest1.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
         esgSubmitted2.submit();
         diagnosticRepository.save(esgSubmitted2);
 
         // RETURNED (반려됨) - 1건
         Diagnostic esgReturned = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + currentYear + "-005").title("그린매뉴 " + currentYear + " ESG 진단 (반려)")
-                .campaign(esgCampaignCurrent).company(partnerCompany2).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H2-005").title("현대제철 2025 하반기 ESG 진단 (반려)")
+                .campaign(esgCampaignCurrent).company(hyundaiSteel).domain(esgDomain)
                 .drafterId(drafter3.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
         esgReturned.submit();
         esgReturned.returnForRevision();
         diagnosticRepository.save(esgReturned);
 
         // APPROVED (승인됨, 심사대기) - 2건
         Diagnostic esgApproved1 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + currentYear + "-006").title("테크파트너 " + currentYear + " ESG 진단 (승인)")
-                .campaign(esgCampaignCurrent).company(partnerCompany1).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H2-006").title("포스코홀딩스 2025 하반기 ESG 진단 (승인)")
+                .campaign(esgCampaignCurrent).company(posco).domain(esgDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
         esgApproved1.submit();
         esgApproved1.approve();
         diagnosticRepository.save(esgApproved1);
 
         Diagnostic esgApproved2 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + currentYear + "-007").title("안전건설 " + currentYear + " ESG 진단 (승인)")
-                .campaign(esgCampaignCurrent).company(partnerCompany3).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H2-007").title("성광벤드 2025 하반기 ESG 진단 (승인)")
+                .campaign(esgCampaignCurrent).company(skBend).domain(esgDomain)
                 .drafterId(drafter4.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
         esgApproved2.submit();
         esgApproved2.approve();
         diagnosticRepository.save(esgApproved2);
 
-        // REVIEWING (심사중) - 2건
+        // REVIEWING (심사중) - 2건 (상반기 캠페인)
         Diagnostic esgReviewing1 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + lastYear + "-001").title("테크파트너 " + lastYear + " ESG 진단 (심사중)")
-                .campaign(esgCampaignPast).company(partnerCompany1).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H1-001").title("포스코홀딩스 2025 상반기 ESG 진단 (심사중)")
+                .campaign(esgCampaignPast).company(posco).domain(esgDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(lastYear, 9, 1)).periodEndDate(LocalDate.of(lastYear, 12, 31))
-                .deadline(LocalDate.of(lastYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 6, 30))
+                .deadline(LocalDate.of(2025, 8, 31)).build());
         esgReviewing1.submit();
         esgReviewing1.approve();
         esgReviewing1.startReview();
         diagnosticRepository.save(esgReviewing1);
 
         Diagnostic esgReviewing2 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + lastYear + "-002").title("그린매뉴 " + lastYear + " ESG 진단 (심사중)")
-                .campaign(esgCampaignPast).company(partnerCompany2).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H1-002").title("현대제철 2025 상반기 ESG 진단 (심사중)")
+                .campaign(esgCampaignPast).company(hyundaiSteel).domain(esgDomain)
                 .drafterId(drafter3.getUserId())
-                .periodStartDate(LocalDate.of(lastYear, 9, 1)).periodEndDate(LocalDate.of(lastYear, 12, 31))
-                .deadline(LocalDate.of(lastYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 6, 30))
+                .deadline(LocalDate.of(2025, 8, 31)).build());
         esgReviewing2.submit();
         esgReviewing2.approve();
         esgReviewing2.startReview();
         diagnosticRepository.save(esgReviewing2);
 
-        // COMPLETED (완료) - 2건
+        // COMPLETED (완료) - 1건 (상반기)
         Diagnostic esgCompleted1 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + lastYear + "-003").title("안전건설 " + lastYear + " ESG 진단 (완료)")
-                .campaign(esgCampaignPast).company(partnerCompany3).domain(esgDomain)
+                .diagnosticCode("DG-ESG-2025H1-003").title("성광벤드 2025 상반기 ESG 진단 (완료)")
+                .campaign(esgCampaignPast).company(skBend).domain(esgDomain)
                 .drafterId(drafter4.getUserId())
-                .periodStartDate(LocalDate.of(lastYear, 9, 1)).periodEndDate(LocalDate.of(lastYear, 12, 31))
-                .deadline(LocalDate.of(lastYear, 3, 31)).build());
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 6, 30))
+                .deadline(LocalDate.of(2025, 8, 31)).build());
         esgCompleted1.submit();
         esgCompleted1.approve();
         esgCompleted1.startReview();
         esgCompleted1.complete();
         diagnosticRepository.save(esgCompleted1);
 
-        // [MODIFIED] 정합성 수정: 리뷰가 보완요청(REVISION_REQUIRED)이므로 완료(COMPLETE) 처리하지 않음
-        Diagnostic esgCompleted2 = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-ESG-" + lastYear + "-004").title("정밀부품 " + lastYear + " ESG 진단 (보완요청)")
-                .campaign(esgCampaignPast).company(partnerCompany4).domain(esgDomain)
+        // 보완요청 (상반기)
+        Diagnostic esgRevisionRequired = diagnosticRepository.save(Diagnostic.builder()
+                .diagnosticCode("DG-ESG-2025H1-004").title("동국제강 2025 상반기 ESG 진단 (보완요청)")
+                .campaign(esgCampaignPast).company(dongkuk).domain(esgDomain)
                 .drafterId(guest1.getUserId())
-                .periodStartDate(LocalDate.of(lastYear, 9, 1)).periodEndDate(LocalDate.of(lastYear, 12, 31))
-                .deadline(LocalDate.of(lastYear, 3, 31)).build());
-        esgCompleted2.submit();
-        esgCompleted2.approve();
-        esgCompleted2.startReview();
-        // esgCompleted2.complete(); // 제거
-        diagnosticRepository.save(esgCompleted2);
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 6, 30))
+                .deadline(LocalDate.of(2025, 8, 31)).build());
+        esgRevisionRequired.submit();
+        esgRevisionRequired.approve();
+        esgRevisionRequired.startReview();
+        diagnosticRepository.save(esgRevisionRequired);
 
-        // SAFETY 진단 (3건)
+        // === SAFETY 진단 (3건) ===
         Diagnostic safetyWriting = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-SAFETY-" + currentYear + "-001").title("그린매뉴 " + currentYear + " 안전보건 점검")
-                .campaign(safetyCampaignCurrent).company(partnerCompany2).domain(safetyDomain)
+                .diagnosticCode("DG-SAFETY-2025H2-001").title("현대제철 2025 하반기 안전보건 점검")
+                .campaign(safetyCampaignCurrent).company(hyundaiSteel).domain(safetyDomain)
                 .drafterId(drafter3.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 2, 28)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
 
         Diagnostic safetySubmitted = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-SAFETY-" + currentYear + "-002").title("안전건설 " + currentYear + " 안전보건 점검 (제출)")
-                .campaign(safetyCampaignCurrent).company(partnerCompany3).domain(safetyDomain)
+                .diagnosticCode("DG-SAFETY-2025H2-002").title("성광벤드 2025 하반기 안전보건 점검 (제출)")
+                .campaign(safetyCampaignCurrent).company(skBend).domain(safetyDomain)
                 .drafterId(drafter4.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 2, 28)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
         safetySubmitted.submit();
         diagnosticRepository.save(safetySubmitted);
 
         Diagnostic safetyCompleted = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-SAFETY-" + lastYear + "-001").title("안전건설 " + lastYear + " 안전보건 점검 (완료)")
-                .campaign(safetyCampaignPast).company(partnerCompany3).domain(safetyDomain)
+                .diagnosticCode("DG-SAFETY-2025H1-001").title("성광벤드 2025 상반기 안전보건 점검 (완료)")
+                .campaign(safetyCampaignPast).company(skBend).domain(safetyDomain)
                 .drafterId(drafter4.getUserId())
-                .periodStartDate(LocalDate.of(lastYear, 9, 1)).periodEndDate(LocalDate.of(lastYear, 12, 31))
-                .deadline(LocalDate.of(lastYear, 11, 30)).build());
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 6, 30))
+                .deadline(LocalDate.of(2025, 8, 31)).build());
         safetyCompleted.submit();
         safetyCompleted.approve();
         safetyCompleted.startReview();
         safetyCompleted.complete();
         diagnosticRepository.save(safetyCompleted);
 
-        // COMPLIANCE 진단 (2건)
+        // === COMPLIANCE 진단 (2건) ===
         Diagnostic complianceWriting = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-COMPL-" + currentYear + "-001").title("테크파트너 " + currentYear + " 컴플라이언스 점검")
-                .campaign(complianceCampaignCurrent).company(partnerCompany1).domain(complianceDomain)
+                .diagnosticCode("DG-COMPL-2025H2-001").title("포스코홀딩스 2025 하반기 컴플라이언스 점검")
+                .campaign(complianceCampaignCurrent).company(posco).domain(complianceDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(currentYear, 1, 1)).periodEndDate(LocalDate.of(currentYear, 4, 30))
-                .deadline(LocalDate.of(currentYear, 4, 15)).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
+                .deadline(LocalDate.of(2026, 2, 28)).build());
 
-        // [MODIFIED] 정합성 수정: 리뷰가 보완요청이므로 완료 처리하지 않음
-        Diagnostic complianceCompleted = diagnosticRepository.save(Diagnostic.builder()
-                .diagnosticCode("DG-COMPL-" + lastYear + "-001").title("테크파트너 " + lastYear + " 컴플라이언스 점검 (보완요청)")
-                .campaign(complianceCampaignPast).company(partnerCompany1).domain(complianceDomain)
+        Diagnostic complianceRevisionRequired = diagnosticRepository.save(Diagnostic.builder()
+                .diagnosticCode("DG-COMPL-2025H1-001").title("포스코홀딩스 2025 상반기 컴플라이언스 점검 (보완요청)")
+                .campaign(complianceCampaignPast).company(posco).domain(complianceDomain)
                 .drafterId(drafter1.getUserId())
-                .periodStartDate(LocalDate.of(lastYear, 1, 1)).periodEndDate(LocalDate.of(lastYear, 4, 30))
-                .deadline(LocalDate.of(lastYear, 5, 15)).build());
-        complianceCompleted.submit();
-        complianceCompleted.approve();
-        complianceCompleted.startReview();
-        // complianceCompleted.complete(); // 제거
-        diagnosticRepository.save(complianceCompleted);
+                .periodStartDate(LocalDate.of(2025, 1, 1)).periodEndDate(LocalDate.of(2025, 6, 30))
+                .deadline(LocalDate.of(2025, 8, 31)).build());
+        complianceRevisionRequired.submit();
+        complianceRevisionRequired.approve();
+        complianceRevisionRequired.startReview();
+        diagnosticRepository.save(complianceRevisionRequired);
 
         log.info("Diagnostics created: 17 diagnostics (all statuses covered)");
 
         // ========================================
-        // 7. Approval - 모든 상태 커버 (6건)
+        // 7. Approval - 모든 상태 커버 (5건)
         // ========================================
         // WAITING (대기중) - 2건
         approvalRepository.save(Approval.builder()
                 .diagnostic(esgSubmitted1).requester(drafter2)
                 .requestComment("ESG 진단 결과 검토 요청드립니다.")
-                .deadline(LocalDate.of(currentYear, 3, 15)).build());
+                .deadline(LocalDate.of(2026, 2, 15)).build());
 
         approvalRepository.save(Approval.builder()
                 .diagnostic(safetySubmitted).requester(drafter4)
                 .requestComment("안전보건 점검 결과 결재 요청합니다.")
-                .deadline(LocalDate.of(currentYear, 2, 20)).build());
+                .deadline(LocalDate.of(2026, 2, 20)).build());
 
         // APPROVED (승인) - 2건
         Approval approvedApproval1 = Approval.builder()
                 .diagnostic(esgApproved1).requester(drafter1)
                 .requestComment("ESG 진단 완료하여 결재 요청드립니다.")
-                .deadline(LocalDate.of(currentYear, 3, 10)).build();
+                .deadline(LocalDate.of(2026, 2, 10)).build();
         approvedApproval1.approve(approver1, "검토 완료, 승인합니다.");
         approvalRepository.save(approvedApproval1);
 
         Approval approvedApproval2 = Approval.builder()
                 .diagnostic(esgReviewing1).requester(drafter1)
-                .requestComment(lastYear + "년 ESG 진단 결재 요청")
-                .deadline(LocalDate.of(lastYear, 3, 20)).build();
+                .requestComment("2025 상반기 ESG 진단 결재 요청")
+                .deadline(LocalDate.of(2025, 8, 20)).build();
         approvedApproval2.approve(approver1, "승인합니다.");
         approvalRepository.save(approvedApproval2);
 
-        // REJECTED (반려) - 2건
+        // REJECTED (반려) - 1건
         Approval rejectedApproval1 = Approval.builder()
                 .diagnostic(esgReturned).requester(drafter3)
                 .requestComment("ESG 진단 결재 요청드립니다.")
-                .deadline(LocalDate.of(currentYear, 3, 1)).build();
+                .deadline(LocalDate.of(2026, 2, 1)).build();
         rejectedApproval1.reject(approver2, "온실가스 배출량 데이터가 누락되었습니다. 보완 후 재제출 바랍니다.");
         approvalRepository.save(rejectedApproval1);
-
-        Approval rejectedApproval2 = Approval.builder()
-                .diagnostic(esgSubmitted2).requester(guest1)
-                .requestComment("ESG 진단 검토 부탁드립니다.")
-                .deadline(LocalDate.of(currentYear, 3, 25)).build();
-        // 이건 WAITING 상태로 유지 (게스트가 요청한 건)
 
         log.info("Approvals created: 5 approvals (WAITING: 2, APPROVED: 2, REJECTED: 1)");
 
@@ -500,18 +492,18 @@ public class DataInitializer implements CommandLineRunner {
         // ========================================
         // REVIEWING (심사중) - 2건
         Review reviewReviewing1 = reviewRepository.save(Review.builder()
-                .diagnostic(esgReviewing1).company(partnerCompany1).domain(esgDomain)
+                .diagnostic(esgReviewing1).company(posco).domain(esgDomain)
                 .assignedReviewer(reviewerEsg).score(68)
                 .submittedAt(LocalDateTime.now().minusDays(3)).build());
 
         Review reviewReviewing2 = reviewRepository.save(Review.builder()
-                .diagnostic(esgReviewing2).company(partnerCompany2).domain(esgDomain)
+                .diagnostic(esgReviewing2).company(hyundaiSteel).domain(esgDomain)
                 .assignedReviewer(reviewerEsg).score(75)
                 .submittedAt(LocalDateTime.now().minusDays(5)).build());
 
         // APPROVED (심사완료) - 2건
         Review reviewApproved1 = Review.builder()
-                .diagnostic(esgCompleted1).company(partnerCompany3).domain(esgDomain)
+                .diagnostic(esgCompleted1).company(skBend).domain(esgDomain)
                 .assignedReviewer(reviewerEsg).score(82)
                 .submittedAt(LocalDateTime.now().minusDays(30)).build();
         reviewApproved1 = reviewRepository.save(reviewApproved1);
@@ -520,7 +512,7 @@ public class DataInitializer implements CommandLineRunner {
         reviewRepository.save(reviewApproved1);
 
         Review reviewApproved2 = Review.builder()
-                .diagnostic(safetyCompleted).company(partnerCompany3).domain(safetyDomain)
+                .diagnostic(safetyCompleted).company(skBend).domain(safetyDomain)
                 .assignedReviewer(reviewerSafety).score(91)
                 .submittedAt(LocalDateTime.now().minusDays(45)).build();
         reviewApproved2 = reviewRepository.save(reviewApproved2);
@@ -529,7 +521,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // REVISION_REQUIRED (보완요청) - 2건
         Review reviewRevision1 = Review.builder()
-                .diagnostic(esgCompleted2).company(partnerCompany4).domain(esgDomain)
+                .diagnostic(esgRevisionRequired).company(dongkuk).domain(esgDomain)
                 .assignedReviewer(reviewerEsg).score(45)
                 .submittedAt(LocalDateTime.now().minusDays(20)).build();
         reviewRevision1 = reviewRepository.save(reviewRevision1);
@@ -537,7 +529,7 @@ public class DataInitializer implements CommandLineRunner {
         reviewRepository.save(reviewRevision1);
 
         Review reviewRevision2 = Review.builder()
-                .diagnostic(complianceCompleted).company(partnerCompany1).domain(complianceDomain)
+                .diagnostic(complianceRevisionRequired).company(posco).domain(complianceDomain)
                 .assignedReviewer(reviewerCompliance).score(58)
                 .submittedAt(LocalDateTime.now().minusDays(60)).build();
         reviewRevision2 = reviewRepository.save(reviewRevision2);
@@ -551,18 +543,18 @@ public class DataInitializer implements CommandLineRunner {
         // ========================================
         // PENDING (대기중) - 2건
         roleRequestRepository.save(RoleRequest.builder()
-                .user(guest1).company(partnerCompany4).domain(esgDomain)
+                .user(guest1).company(dongkuk).domain(esgDomain)
                 .requestedRole("DRAFTER").reason("ESG 진단 업무 담당자로 지정되었습니다.")
                 .status(RequestStatus.PENDING).build());
 
         roleRequestRepository.save(RoleRequest.builder()
-                .user(guest2).company(partnerCompany4).domain(safetyDomain)
+                .user(guest2).company(hdElectric).domain(safetyDomain)
                 .requestedRole("DRAFTER").reason("안전보건 점검 업무를 담당하게 되었습니다.")
                 .status(RequestStatus.PENDING).build());
 
         // APPROVED (승인) - 1건
         RoleRequest approvedRequest = RoleRequest.builder()
-                .user(drafter1).company(partnerCompany1).domain(complianceDomain)
+                .user(drafter1).company(posco).domain(complianceDomain)
                 .requestedRole("DRAFTER").reason("컴플라이언스 업무도 담당하게 되었습니다.")
                 .status(RequestStatus.PENDING).build();
         approvedRequest.approve(reviewerCompliance);
@@ -570,7 +562,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // REJECTED (거절) - 1건
         RoleRequest rejectedRequest = RoleRequest.builder()
-                .user(guest2).company(partnerCompany4).domain(esgDomain)
+                .user(guest2).company(hdElectric).domain(esgDomain)
                 .requestedRole("APPROVER").reason("결재자 권한이 필요합니다.")
                 .status(RequestStatus.PENDING).build();
         rejectedRequest.reject(reviewerEsg, "현재 기안자 권한만 부여 가능합니다. 담당자 확인 후 재요청 바랍니다.");
@@ -626,7 +618,7 @@ public class DataInitializer implements CommandLineRunner {
         // 결재 관련
         notificationRepository.save(Notification.builder()
                 .user(approver1).type(NotificationType.APPROVAL_COMPLETE)
-                .title("결재 요청").message("테크파트너 " + currentYear + " ESG 진단 결재 요청이 도착했습니다.")
+                .title("결재 요청").message("포스코홀딩스 2025 하반기 ESG 진단 결재 요청이 도착했습니다.")
                 .linkUrl("/approvals").build());
 
         notificationRepository.save(Notification.builder()
@@ -642,7 +634,7 @@ public class DataInitializer implements CommandLineRunner {
         // 심사 관련
         notificationRepository.save(Notification.builder()
                 .user(reviewerEsg).type(NotificationType.REVIEW_COMPLETE)
-                .title("심사 요청").message("새로운 ESG 심사 건이 등록되었습니다: 테크파트너")
+                .title("심사 요청").message("새로운 ESG 심사 건이 등록되었습니다: 포스코홀딩스")
                 .linkUrl("/reviews/" + reviewReviewing1.getReviewId()).build());
 
         notificationRepository.save(Notification.builder()
@@ -690,7 +682,7 @@ public class DataInitializer implements CommandLineRunner {
         log.info("");
         log.info("[MASTER ACCOUNTS - ALL DOMAINS]");
         log.info("  REVIEWER:   master.reviewer@hdhhi.co.kr");
-        log.info("  DRAFTER:    master.drafter@techpartner.co.kr");
+        log.info("  DRAFTER:    master.drafter@posco.com");
         log.info("");
         log.info("[원청 심사자 - REVIEWER]");
         log.info("  ESG:        reviewer.esg@hdhhi.co.kr");
@@ -698,18 +690,19 @@ public class DataInitializer implements CommandLineRunner {
         log.info("  컴플라이언스: reviewer.compliance@hdhhi.co.kr");
         log.info("");
         log.info("[협력사 결재자 - APPROVER]");
-        log.info("  테크파트너: approver@techpartner.co.kr (ESG Only)");
-        log.info("  그린매뉴:   approver@greenmanu.co.kr (ESG Only)");
-        log.info("  안전건설:   approver@safebuild.co.kr (ESG Only)");
+        log.info("  포스코홀딩스: approver@posco.com (ESG Only)");
+        log.info("  현대제철:   approver@hyundai-steel.com (ESG Only)");
+        log.info("  성광벤드:   approver@skbend.com (ESG Only)");
         log.info("");
         log.info("[협력사 기안자 - DRAFTER]");
-        log.info("  테크파트너: drafter1@techpartner.co.kr (ESG, COMPLIANCE, SAFETY)");
-        log.info("              drafter2@techpartner.co.kr (ESG)");
-        log.info("  그린매뉴:   drafter@greenmanu.co.kr (ESG, SAFETY)");
-        log.info("  안전건설:   drafter@safebuild.co.kr (SAFETY)");
+        log.info("  포스코홀딩스: drafter1@posco.com (ESG, COMPLIANCE, SAFETY)");
+        log.info("              drafter2@posco.com (ESG)");
+        log.info("  현대제철:   drafter@hyundai-steel.com (ESG, SAFETY)");
+        log.info("  성광벤드:   drafter@skbend.com (SAFETY)");
         log.info("");
         log.info("[게스트 - GUEST]");
-        log.info("  정밀부품:   newbie1@precision.co.kr, newbie2@precision.co.kr");
+        log.info("  동국제강:       newbie@dongkuk.com");
+        log.info("  HD현대일렉트릭: newbie@hd-hyundai-electric.com");
         log.info("============================================");
     }
 }
