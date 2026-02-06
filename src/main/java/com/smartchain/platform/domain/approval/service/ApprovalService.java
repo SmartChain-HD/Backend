@@ -312,15 +312,26 @@ public class ApprovalService {
         approval.submitToReviewer();
         diagnostic.markAsReviewing();
 
-        // Review 엔티티 생성 (#158)
-        Review review = Review.builder()
-                .diagnostic(diagnostic)
-                .company(diagnostic.getCompany())
-                .domain(diagnostic.getDomain())
-                .score(diagnostic.getOverallScore())
-                .submittedAt(approval.getSubmittedToReviewerAt())
-                .build();
-        Review savedReview = reviewRepository.save(review);
+        // 기존 Review가 있으면 재사용, 없으면 새로 생성 (#158, 반려 후 재제출 지원)
+        Review savedReview = reviewRepository.findByDiagnostic(diagnostic)
+                .map(existingReview -> {
+                    // 반려(REVISION_REQUIRED) 상태의 기존 Review를 재사용
+                    existingReview.resubmit(approval.getSubmittedToReviewerAt());
+                    log.info("Reusing existing review for resubmission: reviewId={}, diagnosticId={}",
+                            existingReview.getReviewId(), diagnostic.getDiagnosticId());
+                    return existingReview;
+                })
+                .orElseGet(() -> {
+                    // 신규 Review 생성
+                    Review newReview = Review.builder()
+                            .diagnostic(diagnostic)
+                            .company(diagnostic.getCompany())
+                            .domain(diagnostic.getDomain())
+                            .score(diagnostic.getOverallScore())
+                            .submittedAt(approval.getSubmittedToReviewerAt())
+                            .build();
+                    return reviewRepository.save(newReview);
+                });
 
         log.info("Submitted to reviewer: approvalId={}, diagnosticId={}, reviewId={}, submittedBy={}",
                 approvalId, diagnostic.getDiagnosticId(), savedReview.getReviewId(), userId);

@@ -119,6 +119,21 @@ public class Review extends BaseTimeEntity {
         this.comment = null;
     }
 
+    /**
+     * 반려 후 재제출 시 기존 Review 재사용
+     * REVISION_REQUIRED 상태에서 REVIEWING으로 되돌리고 제출 시간 업데이트
+     */
+    public void resubmit(LocalDateTime newSubmittedAt) {
+        this.status = ReviewStatus.REVIEWING;
+        this.submittedAt = newSubmittedAt;
+        this.processedBy = null;
+        this.processedAt = null;
+        this.comment = null;
+        this.categoryCommentE = null;
+        this.categoryCommentS = null;
+        this.categoryCommentG = null;
+    }
+
     public void updateScore(Integer score) {
         this.score = score;
         this.riskLevel = RiskLevel.fromScore(score);

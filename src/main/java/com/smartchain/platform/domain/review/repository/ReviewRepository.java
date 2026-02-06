@@ -1,5 +1,6 @@
 package com.smartchain.platform.domain.review.repository;
 
+import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
@@ -13,8 +14,12 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ReviewRepository extends JpaRepository<Review, Long> {
+
+    // Diagnostic으로 Review 조회 (재제출 시 기존 Review 재사용)
+    Optional<Review> findByDiagnostic(Diagnostic diagnostic);
 
     // 전체 심사 목록 조회 (REVIEWER용)
     Page<Review> findAllByOrderByCreatedAtDesc(Pageable pageable);

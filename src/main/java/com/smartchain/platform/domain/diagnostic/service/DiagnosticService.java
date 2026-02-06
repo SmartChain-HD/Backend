@@ -441,13 +441,23 @@ public class DiagnosticService {
                     .build();
             diagnosticHistoryRepository.save(approveHistory);
 
-            Review review = Review.builder()
-                    .diagnostic(diagnostic)
-                    .company(diagnostic.getCompany())
-                    .domain(domain)
-                    .submittedAt(diagnostic.getSubmittedAt())
-                    .build();
-            Review savedReview = reviewRepository.save(review);
+            // 기존 Review가 있으면 재사용, 없으면 새로 생성 (반려 후 재제출 지원)
+            Review savedReview = reviewRepository.findByDiagnostic(diagnostic)
+                    .map(existingReview -> {
+                        existingReview.resubmit(diagnostic.getSubmittedAt());
+                        log.info("Reusing existing review for resubmission: reviewId={}, diagnosticId={}",
+                                existingReview.getReviewId(), diagnostic.getDiagnosticId());
+                        return existingReview;
+                    })
+                    .orElseGet(() -> {
+                        Review newReview = Review.builder()
+                                .diagnostic(diagnostic)
+                                .company(diagnostic.getCompany())
+                                .domain(domain)
+                                .submittedAt(diagnostic.getSubmittedAt())
+                                .build();
+                        return reviewRepository.save(newReview);
+                    });
 
             log.info("Diagnostic submitted ({} → Review, approval skipped): diagnosticId={}, submittedBy={}, reviewId={}",
                     domainCode, diagnosticId, userId, savedReview.getReviewId());
