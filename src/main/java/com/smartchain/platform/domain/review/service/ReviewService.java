@@ -2,6 +2,9 @@ package com.smartchain.platform.domain.review.service;
 
 import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
 import com.smartchain.platform.domain.ai.repository.AiAnalysisResultRepository;
+import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
+import com.smartchain.platform.domain.diagnostic.entity.DiagnosticHistory;
+import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
@@ -47,6 +50,7 @@ public class ReviewService {
     private final CompanyRepository companyRepository;
     private final DomainRepository domainRepository;
     private final AiAnalysisResultRepository aiAnalysisResultRepository;
+    private final DiagnosticHistoryRepository diagnosticHistoryRepository;
 
     private static final Map<String, String> RISK_LEVEL_LABEL_MAP = Map.of(
             "HIGH", "고위험군",
@@ -325,6 +329,9 @@ public class ReviewService {
         String decision = request.getDecision().toUpperCase();
         String message;
         String nextStep;
+        Diagnostic diagnostic = review.getDiagnostic();
+        String previousStatus = diagnostic.getStatus().name();
+        String newStatus;
 
         if ("APPROVED".equals(decision)) {
             String commentE = null;
@@ -339,12 +346,13 @@ public class ReviewService {
             // REVISION_REQUIRED 상태에서 재승인하는 경우
             if (review.isRevisionRequired()) {
                 // 기안 상태를 REVIEWING으로 되돌린 후 완료 처리
-                review.getDiagnostic().markAsReviewing();
+                diagnostic.markAsReviewing();
                 log.info("Review re-approved from REVISION_REQUIRED: reviewId={}, reapprovedBy={}", reviewId, userId);
             }
 
             review.approve(currentUser, request.getComment(), commentE, commentS, commentG);
-            review.getDiagnostic().complete();
+            diagnostic.complete();
+            newStatus = "COMPLETED";
             message = "심사가 승인되었습니다";
             nextStep = "보고서 발행이 가능합니다";
             log.info("Review approved: reviewId={}, approvedBy={}", reviewId, userId);
@@ -354,7 +362,8 @@ public class ReviewService {
                 throw new CustomException(ErrorCode.ALREADY_PROCESSED_REVIEW);
             }
             review.requestRevision(currentUser, request.getComment());
-            review.getDiagnostic().returnForRevision();
+            diagnostic.returnForRevision();
+            newStatus = "RETURNED";
             message = "보완 요청이 완료되었습니다";
             nextStep = "협력사에게 보완 요청이 전달됩니다";
             log.info("Review revision required: reviewId={}, requestedBy={}, comment={}",
@@ -362,6 +371,17 @@ public class ReviewService {
         } else {
             throw new CustomException(ErrorCode.INVALID_DECISION);
         }
+
+        // DiagnosticHistory 저장
+        DiagnosticHistory history = DiagnosticHistory.builder()
+                .diagnostic(diagnostic)
+                .actor(currentUser)
+                .action("APPROVED".equals(decision) ? "REVIEW_APPROVED" : "REVIEW_REVISION_REQUIRED")
+                .previousStatus(previousStatus)
+                .newStatus(newStatus)
+                .comment(request.getComment())
+                .build();
+        diagnosticHistoryRepository.save(history);
 
         ProcessedByDto processedByDto = ProcessedByDto.builder()
                 .userId(currentUser.getUserId())
