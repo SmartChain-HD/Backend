@@ -147,7 +147,7 @@ public class DataInitializer implements CommandLineRunner {
         // ========================================
         String encodedPassword = passwordEncoder.encode("Test1234!");
 
-        // 원청 심사자들 (3명 - 도메인별)
+        // 원청 수신자들 (3명 - 도메인별)
         User reviewerEsg = userRepository.save(User.builder()
                 .name("김심사(ESG)").email("reviewer.esg@hdhhi.co.kr").userPassword(encodedPassword)
                 .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
@@ -213,7 +213,7 @@ public class DataInitializer implements CommandLineRunner {
         // ========================================
         // 4. UserDomainRole (도메인별 권한)
         // ========================================
-        // 심사자: 각자 담당 도메인
+        // 수신자: 각자 담당 도메인
         userDomainRoleRepository.save(UserDomainRole.builder().user(reviewerEsg).domain(esgDomain).role(reviewerRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(reviewerSafety).domain(safetyDomain).role(reviewerRole).build());
         userDomainRoleRepository.save(UserDomainRole.builder().user(reviewerCompliance).domain(complianceDomain).role(reviewerRole).build());
@@ -692,7 +692,7 @@ public class DataInitializer implements CommandLineRunner {
         log.info("  DRAFTER:    master.drafter@posco.com (ALL DOMAINS)");
         log.info("  APPROVER:   master.approver@posco.com (ESG Only)");
         log.info("");
-        log.info("[원청 심사자 - REVIEWER]");
+        log.info("[원청 수신자 - REVIEWER]");
         log.info("  ESG:        reviewer.esg@hdhhi.co.kr");
         log.info("  안전보건:   reviewer.safety@hdhhi.co.kr");
         log.info("  컴플라이언스: reviewer.compliance@hdhhi.co.kr");
