@@ -1749,3 +1749,35 @@ src/test/java/.../domain/review/service/ReviewServiceTest.java (AI 분석 결과
 src/main/java/.../domain/approval/service/ApprovalService.java (ReviewRepository 추가, Review 생성 로직)
 src/test/java/.../domain/approval/service/ApprovalServiceTest.java (+2 테스트 케이스)
 ```
+
+---
+
+## 2026-02-06: DiagnosticHistory comment 필드 길이 초과 오류
+
+### 원인
+- `DiagnosticHistory.comment` 필드에 `@Column` 어노테이션 없음
+- JPA 기본값으로 varchar(255) 컬럼 생성
+- 결재/심사 반려 시 파일명 목록 등 긴 코멘트 입력 시 255자 초과하여 DataException 발생
+- 에러: `value too long for type character varying(255)`
+
+### 해결
+- `DiagnosticHistory.java`의 `comment` 필드에 `@Column(length = 2000)` 추가
+- varchar(2000)으로 충분한 코멘트 길이 지원
+
+### 재발 방지
+- 사용자 입력 텍스트 필드는 기본 255자 제한 검토 필수
+- 코멘트, 설명, 메모 등 자유 입력 필드는 @Column(length = N) 명시 권장
+- 파일명, 에러 메시지 등 동적 내용이 포함될 수 있는 필드는 충분한 길이 확보
+
+### 검증방법
+```bash
+./gradlew build
+```
+
+### 관련커밋
+- feature/diagnostic-history-comment-length
+
+### 생성/수정 파일
+```
+src/main/java/com/smartchain/platform/domain/diagnostic/entity/DiagnosticHistory.java (@Column(length = 2000) 추가)
+```
