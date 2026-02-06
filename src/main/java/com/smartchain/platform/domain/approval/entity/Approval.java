@@ -81,4 +81,18 @@ public class Approval extends BaseTimeEntity {
     public boolean isApproved() {
         return this.status == ApprovalStatus.APPROVED;
     }
+
+    /**
+     * 반려 후 재제출 시 기존 Approval 재사용
+     * REJECTED 상태에서 WAITING으로 되돌리고 결재 정보 초기화
+     */
+    public void resubmit(User requester, String requestComment) {
+        this.status = ApprovalStatus.WAITING;
+        this.requester = requester;
+        this.requestComment = requestComment;
+        this.approver = null;
+        this.approverComment = null;
+        this.processedAt = null;
+        this.submittedToReviewerAt = null;
+    }
 }
