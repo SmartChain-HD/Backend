@@ -1,6 +1,7 @@
 package com.smartchain.platform.domain.approval.repository;
 
 import com.smartchain.platform.domain.approval.entity.Approval;
+import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.global.enums.ApprovalStatus;
@@ -12,9 +13,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ApprovalRepository extends JpaRepository<Approval, Long> {
+
+    // Diagnostic으로 Approval 조회 (재제출 시 기존 Approval 재사용)
+    Optional<Approval> findByDiagnostic(Diagnostic diagnostic);
 
     @Query("SELECT a FROM Approval a JOIN a.diagnostic d WHERE d.company = :company ORDER BY a.createdAt DESC")
     Page<Approval> findByCompanyOrderByCreatedAtDesc(@Param("company") Company company, Pageable pageable);

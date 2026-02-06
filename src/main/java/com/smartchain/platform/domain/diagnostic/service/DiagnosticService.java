@@ -408,13 +408,23 @@ public class DiagnosticService {
 
         if ("ESG".equals(domainCode)) {
             // ESG: 결재자에게 결재 요청 (기안자 → 결재자 → 수신자)
-            Approval approval = Approval.builder()
-                    .diagnostic(diagnostic)
-                    .requester(currentUser)
-                    .requestComment(request.getSubmitComment())
-                    .deadline(diagnostic.getDeadline())
-                    .build();
-            Approval savedApproval = approvalRepository.save(approval);
+            // 기존 Approval이 있으면 재사용, 없으면 새로 생성 (반려 후 재제출 지원)
+            Approval savedApproval = approvalRepository.findByDiagnostic(diagnostic)
+                    .map(existingApproval -> {
+                        existingApproval.resubmit(currentUser, request.getSubmitComment());
+                        log.info("Reusing existing approval for resubmission: approvalId={}, diagnosticId={}",
+                                existingApproval.getApprovalId(), diagnostic.getDiagnosticId());
+                        return existingApproval;
+                    })
+                    .orElseGet(() -> {
+                        Approval newApproval = Approval.builder()
+                                .diagnostic(diagnostic)
+                                .requester(currentUser)
+                                .requestComment(request.getSubmitComment())
+                                .deadline(diagnostic.getDeadline())
+                                .build();
+                        return approvalRepository.save(newApproval);
+                    });
 
             log.info("Diagnostic submitted (ESG → Approval): diagnosticId={}, submittedBy={}, approvalId={}",
                     diagnosticId, userId, savedApproval.getApprovalId());
