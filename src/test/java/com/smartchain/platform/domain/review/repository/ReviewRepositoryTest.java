@@ -103,11 +103,11 @@ class ReviewRepositoryTest {
                 .build());
 
         // Role 생성
-        Role reviewerRole = roleRepository.save(new Role("심사자", "REVIEWER"));
+        Role reviewerRole = roleRepository.save(new Role("수신자", "REVIEWER"));
 
         // User 생성
         reviewer = userRepository.save(User.builder()
-                .name("심사자")
+                .name("수신자")
                 .email("reviewer@test.com")
                 .userPassword("password")
                 .company(company)
@@ -183,7 +183,7 @@ class ReviewRepositoryTest {
     }
 
     @Test
-    @DisplayName("담당 심사자와 Domain으로 Review 목록 조회 성공")
+    @DisplayName("담당 수신자와 Domain으로 Review 목록 조회 성공")
     void findByAssignedReviewerAndDomain_Success() {
         // given
         Review review1 = reviewRepository.save(Review.builder()

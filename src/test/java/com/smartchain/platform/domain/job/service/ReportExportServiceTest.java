@@ -78,7 +78,7 @@ class ReportExportServiceTest {
         lenient().when(guestRole.getCode()).thenReturn("GUEST");
 
         lenient().when(reviewerUser.getUserId()).thenReturn(1L);
-        lenient().when(reviewerUser.getName()).thenReturn("심사자");
+        lenient().when(reviewerUser.getName()).thenReturn("수신자");
         lenient().when(reviewerUser.getRole()).thenReturn(reviewerRole);
 
         lenient().when(guestUser.getUserId()).thenReturn(2L);

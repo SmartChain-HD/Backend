@@ -64,7 +64,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
     Page<Review> findByDomainOrderByCreatedAtDesc(Domain domain, Pageable pageable);
 
-    // 담당 심사자 + 도메인별 조회
+    // 담당 수신자 + 도메인별 조회
     Page<Review> findByAssignedReviewerAndDomainOrderByCreatedAtDesc(User assignedReviewer, Domain domain, Pageable pageable);
 
     List<Review> findByAssignedReviewerAndDomain(User assignedReviewer, Domain domain);

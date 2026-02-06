@@ -130,7 +130,7 @@ class ReviewServiceTest {
         lenient().when(safetyDomain.getDomainId()).thenReturn(4L);
 
         lenient().when(reviewerUser.getUserId()).thenReturn(1L);
-        lenient().when(reviewerUser.getName()).thenReturn("심사자");
+        lenient().when(reviewerUser.getName()).thenReturn("수신자");
         lenient().when(reviewerUser.getEmail()).thenReturn("reviewer@test.com");
         lenient().when(reviewerUser.getRole()).thenReturn(reviewerRole);
         lenient().when(reviewerUser.getDomainsWithRole("REVIEWER")).thenReturn(List.of(envDomain));
@@ -144,7 +144,7 @@ class ReviewServiceTest {
         lenient().when(guestUser.getRole()).thenReturn(guestRole);
 
         lenient().when(reviewerWithoutDomain.getUserId()).thenReturn(3L);
-        lenient().when(reviewerWithoutDomain.getName()).thenReturn("도메인없는심사자");
+        lenient().when(reviewerWithoutDomain.getName()).thenReturn("도메인없는수신자");
         lenient().when(reviewerWithoutDomain.getRole()).thenReturn(reviewerRole);
         lenient().when(reviewerWithoutDomain.getDomainsWithRole("REVIEWER")).thenReturn(List.of());
 
