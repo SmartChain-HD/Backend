@@ -8,6 +8,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 @Configuration
 @ConfigurationProperties(prefix = "ai.risk-api")
@@ -16,6 +18,7 @@ public class ExternalRiskApiConfig {
     private String url = "http://localhost:8000";
     private int timeoutSeconds = 60;
     private int maxRetry = 3;
+    private List<String> targetCompanies = new ArrayList<>();
 
     @Bean
     public WebClient externalRiskApiWebClient() {
@@ -50,5 +53,13 @@ public class ExternalRiskApiConfig {
 
     public void setMaxRetry(int maxRetry) {
         this.maxRetry = maxRetry;
+    }
+
+    public List<String> getTargetCompanies() {
+        return targetCompanies;
+    }
+
+    public void setTargetCompanies(List<String> targetCompanies) {
+        this.targetCompanies = targetCompanies;
     }
 }

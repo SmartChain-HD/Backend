@@ -3,12 +3,14 @@ package com.smartchain.platform.domain.risk.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartchain.platform.domain.risk.client.ExternalRiskApiClient;
+import com.smartchain.platform.domain.risk.config.ExternalRiskApiConfig;
 import com.smartchain.platform.domain.risk.entity.ExternalRiskResult;
 import com.smartchain.platform.domain.risk.repository.ExternalRiskResultRepository;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
+import com.smartchain.platform.dto.risk.ExternalRiskCompanyResponse;
 import com.smartchain.platform.dto.risk.ExternalRiskDetectRequest;
 import com.smartchain.platform.dto.risk.ExternalRiskDetectResponse;
 import com.smartchain.platform.dto.risk.ExternalRiskResultResponse;
@@ -33,6 +35,7 @@ public class ExternalRiskService {
     private static final Logger log = LoggerFactory.getLogger(ExternalRiskService.class);
 
     private final ExternalRiskApiClient externalRiskApiClient;
+    private final ExternalRiskApiConfig externalRiskApiConfig;
     private final ExternalRiskResultRepository riskResultRepository;
     private final CompanyRepository companyRepository;
     private final UserRepository userRepository;
@@ -48,11 +51,7 @@ public class ExternalRiskService {
                 .orElseThrow(() -> new CustomException(ErrorCode.RISK_COMPANY_NOT_FOUND)))
             .toList();
 
-        List<String> vendorNames = companies.stream()
-            .map(Company::getName)
-            .toList();
-
-        ExternalRiskDetectRequest request = ExternalRiskDetectRequest.of(vendorNames);
+        ExternalRiskDetectRequest request = ExternalRiskDetectRequest.of(companies);
         ExternalRiskDetectResponse response = externalRiskApiClient.detect(request);
 
         List<ExternalRiskResultResponse> results = new ArrayList<>();
@@ -111,6 +110,22 @@ public class ExternalRiskService {
 
         return riskResultRepository.findAllByOrderByDetectedAtDesc(pageable)
             .map(ExternalRiskResultResponse::from);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExternalRiskCompanyResponse> getRiskTargetCompanies(Long userId) {
+        User user = getUser(userId);
+        validateReviewerRole(user);
+
+        List<String> targetNames = externalRiskApiConfig.getTargetCompanies();
+        if (targetNames == null || targetNames.isEmpty()) {
+            return List.of();
+        }
+
+        List<Company> companies = companyRepository.findByNameIn(targetNames);
+        return companies.stream()
+            .map(ExternalRiskCompanyResponse::from)
+            .toList();
     }
 
     private User getUser(Long userId) {

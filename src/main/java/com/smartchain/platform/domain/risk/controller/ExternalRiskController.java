@@ -3,6 +3,7 @@ package com.smartchain.platform.domain.risk.controller;
 import com.smartchain.platform.domain.risk.service.ExternalRiskService;
 import com.smartchain.platform.dto.common.page.PageDto;
 import com.smartchain.platform.dto.common.page.PagedResponse;
+import com.smartchain.platform.dto.risk.ExternalRiskCompanyResponse;
 import com.smartchain.platform.dto.risk.ExternalRiskDetectApiRequest;
 import com.smartchain.platform.dto.risk.ExternalRiskResultResponse;
 import com.smartchain.platform.global.response.BaseResponse;
@@ -30,6 +31,15 @@ public class ExternalRiskController {
 
     private final ExternalRiskService externalRiskService;
     private final JwtTokenProvider jwtTokenProvider;
+
+    @Operation(summary = "리스크 대상 회사 목록 조회", description = "리스크 분석 대상으로 설정된 회사 목록을 조회합니다. REVIEWER 권한이 필요합니다.")
+    @GetMapping("/companies")
+    public ResponseEntity<BaseResponse<List<ExternalRiskCompanyResponse>>> getRiskTargetCompanies(
+            HttpServletRequest request) {
+        Long userId = extractUserIdFromRequest(request);
+        List<ExternalRiskCompanyResponse> companies = externalRiskService.getRiskTargetCompanies(userId);
+        return ResponseEntity.ok(BaseResponse.success("리스크 대상 회사 목록 조회 완료", companies));
+    }
 
     @Operation(summary = "협력사 리스크 분석 요청", description = "외부 AI API를 통해 협력사 리스크를 분석합니다. REVIEWER 권한이 필요합니다.")
     @PostMapping("/detect")
