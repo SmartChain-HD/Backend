@@ -3,6 +3,7 @@ package com.smartchain.platform.domain.approval.service;
 import com.smartchain.platform.domain.approval.entity.Approval;
 import com.smartchain.platform.domain.approval.repository.ApprovalRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
+import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
@@ -66,6 +67,9 @@ class ApprovalServiceTest {
     private ReviewRepository reviewRepository;
 
     @Mock
+    private DiagnosticHistoryRepository diagnosticHistoryRepository;
+
+    @Mock
     private User approverUser;
 
     @Mock
@@ -113,6 +117,7 @@ class ApprovalServiceTest {
         lenient().when(testDiagnostic.getQualitativeProgress()).thenReturn(100);
         lenient().when(testDiagnostic.getQuantitativeProgress()).thenReturn(100);
         lenient().when(testDiagnostic.getOverallScore()).thenReturn(72);
+        lenient().when(testDiagnostic.getStatus()).thenReturn(DiagnosticStatus.SUBMITTED);
 
         lenient().when(testApproval.getApprovalId()).thenReturn(1L);
         lenient().when(testApproval.getDiagnostic()).thenReturn(testDiagnostic);
@@ -597,6 +602,7 @@ class ApprovalServiceTest {
             Diagnostic diagnosticWithDomain = mock(Diagnostic.class);
             when(diagnosticWithDomain.getDomain()).thenReturn(esgDomain);
             when(diagnosticWithDomain.getCompany()).thenReturn(testCompany);
+            when(diagnosticWithDomain.getStatus()).thenReturn(DiagnosticStatus.SUBMITTED);
 
             Approval approvalWithDomain = mock(Approval.class);
             lenient().when(approvalWithDomain.getApprovalId()).thenReturn(5L);

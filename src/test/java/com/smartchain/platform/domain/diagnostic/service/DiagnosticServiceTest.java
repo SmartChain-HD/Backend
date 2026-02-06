@@ -887,6 +887,52 @@ class DiagnosticServiceTest {
             assertThat(response.getHistory().get(0).getAction()).isEqualTo("CREATED");
             assertThat(response.getHistory().get(0).getNewStatus()).isEqualTo("WRITING");
         }
+
+        @Test
+        @DisplayName("기안 이력 조회 시 comment가 응답에 포함된다")
+        void getDiagnosticHistory_includesComment() {
+            // given
+            Diagnostic diagnostic = mock(Diagnostic.class);
+            when(diagnostic.getDrafterId()).thenReturn(1L);
+
+            DiagnosticHistory history1 = mock(DiagnosticHistory.class);
+            when(history1.getHistoryId()).thenReturn(1L);
+            when(history1.getAction()).thenReturn("CREATED");
+            when(history1.getPreviousStatus()).thenReturn(null);
+            when(history1.getNewStatus()).thenReturn("WRITING");
+            when(history1.getComment()).thenReturn(null);
+            when(history1.getActor()).thenReturn(drafterUser);
+            when(history1.getCreatedAt()).thenReturn(LocalDateTime.now().minusHours(2));
+
+            DiagnosticHistory history2 = mock(DiagnosticHistory.class);
+            when(history2.getHistoryId()).thenReturn(2L);
+            when(history2.getAction()).thenReturn("SUBMITTED");
+            when(history2.getPreviousStatus()).thenReturn("WRITING");
+            when(history2.getNewStatus()).thenReturn("SUBMITTED");
+            when(history2.getComment()).thenReturn("검토 부탁드립니다");
+            when(history2.getActor()).thenReturn(drafterUser);
+            when(history2.getCreatedAt()).thenReturn(LocalDateTime.now().minusHours(1));
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(drafterUser));
+            given(diagnosticRepository.findById(1L)).willReturn(Optional.of(diagnostic));
+            given(diagnosticHistoryRepository.findByDiagnosticOrderByCreatedAtDesc(diagnostic))
+                    .willReturn(List.of(history2, history1));
+
+            // when
+            DiagnosticHistoryResponse response = diagnosticService.getDiagnosticHistory(1L, 1L);
+
+            // then
+            assertThat(response.getDiagnosticId()).isEqualTo(1L);
+            assertThat(response.getHistory()).hasSize(2);
+
+            // 첫 번째 이력 (SUBMITTED) - comment 있음
+            assertThat(response.getHistory().get(0).getAction()).isEqualTo("SUBMITTED");
+            assertThat(response.getHistory().get(0).getComment()).isEqualTo("검토 부탁드립니다");
+
+            // 두 번째 이력 (CREATED) - comment 없음
+            assertThat(response.getHistory().get(1).getAction()).isEqualTo("CREATED");
+            assertThat(response.getHistory().get(1).getComment()).isNull();
+        }
     }
 
     @Nested

@@ -3,6 +3,7 @@ package com.smartchain.platform.domain.review.service;
 import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
 import com.smartchain.platform.domain.ai.repository.AiAnalysisResultRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
+import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
@@ -20,6 +21,7 @@ import com.smartchain.platform.dto.review.decision.ReviewDecisionResponse;
 import com.smartchain.platform.dto.review.decision.RevisionDraftResponse;
 import com.smartchain.platform.dto.review.detail.ReviewDetailResponse;
 import com.smartchain.platform.dto.review.list.ReviewListResponse;
+import com.smartchain.platform.global.enums.DiagnosticStatus;
 import com.smartchain.platform.global.enums.ReviewStatus;
 import com.smartchain.platform.global.enums.RiskLevel;
 import com.smartchain.platform.global.error.CustomException;
@@ -68,6 +70,9 @@ class ReviewServiceTest {
 
     @Mock
     private AiAnalysisResultRepository aiAnalysisResultRepository;
+
+    @Mock
+    private DiagnosticHistoryRepository diagnosticHistoryRepository;
 
     @Mock
     private User reviewerUser;
@@ -159,6 +164,7 @@ class ReviewServiceTest {
         lenient().when(testDiagnostic.getDiagnosticCode()).thenReturn("DG-2026-00001");
         lenient().when(testDiagnostic.getTitle()).thenReturn("2026년 상반기 ESG 자가진단");
         lenient().when(testDiagnostic.getCompany()).thenReturn(testCompany);
+        lenient().when(testDiagnostic.getStatus()).thenReturn(DiagnosticStatus.REVIEWING);
 
         lenient().when(testReview.getReviewId()).thenReturn(1L);
         lenient().when(testReview.getDiagnostic()).thenReturn(testDiagnostic);
@@ -713,6 +719,7 @@ class ReviewServiceTest {
             // given
             Review esgReview = mock(Review.class);
             Diagnostic esgDiagnostic = mock(Diagnostic.class);
+            lenient().when(esgDiagnostic.getStatus()).thenReturn(DiagnosticStatus.REVIEWING);
             lenient().when(esgReview.getDomain()).thenReturn(esgDomain);
             lenient().when(esgReview.isReviewing()).thenReturn(true);
             lenient().when(esgReview.getReviewId()).thenReturn(20L);
@@ -772,6 +779,7 @@ class ReviewServiceTest {
             // given
             Review safetyReview = mock(Review.class);
             Diagnostic safetyDiagnostic = mock(Diagnostic.class);
+            lenient().when(safetyDiagnostic.getStatus()).thenReturn(DiagnosticStatus.REVIEWING);
             lenient().when(safetyReview.getDomain()).thenReturn(safetyDomain);
             lenient().when(safetyReview.isReviewing()).thenReturn(true);
             lenient().when(safetyReview.getReviewId()).thenReturn(30L);

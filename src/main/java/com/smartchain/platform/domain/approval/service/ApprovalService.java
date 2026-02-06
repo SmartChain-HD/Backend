@@ -3,6 +3,8 @@ package com.smartchain.platform.domain.approval.service;
 import com.smartchain.platform.domain.approval.entity.Approval;
 import com.smartchain.platform.domain.approval.repository.ApprovalRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
+import com.smartchain.platform.domain.diagnostic.entity.DiagnosticHistory;
+import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
@@ -52,6 +54,7 @@ public class ApprovalService {
     private final UserRepository userRepository;
     private final DomainRepository domainRepository;
     private final ReviewRepository reviewRepository;
+    private final DiagnosticHistoryRepository diagnosticHistoryRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
 
@@ -253,16 +256,18 @@ public class ApprovalService {
         String decision = request.getDecision().toUpperCase();
         String message;
         String diagnosticNewStatus;
+        Diagnostic diagnostic = approval.getDiagnostic();
+        String previousStatus = diagnostic.getStatus().name();
 
         if ("APPROVED".equals(decision)) {
             approval.approve(currentUser, request.getComment());
-            approval.getDiagnostic().markAsApproved();
+            diagnostic.markAsApproved();
             message = "결재가 완료되었습니다";
             diagnosticNewStatus = DiagnosticStatus.APPROVED.name();
             log.info("Approval approved: approvalId={}, approvedBy={}", approvalId, userId);
         } else if ("REJECTED".equals(decision)) {
             approval.reject(currentUser, request.getComment());
-            approval.getDiagnostic().markAsReturned();
+            diagnostic.markAsReturned();
             message = "결재가 반려되었습니다";
             diagnosticNewStatus = DiagnosticStatus.RETURNED.name();
             log.info("Approval rejected: approvalId={}, rejectedBy={}, comment={}",
@@ -270,6 +275,17 @@ public class ApprovalService {
         } else {
             throw new CustomException(ErrorCode.INVALID_DECISION);
         }
+
+        // DiagnosticHistory 저장
+        DiagnosticHistory history = DiagnosticHistory.builder()
+                .diagnostic(diagnostic)
+                .actor(currentUser)
+                .action("APPROVED".equals(decision) ? "APPROVAL_APPROVED" : "APPROVAL_REJECTED")
+                .previousStatus(previousStatus)
+                .newStatus(diagnosticNewStatus)
+                .comment(request.getComment())
+                .build();
+        diagnosticHistoryRepository.save(history);
 
         ProcessedByDto processedByDto = ProcessedByDto.builder()
                 .userId(currentUser.getUserId())
