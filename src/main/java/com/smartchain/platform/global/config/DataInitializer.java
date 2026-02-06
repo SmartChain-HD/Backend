@@ -204,7 +204,11 @@ public class DataInitializer implements CommandLineRunner {
                 .name("마스터기안").email("master.drafter@posco.com").userPassword(encodedPassword)
                 .company(posco).role(drafterRole).emailVerified(true).build());
 
-        log.info("Users created: 14 users (including 2 masters)");
+        User masterApprover = userRepository.save(User.builder()
+                .name("마스터결재").email("master.approver@posco.com").userPassword(encodedPassword)
+                .company(posco).role(approverRole).emailVerified(true).build());
+
+        log.info("Users created: 15 users (including 3 masters)");
 
         // ========================================
         // 4. UserDomainRole (도메인별 권한)
@@ -236,6 +240,9 @@ public class DataInitializer implements CommandLineRunner {
             userDomainRoleRepository.save(UserDomainRole.builder().user(masterReviewer).domain(domain).role(reviewerRole).build());
             userDomainRoleRepository.save(UserDomainRole.builder().user(masterDrafter).domain(domain).role(drafterRole).build());
         }
+
+        // 마스터 결재자: ESG 도메인만
+        userDomainRoleRepository.save(UserDomainRole.builder().user(masterApprover).domain(esgDomain).role(approverRole).build());
         log.info("UserDomainRoles created");
 
         // ========================================
@@ -245,8 +252,8 @@ public class DataInitializer implements CommandLineRunner {
         Campaign esgCampaignCurrent = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-ESG-2025-H2").ownerCompanyId(ownerCompany.getCompanyId()).domain(esgDomain)
                 .title("2025년 하반기 ESG 공급망 진단").content("2025년 하반기 협력사 ESG 경영 현황 진단")
-                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
-                .deadline(LocalDate.of(2026, 2, 28)).isActive(true).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .deadline(LocalDate.of(2026, 8, 31)).isActive(true).build());
 
         // 과거 완료: 2025 상반기
         Campaign esgCampaignPast = campaignRepository.save(Campaign.builder()
@@ -258,8 +265,8 @@ public class DataInitializer implements CommandLineRunner {
         Campaign safetyCampaignCurrent = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-SAFETY-2025-H2").ownerCompanyId(ownerCompany.getCompanyId()).domain(safetyDomain)
                 .title("2025년 하반기 안전보건 점검").content("2025년 하반기 협력사 안전보건 관리 현황 점검")
-                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
-                .deadline(LocalDate.of(2026, 2, 28)).isActive(true).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .deadline(LocalDate.of(2026, 8, 31)).isActive(true).build());
 
         Campaign safetyCampaignPast = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-SAFETY-2025-H1").ownerCompanyId(ownerCompany.getCompanyId()).domain(safetyDomain)
@@ -270,8 +277,8 @@ public class DataInitializer implements CommandLineRunner {
         Campaign complianceCampaignCurrent = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-COMPL-2025-H2").ownerCompanyId(ownerCompany.getCompanyId()).domain(complianceDomain)
                 .title("2025년 하반기 하도급 컴플라이언스 점검").content("2025년 하반기 협력사 하도급 계약 법규 준수 점검")
-                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2025, 12, 31))
-                .deadline(LocalDate.of(2026, 2, 28)).isActive(true).build());
+                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .deadline(LocalDate.of(2026, 8, 31)).isActive(true).build());
 
         Campaign complianceCampaignPast = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-COMPL-2025-H1").ownerCompanyId(ownerCompany.getCompanyId()).domain(complianceDomain)
@@ -680,9 +687,10 @@ public class DataInitializer implements CommandLineRunner {
         log.info("        TEST ACCOUNTS (password: Test1234!)");
         log.info("============================================");
         log.info("");
-        log.info("[MASTER ACCOUNTS - ALL DOMAINS]");
-        log.info("  REVIEWER:   master.reviewer@hdhhi.co.kr");
-        log.info("  DRAFTER:    master.drafter@posco.com");
+        log.info("[MASTER ACCOUNTS]");
+        log.info("  REVIEWER:   master.reviewer@hdhhi.co.kr (ALL DOMAINS)");
+        log.info("  DRAFTER:    master.drafter@posco.com (ALL DOMAINS)");
+        log.info("  APPROVER:   master.approver@posco.com (ESG Only)");
         log.info("");
         log.info("[원청 심사자 - REVIEWER]");
         log.info("  ESG:        reviewer.esg@hdhhi.co.kr");
