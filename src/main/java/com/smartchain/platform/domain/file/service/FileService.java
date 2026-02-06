@@ -24,6 +24,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -204,6 +205,11 @@ public class FileService {
         LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(30);
         String signedUrl = fileStorageService.getPresignedUrl(evidenceFile.getFilePath(), Duration.ofMinutes(30));
 
+        // local 환경: 상대 경로 반환 시 직접 다운로드 엔드포인트로 교체
+        if (signedUrl.startsWith("/")) {
+            signedUrl = "/api/v1/files/" + fileId + "/download";
+        }
+
         log.info("Download URL generated: fileId={}, requestedBy={}, expiresAt={}",
                 fileId, userId, expiresAt);
 
@@ -214,6 +220,34 @@ public class FileService {
                 .expiresAt(expiresAt)
                 .build();
     }
+
+    /**
+     * 파일 직접 다운로드 (local 환경용)
+     */
+    public FileDownloadData downloadFile(Long userId, Long fileId) {
+        validateUser(userId);
+
+        EvidenceFile evidenceFile = evidenceFileRepository.findById(fileId)
+                .orElseThrow(() -> new CustomException(ErrorCode.FILE_NOT_FOUND));
+
+        InputStream inputStream = fileStorageService.download(evidenceFile.getFilePath());
+
+        log.info("File download: fileId={}, requestedBy={}", fileId, userId);
+
+        return new FileDownloadData(
+                inputStream,
+                evidenceFile.getOriginalFileName(),
+                evidenceFile.getMimeType(),
+                evidenceFile.getFileSize()
+        );
+    }
+
+    public record FileDownloadData(
+            InputStream inputStream,
+            String fileName,
+            String mimeType,
+            Long fileSize
+    ) {}
 
     /**
      * 파일 삭제
