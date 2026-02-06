@@ -10,6 +10,10 @@ import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.diagnostic.repository.CampaignRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
+import com.smartchain.platform.domain.diagnostic.repository.ResultQualRepository;
+import com.smartchain.platform.domain.diagnostic.repository.ResultQuantRepository;
+import com.smartchain.platform.domain.ai.repository.AiAnalysisResultRepository;
+import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.domain.user.entity.User;
@@ -65,6 +69,10 @@ public class DiagnosticService {
     private final ApprovalRepository approvalRepository;
     private final ReviewRepository reviewRepository;
     private final DomainRepository domainRepository;
+    private final ResultQualRepository resultQualRepository;
+    private final ResultQuantRepository resultQuantRepository;
+    private final AiAnalysisResultRepository aiAnalysisResultRepository;
+    private final EvidenceFileRepository evidenceFileRepository;
 
     private static final List<String> ALLOWED_ROLES = Arrays.asList("DRAFTER", "APPROVER");
 
@@ -524,7 +532,14 @@ public class DiagnosticService {
             throw new CustomException(ErrorCode.DIAGNOSTIC_DELETE_NOT_ALLOWED);
         }
 
-        // 삭제 실행 (연관 파일은 Cascade로 삭제됨)
+        // 연관 엔티티 먼저 삭제 (FK constraint 위반 방지)
+        diagnosticHistoryRepository.deleteAllByDiagnostic(diagnostic);
+        evidenceFileRepository.deleteAllByDiagnostic_DiagnosticId(diagnosticId);
+        resultQualRepository.deleteAllByDiagnostic_DiagnosticId(diagnosticId);
+        resultQuantRepository.deleteAllByDiagnostic_DiagnosticId(diagnosticId);
+        aiAnalysisResultRepository.deleteAllByDiagnostic_DiagnosticId(diagnosticId);
+
+        // 기안 삭제
         diagnosticRepository.delete(diagnostic);
 
         log.info("Diagnostic deleted: diagnosticId={}, deletedBy={}", diagnosticId, userId);

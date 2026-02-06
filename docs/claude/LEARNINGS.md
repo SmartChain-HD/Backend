@@ -1,5 +1,36 @@
 # Claude Code Learnings
 
+## 2026-02-06: 기안 삭제 API 500 에러 수정 (FK constraint 위반)
+
+### 원인
+- `DELETE /api/v1/diagnostics/{id}` 호출 시 500 Internal Server Error 발생
+- `Diagnostic` 엔티티를 참조하는 연관 엔티티(DiagnosticHistory, EvidenceFile, ResultQual, ResultQuant, AiAnalysisResult)가 FK constraint로 연결되어 있어 삭제 불가
+- Diagnostic 엔티티에 cascade 설정이 없었고, 서비스 코드에서 연관 데이터 삭제 로직도 없었음
+
+### 해결
+- 각 Repository에 `deleteAllByDiagnostic` 메서드 추가:
+  - `DiagnosticHistoryRepository.deleteAllByDiagnostic(Diagnostic)`
+  - `EvidenceFileRepository.deleteAllByDiagnostic_DiagnosticId(Long)`
+  - `AiAnalysisResultRepository.deleteAllByDiagnostic_DiagnosticId(Long)`
+- 신규 Repository 생성:
+  - `ResultQualRepository.deleteAllByDiagnostic_DiagnosticId(Long)`
+  - `ResultQuantRepository.deleteAllByDiagnostic_DiagnosticId(Long)`
+- `DiagnosticService.deleteDiagnostic()` 수정: 연관 엔티티 먼저 삭제 후 Diagnostic 삭제
+
+### 재발방지
+- 엔티티 삭제 기능 구현 시 FK 참조 관계 확인 필수
+- `@JoinColumn` 검색으로 참조 엔티티 파악: `grep -r "@JoinColumn.*diagnostic_id"`
+- 삭제 순서: 참조하는 자식 엔티티 → 부모 엔티티
+
+### 검증방법
+- `./gradlew test --tests "DiagnosticServiceTest"` - 기안 삭제 테스트 통과
+- `./gradlew test` - 전체 테스트 통과 (431 tests)
+
+### 관련커밋
+- (커밋 전)
+
+---
+
 ## 2026-02-05: 서버 사이드 이름 마스킹 (개인정보 보호법 제29조 준수)
 
 ### 원인

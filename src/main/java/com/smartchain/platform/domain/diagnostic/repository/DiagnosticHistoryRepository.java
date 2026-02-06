@@ -10,4 +10,6 @@ import java.util.List;
 @Repository
 public interface DiagnosticHistoryRepository extends JpaRepository<DiagnosticHistory, Long> {
     List<DiagnosticHistory> findByDiagnosticOrderByCreatedAtDesc(Diagnostic diagnostic);
+
+    void deleteAllByDiagnostic(Diagnostic diagnostic);
 }
