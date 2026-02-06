@@ -8,6 +8,10 @@ import com.smartchain.platform.domain.diagnostic.entity.DiagnosticHistory;
 import com.smartchain.platform.domain.diagnostic.repository.CampaignRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticHistoryRepository;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
+import com.smartchain.platform.domain.diagnostic.repository.ResultQualRepository;
+import com.smartchain.platform.domain.diagnostic.repository.ResultQuantRepository;
+import com.smartchain.platform.domain.ai.repository.AiAnalysisResultRepository;
+import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
@@ -79,6 +83,18 @@ class DiagnosticServiceTest {
 
     @Mock
     private DomainRepository domainRepository;
+
+    @Mock
+    private ResultQualRepository resultQualRepository;
+
+    @Mock
+    private ResultQuantRepository resultQuantRepository;
+
+    @Mock
+    private AiAnalysisResultRepository aiAnalysisResultRepository;
+
+    @Mock
+    private EvidenceFileRepository evidenceFileRepository;
 
     @Mock
     private User drafterUser;

@@ -29,4 +29,6 @@ public interface AiAnalysisResultRepository extends JpaRepository<AiAnalysisResu
      * 도메인별 분석 결과 조회
      */
     List<AiAnalysisResult> findByDomainCodeOrderByAnalyzedAtDesc(String domainCode);
+
+    void deleteAllByDiagnostic_DiagnosticId(Long diagnosticId);
 }

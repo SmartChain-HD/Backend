@@ -20,4 +20,6 @@ public interface EvidenceFileRepository extends JpaRepository<EvidenceFile, Long
 
     @Query("SELECT COUNT(ef) FROM EvidenceFile ef WHERE ef.diagnostic.diagnosticId = :diagnosticId")
     int countByDiagnosticId(@Param("diagnosticId") Long diagnosticId);
+
+    void deleteAllByDiagnostic_DiagnosticId(Long diagnosticId);
 }
