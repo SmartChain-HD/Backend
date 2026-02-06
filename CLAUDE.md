@@ -191,6 +191,7 @@ Swagger UI available at: `http://localhost:8080/swagger-ui.html`
 - [Backend Implementation Guide](./docs/BACKEND_IMPLEMENTATION_GUIDE.md) - 백엔드 구현 가이드
 - [Status and Error Codes](./docs/STATUS_AND_ERROR_CODES.md) - 상태/에러 코드 참조
 - [AI Integration Guide](./docs/AI_INTEGRATION_GUIDE.md) - AI Run API 연동 가이드
+- [AI Risk API](./docs/AI_RISK_API.md) - 외부 리스크 감지 API 프론트엔드 연동 가이드
 
 ## Implementation Notes
 

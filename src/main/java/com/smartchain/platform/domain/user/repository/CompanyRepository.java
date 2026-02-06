@@ -37,4 +37,6 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
 
     @Query("SELECT COUNT(d) FROM Diagnostic d WHERE d.company.companyId = :companyId")
     int countDiagnosticsByCompanyId(@Param("companyId") Long companyId);
+
+    List<Company> findByNameIn(List<String> names);
 }

@@ -2,6 +2,7 @@ package com.smartchain.platform.domain.risk.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartchain.platform.domain.risk.client.ExternalRiskApiClient;
+import com.smartchain.platform.domain.risk.config.ExternalRiskApiConfig;
 import com.smartchain.platform.domain.risk.entity.ExternalRiskResult;
 import com.smartchain.platform.domain.risk.repository.ExternalRiskResultRepository;
 import com.smartchain.platform.domain.user.entity.Company;
@@ -9,6 +10,7 @@ import com.smartchain.platform.domain.user.entity.Role;
 import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.domain.user.repository.CompanyRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
+import com.smartchain.platform.dto.risk.ExternalRiskCompanyResponse;
 import com.smartchain.platform.dto.risk.ExternalRiskDetectRequest;
 import com.smartchain.platform.dto.risk.ExternalRiskDetectResponse;
 import com.smartchain.platform.dto.risk.ExternalRiskResultResponse;
@@ -43,6 +45,8 @@ class ExternalRiskServiceTest {
     @Mock
     private ExternalRiskApiClient externalRiskApiClient;
     @Mock
+    private ExternalRiskApiConfig externalRiskApiConfig;
+    @Mock
     private ExternalRiskResultRepository riskResultRepository;
     @Mock
     private CompanyRepository companyRepository;
@@ -57,6 +61,7 @@ class ExternalRiskServiceTest {
         objectMapper = new ObjectMapper();
         externalRiskService = new ExternalRiskService(
             externalRiskApiClient,
+            externalRiskApiConfig,
             riskResultRepository,
             companyRepository,
             userRepository,
@@ -117,9 +122,10 @@ class ExternalRiskServiceTest {
 
             ExternalRiskDetectResponse aiResponse = new ExternalRiskDetectResponse(
                 List.of(new ExternalRiskDetectResponse.VendorRiskResult(
-                    "테스트협력사", "HIGH", "뉴스 기사에서 위험 감지",
+                    "테스트협력사", "HIGH", 85.0, 1, "뉴스 기사에서 위험 감지",
+                    List.of("위험 요소 발견"),
                     List.of(new ExternalRiskDetectResponse.Evidence(
-                        "뉴스", "위험 기사", "내용 발췌", "https://example.com", "2025-01-01"
+                        "doc-1", "뉴스", "위험 기사", "내용 발췌", "https://example.com", "2025-01-01"
                     ))
                 ))
             );
@@ -297,6 +303,71 @@ class ExternalRiskServiceTest {
             assertThat(responsePage.getContent()).hasSize(1);
             assertThat(responsePage.getContent().get(0).riskLevel()).isEqualTo("LOW");
             assertThat(responsePage.getTotalElements()).isEqualTo(1);
+        }
+    }
+
+    @Nested
+    @DisplayName("getRiskTargetCompanies")
+    class GetRiskTargetCompaniesTest {
+
+        @Test
+        @DisplayName("설정된 대상 회사 목록을 반환한다")
+        void getRiskTargetCompanies_success_returnsCompanies() {
+            // given
+            Long userId = 1L;
+            User user = createTestUser(userId, "REVIEWER");
+            List<String> targetNames = List.of("포스코홀딩스", "현대제철");
+            Company company1 = createTestCompany(1L, "포스코홀딩스");
+            Company company2 = createTestCompany(2L, "현대제철");
+
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+            when(externalRiskApiConfig.getTargetCompanies()).thenReturn(targetNames);
+            when(companyRepository.findByNameIn(targetNames)).thenReturn(List.of(company1, company2));
+
+            // when
+            List<ExternalRiskCompanyResponse> result = externalRiskService.getRiskTargetCompanies(userId);
+
+            // then
+            assertThat(result).hasSize(2);
+            assertThat(result.get(0).companyId()).isEqualTo(1L);
+            assertThat(result.get(0).name()).isEqualTo("포스코홀딩스");
+            assertThat(result.get(1).companyId()).isEqualTo(2L);
+            assertThat(result.get(1).name()).isEqualTo("현대제철");
+        }
+
+        @Test
+        @DisplayName("REVIEWER가 아니면 RISK_PERMISSION_DENIED 에러를 발생시킨다")
+        void getRiskTargetCompanies_nonReviewer_throwsException() {
+            // given
+            Long userId = 1L;
+            User user = createTestUser(userId, "DRAFTER");
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+            // when & then
+            assertThatThrownBy(() -> externalRiskService.getRiskTargetCompanies(userId))
+                .isInstanceOf(CustomException.class)
+                .satisfies(ex -> {
+                    CustomException customEx = (CustomException) ex;
+                    assertThat(customEx.getErrorCode()).isEqualTo(ErrorCode.RISK_PERMISSION_DENIED);
+                });
+        }
+
+        @Test
+        @DisplayName("대상 회사가 비어있으면 빈 목록을 반환한다")
+        void getRiskTargetCompanies_emptyConfig_returnsEmpty() {
+            // given
+            Long userId = 1L;
+            User user = createTestUser(userId, "REVIEWER");
+
+            when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+            when(externalRiskApiConfig.getTargetCompanies()).thenReturn(List.of());
+
+            // when
+            List<ExternalRiskCompanyResponse> result = externalRiskService.getRiskTargetCompanies(userId);
+
+            // then
+            assertThat(result).isEmpty();
+            verify(companyRepository, never()).findByNameIn(any());
         }
     }
 
