@@ -1,5 +1,31 @@
 # Claude Code Learnings
 
+## 2026-02-06: 반려 후 재제출 시 Review 중복 생성 버그 수정
+
+### 원인
+- 심사자가 반려(REVISION_REQUIRED) 후 기안자가 재제출하면 심사 목록에 2개의 Review가 나타남
+- `ApprovalService.submitToReviewer()`, `DiagnosticService.submitDiagnostic()`에서 항상 새 Review를 생성하는 로직
+- 기존 REVISION_REQUIRED 상태의 Review를 무시하고 새로 생성
+
+### 해결
+- `ReviewRepository.findByDiagnostic()` 메서드 추가
+- `Review.resubmit()` 메서드 추가 (상태를 REVIEWING으로 되돌리고 제출 시간 업데이트)
+- `ApprovalService.submitToReviewer()`: 기존 Review가 있으면 `resubmit()` 호출하여 재사용
+- `DiagnosticService.submitDiagnostic()` (SAFETY/COMPLIANCE): 동일하게 기존 Review 재사용
+
+### 재발방지
+- 워크플로우에서 상태 전이 시 새 엔티티 생성 전에 기존 엔티티 존재 여부 확인
+- 반려 → 재제출 시나리오는 기존 레코드 재사용이 일반적
+
+### 검증방법
+- `./gradlew build` 전체 빌드 및 테스트 통과
+- 프론트엔드에서 반려 → 재제출 → 심사 목록 확인
+
+### 관련커밋
+- (커밋 전)
+
+---
+
 ## 2026-02-06: 기안 삭제 API 500 에러 수정 (FK constraint 위반)
 
 ### 원인
