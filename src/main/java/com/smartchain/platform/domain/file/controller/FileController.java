@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -73,6 +75,27 @@ public class FileController {
         Long userId = extractUserIdFromRequest(request);
         FileDownloadUrlResponse response = fileService.getDownloadUrl(userId, fileId);
         return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    @Operation(summary = "파일 직접 다운로드", description = "파일을 직접 다운로드합니다. local 환경에서 사용됩니다.")
+    @GetMapping("/api/v1/files/{fileId}/download")
+    public ResponseEntity<InputStreamResource> downloadFile(
+            HttpServletRequest request,
+            @Parameter(description = "파일 ID")
+            @PathVariable Long fileId) {
+        Long userId = extractUserIdFromRequest(request);
+        FileService.FileDownloadData data = fileService.downloadFile(userId, fileId);
+
+        String contentDisposition = "attachment; filename=\"" + data.fileName() + "\"";
+        MediaType mediaType = data.mimeType() != null
+                ? MediaType.parseMediaType(data.mimeType())
+                : MediaType.APPLICATION_OCTET_STREAM;
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, contentDisposition)
+                .contentType(mediaType)
+                .contentLength(data.fileSize())
+                .body(new InputStreamResource(data.inputStream()));
     }
 
     @Operation(summary = "파일 삭제", description = "파일을 삭제합니다. 제출된 진단의 파일은 삭제할 수 없습니다.")

@@ -1,21 +1,22 @@
 package com.smartchain.platform.domain.chat.controller;
 
 import com.smartchain.platform.domain.chat.service.ChatService;
-import com.smartchain.platform.domain.user.entity.User;
 import com.smartchain.platform.dto.chat.AdminInspectResponse;
 import com.smartchain.platform.dto.chat.AdminSyncResponse;
 import com.smartchain.platform.dto.chat.ChatRequest;
 import com.smartchain.platform.dto.chat.ChatResponse;
 import com.smartchain.platform.global.response.BaseResponse;
+import com.smartchain.platform.global.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -33,9 +34,11 @@ public class ChatController {
     private static final Logger log = LoggerFactory.getLogger(ChatController.class);
 
     private final ChatService chatService;
+    private final JwtTokenProvider jwtTokenProvider;
 
-    public ChatController(ChatService chatService) {
+    public ChatController(ChatService chatService, JwtTokenProvider jwtTokenProvider) {
         this.chatService = chatService;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     @Operation(summary = "AI 채팅", description = "RAG 기반 AI 챗봇과 대화합니다.")
@@ -49,11 +52,12 @@ public class ChatController {
     @PostMapping("/chat")
     public ResponseEntity<BaseResponse<ChatResponse>> chat(
         @Valid @RequestBody ChatRequest request,
-        @AuthenticationPrincipal User user
+        HttpServletRequest httpRequest
     ) {
-        log.info("채팅 API 호출 - userId: {}", user.getUserId());
+        Long userId = extractUserIdFromRequest(httpRequest);
+        log.info("채팅 API 호출 - userId: {}", userId);
 
-        ChatResponse response = chatService.chat(request, user);
+        ChatResponse response = chatService.chat(request, userId);
 
         return ResponseEntity.ok(BaseResponse.success("채팅 완료", response));
     }
@@ -66,11 +70,12 @@ public class ChatController {
     })
     @PostMapping("/admin/chat/sync")
     public ResponseEntity<BaseResponse<AdminSyncResponse>> syncData(
-        @AuthenticationPrincipal User user
+        HttpServletRequest httpRequest
     ) {
-        log.info("Admin 동기화 API 호출 - userId: {}", user.getUserId());
+        Long userId = extractUserIdFromRequest(httpRequest);
+        log.info("Admin 동기화 API 호출 - userId: {}", userId);
 
-        AdminSyncResponse response = chatService.syncData(user);
+        AdminSyncResponse response = chatService.syncData(userId);
 
         return ResponseEntity.ok(BaseResponse.success("동기화 요청이 접수되었습니다", response));
     }
@@ -83,12 +88,22 @@ public class ChatController {
     })
     @GetMapping("/admin/chat/inspect")
     public ResponseEntity<BaseResponse<AdminInspectResponse>> inspectDb(
-        @AuthenticationPrincipal User user
+        HttpServletRequest httpRequest
     ) {
-        log.info("Admin DB 현황 조회 API 호출 - userId: {}", user.getUserId());
+        Long userId = extractUserIdFromRequest(httpRequest);
+        log.info("Admin DB 현황 조회 API 호출 - userId: {}", userId);
 
-        AdminInspectResponse response = chatService.getDbStatus(user);
+        AdminInspectResponse response = chatService.getDbStatus(userId);
 
         return ResponseEntity.ok(BaseResponse.success("DB 현황 조회 완료", response));
+    }
+
+    private Long extractUserIdFromRequest(HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+            String token = bearerToken.substring(7);
+            return jwtTokenProvider.getUserIdFromToken(token);
+        }
+        throw new IllegalArgumentException("Authorization header is missing or invalid");
     }
 }
