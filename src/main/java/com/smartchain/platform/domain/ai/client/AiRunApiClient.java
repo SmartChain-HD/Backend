@@ -36,6 +36,8 @@ public class AiRunApiClient {
 
     private final WebClient webClient;
     private final int maxRetry;
+    private final int previewTimeoutSeconds;
+    private final int previewMaxRetry;
 
     public AiRunApiClient(
         @Qualifier("aiRunApiWebClient") WebClient webClient,
@@ -43,6 +45,8 @@ public class AiRunApiClient {
     ) {
         this.webClient = webClient;
         this.maxRetry = config.getMaxRetry();
+        this.previewTimeoutSeconds = config.getPreviewTimeoutSeconds();
+        this.previewMaxRetry = config.getPreviewMaxRetry();
     }
 
     /**
@@ -60,7 +64,8 @@ public class AiRunApiClient {
             .bodyValue(request)
             .retrieve()
             .bodyToMono(RunPreviewResponse.class)
-            .retryWhen(Retry.backoff(maxRetry, Duration.ofSeconds(1))
+            .timeout(Duration.ofSeconds(previewTimeoutSeconds))
+            .retryWhen(Retry.backoff(previewMaxRetry, Duration.ofSeconds(1))
                 .filter(this::isRetryableError)
                 .onRetryExhaustedThrow((spec, signal) ->
                     new CustomException(ErrorCode.AI_SERVICE_UNAVAILABLE)))

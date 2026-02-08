@@ -1,5 +1,30 @@
 # Claude Code Learnings
 
+## 2026-02-08: AI Preview 다량 파일 시 무반응(타임아웃) 문제
+
+### 원인
+- `AiRunApiClient.previewSync()`가 `.block()`으로 서블릿 스레드를 블로킹
+- preview와 submit이 동일한 타임아웃(180초) × 재시도(3회) 설정을 공유
+- 최악의 경우 ~727초(12분) 동안 서블릿 스레드가 점유되어 프론트에서 "아무 반응 없음"
+
+### 해결
+- `AiRunApiConfig`에 preview 전용 설정 분리: `previewTimeoutSeconds(30)`, `previewMaxRetry(1)`
+- `AiRunApiClient.preview()`에 `Mono.timeout(Duration.ofSeconds(30))` 추가
+- 최악의 경우 ~62초로 단축, 타임아웃 시 AI001 에러 코드로 명확한 응답 반환
+
+### 재발방지
+- 동기 블로킹(`.block()`) 사용 시 반드시 용도별 타임아웃 분리
+- preview(경량 조회)와 submit(중량 처리)은 성격이 다르므로 설정을 분리할 것
+
+### 검증방법
+- `./gradlew test --tests "AiAnalysisServiceTest"` 전체 통과
+- preview 요청 시 30초 내 응답 또는 타임아웃 에러 반환 확인
+
+### 관련커밋
+- (커밋 전)
+
+---
+
 ## 2026-02-08: AI Preview 간헐적 500 에러 및 파싱 미완료 파일 처리
 
 ### 원인

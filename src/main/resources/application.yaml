@@ -78,6 +78,8 @@ ai:
     url: http://127.0.0.1:8000
     timeout-seconds: 180
     max-retry: 3
+    preview-timeout-seconds: 30
+    preview-max-retry: 1
   chat:
     base-url: http://127.0.0.1:8001
     admin-api-key: ${AI_CHAT_ADMIN_KEY:test-key}
