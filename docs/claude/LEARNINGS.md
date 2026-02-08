@@ -1,5 +1,31 @@
 # Claude Code Learnings
 
+## 2026-02-08: AI Preview 간헐적 500 에러 및 파싱 미완료 파일 처리
+
+### 원인
+- `AiAnalysisService.preview()`에서 `diagnostic.getPeriodStartDate().format()`를 호출하는데, `periodStartDate`/`periodEndDate`가 nullable 컬럼이라 NPE 발생 → catch-all handler가 500 + `S001` 반환
+- `toFileInfo()`에서 `EvidenceFile.parsingStatus`를 검증하지 않아 파싱 미완료(WAITING/PROCESSING) 파일도 AI 서비스로 전달
+- 프론트에서 AI001~AI006만 처리하므로 `S001`, `S003` 등 코드가 "알 수 없는 오류"로 표시
+
+### 해결
+- `ErrorCode`에 `AI_FILE_NOT_READY(AI009)`, `AI_MISSING_PERIOD_DATES(AI010)` 추가
+- `preview()`/`submit()`에 `periodStartDate`/`periodEndDate` null 체크 추가
+- `toFileInfo()`에 `parsingStatus != SUCCESS` 검증 추가
+- `submit()`에도 동일한 파싱 상태 일괄 검증 추가
+
+### 재발방지
+- nullable 필드를 참조할 때는 반드시 null 체크 후 접근
+- 비동기 처리(파일 파싱) 결과에 의존하는 API는 상태 검증 필수
+
+### 검증방법
+- `./gradlew test --tests "AiAnalysisServiceTest"` — 파싱 미완료 테스트 케이스 포함 전체 통과
+- 프론트에서 파일 업로드 직후 Add 클릭 시 AI009 에러 코드 반환 확인
+
+### 관련커밋
+- (커밋 전)
+
+---
+
 ## 2026-02-06: 반려 후 재제출 시 Review 중복 생성 버그 수정
 
 ### 원인

@@ -11,6 +11,7 @@ import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository
 import com.smartchain.platform.domain.evidence.entity.EvidenceFile;
 import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
 import com.smartchain.platform.dto.ai.run.*;
+import com.smartchain.platform.global.enums.ParsingStatus;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import org.slf4j.Logger;
@@ -83,6 +84,10 @@ public class AiAnalysisService {
             .map(AiAnalysisResult::getPackageId)
             .orElse(null);
 
+        if (diagnostic.getPeriodStartDate() == null || diagnostic.getPeriodEndDate() == null) {
+            throw new CustomException(ErrorCode.AI_MISSING_PERIOD_DATES);
+        }
+
         RunPreviewRequest request = new RunPreviewRequest(
             domainCode.toLowerCase(),
             diagnostic.getPeriodStartDate().format(DATE_FORMATTER),
@@ -102,10 +107,24 @@ public class AiAnalysisService {
         Diagnostic diagnostic = getDiagnostic(diagnosticId);
         String domainCode = getDomainCode(diagnostic);
 
+        if (diagnostic.getPeriodStartDate() == null || diagnostic.getPeriodEndDate() == null) {
+            throw new CustomException(ErrorCode.AI_MISSING_PERIOD_DATES);
+        }
+
         // 증빙 파일 목록 조회
         List<EvidenceFile> evidenceFiles = evidenceFileRepository.findByDiagnosticId(diagnosticId);
         if (evidenceFiles.isEmpty()) {
             throw new CustomException(ErrorCode.DIAGNOSTIC_MISSING_EVIDENCE);
+        }
+
+        // 파싱 미완료 파일 검증
+        List<Long> notReadyFileIds = evidenceFiles.stream()
+            .filter(ef -> ef.getParsingStatus() != ParsingStatus.SUCCESS)
+            .map(EvidenceFile::getResultFileId)
+            .toList();
+        if (!notReadyFileIds.isEmpty()) {
+            log.warn("파일 파싱 미완료 - diagnosticId: {}, fileIds: {}", diagnosticId, notReadyFileIds);
+            throw new CustomException(ErrorCode.AI_FILE_NOT_READY);
         }
 
         // FileInfo 변환 (절대 경로로 변환)
@@ -256,6 +275,12 @@ public class AiAnalysisService {
     private FileInfo toFileInfo(Long fileId) {
         EvidenceFile ef = evidenceFileRepository.findById(fileId)
             .orElseThrow(() -> new CustomException(ErrorCode.FILE_NOT_FOUND));
+
+        if (ef.getParsingStatus() != ParsingStatus.SUCCESS) {
+            log.warn("파일 파싱 미완료 - fileId: {}, status: {}", fileId, ef.getParsingStatus());
+            throw new CustomException(ErrorCode.AI_FILE_NOT_READY);
+        }
+
         return new FileInfo(
             ef.getResultFileId().toString(),
             ef.getFilePath(),
