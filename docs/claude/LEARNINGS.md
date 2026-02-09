@@ -1821,3 +1821,90 @@ src/test/java/.../domain/review/service/ReviewServiceTest.java (AI 분석 결과
 src/main/java/.../domain/approval/service/ApprovalService.java (ReviewRepository 추가, Review 생성 로직)
 src/test/java/.../domain/approval/service/ApprovalServiceTest.java (+2 테스트 케이스)
 ```
+
+## 2026-02-09: QA 이슈 일괄 수정 (BE-02, BE-03, BE-05, BE-07)
+
+### BE-02: 보완 요청(REVISION_REQUIRED) 시 서버 에러
+
+#### 원인
+- `ReviewService.processReview()`에서 decision 종류와 무관하게 `validateCategoryComments()` 호출
+- SAFETY/COMPLIANCE 도메인은 ESG 카테고리 키(E,S,G)가 없어 `allowedKeys`가 빈 리스트
+- FE에서 categoryComments가 포함된 REVISION_REQUIRED 요청 시 `INVALID_CATEGORY_FOR_DOMAIN` (RV004) 에러 발생
+
+#### 해결
+- categoryComments 검증을 APPROVED decision일 때만 수행하도록 분기 추가
+- REVISION_REQUIRED는 카테고리별 코멘트가 불필요하므로 검증 스킵
+
+#### 재발방지
+- decision별 검증 로직은 decision 분기 전이 아닌 해당 분기 내에서 수행
+
+#### 검증방법
+```bash
+./gradlew test --tests "ReviewServiceTest"
+```
+
+### BE-03: 결재 상세 화면에서 기안자 이름 미표시
+
+#### 원인
+- `RequesterDetailDto`에 `maskedName` 필드 누락 (목록용 `RequesterDto`에만 존재)
+- `ApprovalService.getApprovalDetail()`에서 `NameMaskingUtil.mask()` 미호출
+- FE에서 `requester.maskedName`을 참조하나 null → '-' 표시
+
+#### 해결
+- `RequesterDetailDto`에 `maskedName` 필드 추가
+- `ApprovalService`에서 마스킹 유틸 적용
+
+#### 재발방지
+- 신규 DTO 생성 시 기존 유사 DTO와 필드 비교 체크리스트 확인
+
+#### 검증방법
+```bash
+./gradlew test --tests "ApprovalServiceTest"
+```
+
+### BE-05: 2025 하반기 캠페인 기간 1년 표시
+
+#### 원인
+- `DataInitializer.java`에서 3개 하반기 캠페인의 `periodEndDate`가 `2026-06-30`으로 설정됨
+- 주석에는 `기간: 2025.07~12`로 명시되어 있으나 코드가 불일치
+
+#### 해결
+- `periodEndDate`를 `2025-12-31`로 수정 (ESG, SAFETY, COMPLIANCE 3건 모두)
+- `deadline`도 주석과 일치하도록 `2026-02-28`로 수정
+
+#### 재발방지
+- 시드 데이터의 날짜 값은 주석과 반드시 일치시킬 것
+
+#### 검증방법
+```bash
+./gradlew bootRun # 로컬 실행 후 캠페인 목록 API 확인
+```
+
+### BE-07: 파일 업로드 에러 코드 S001 대신 S002 반환
+
+#### 원인
+- `LocalFileStorageService`, `AzureBlobStorageService`에서 IOException 시 `RuntimeException` throw
+- `GlobalExceptionHandler`에서 RuntimeException은 제네릭 핸들러로 잡혀 S001 (INTERNAL_ERROR) 반환
+- 정의된 S002 (FILE_UPLOAD_ERROR)가 실제로 사용되지 않음
+
+#### 해결
+- 두 스토리지 서비스에서 `RuntimeException` → `CustomException(ErrorCode.FILE_UPLOAD_ERROR)` 변경
+- 이제 파일 업로드 실패 시 S002 에러 코드가 정상 반환됨
+
+#### 재발방지
+- ErrorCode enum에 정의된 에러 코드가 실제 throw되는지 주기적 점검
+
+#### 검증방법
+```bash
+./gradlew test --tests "FileServiceTest"
+```
+
+### 수정 파일
+```
+src/main/java/.../domain/review/service/ReviewService.java (categoryComments 검증 분기)
+src/main/java/.../dto/approval/detail/RequesterDetailDto.java (maskedName 필드 추가)
+src/main/java/.../domain/approval/service/ApprovalService.java (마스킹 적용)
+src/main/java/.../global/config/DataInitializer.java (캠페인 날짜 수정)
+src/main/java/.../domain/file/storage/LocalFileStorageService.java (CustomException 변경)
+src/main/java/.../domain/file/storage/AzureBlobStorageService.java (CustomException 변경)
+```

@@ -1,40 +1,18 @@
+# ========================================
+# 공통 설정 (모든 프로필 적용)
+# ========================================
 spring:
   application:
     name: platform
   profiles:
-    active: local  # 기본값: local (Azure에서는 환경변수 SPRING_PROFILES_ACTIVE=dev 로 오버라이드)
+    active: local
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
+
 server:
   port: 8080
----
-# ========================================
-# 로컬 개발 환경
-# ========================================
-spring:
-  config:
-    activate:
-      on-profile: local
-  datasource:
-    url: jdbc:postgresql://localhost:5432/smartchain
-    username: esg
-    password: esg1234
-    driver-class-name: org.postgresql.Driver
-  sql:
-    init:
-      mode: always
-  jpa:
-    defer-datasource-initialization: true
-    hibernate:
-      ddl-auto: create
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-    open-in-view: false
 
 # Swagger 설정
 springdoc:
@@ -48,52 +26,14 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
-# JWT 설정
+# JWT 설정 (공통)
 jwt:
-  secret: smartchainPlatformSecretKeyForJwtTokenGenerationMustBe256BitsLongNiceDay
+  secret: ${JWT_SECRET:smartchainPlatformSecretKeyForJwtTokenGenerationMustBe256BitsLongNiceDay}
   access-token-validity: 3600000      # 1시간 (밀리초)
   refresh-token-validity: 604800000   # 7일 (밀리초)
 
-# 로깅 설정
-logging:
-  level:
-    com.smartchain.platform: DEBUG
-    org.hibernate.SQL: DEBUG
-
-# reCAPTCHA v3 설정
-recaptcha:
-  secret-key: ${RECAPTCHA_SECRET_KEY:6LcC-V8sAAAAAHpYoUj5q31vQh9hDduj-4m7hvGc}
-  score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
-  enabled: ${RECAPTCHA_ENABLED:false}
-
-# 파일 저장소 설정 (로컬)
-file:
-  storage:
-    local:
-      base-path: ./uploads
-
-# AI Run API 설정
+# AI 슬롯 정의 (공통)
 ai:
-  run-api:
-    url: http://127.0.0.1:8000
-    timeout-seconds: 180
-    max-retry: 3
-    preview-timeout-seconds: 30
-    preview-max-retry: 1
-  chat:
-    base-url: http://127.0.0.1:8001
-    admin-api-key: ${AI_CHAT_ADMIN_KEY:test-key}
-    timeout-seconds: 30
-  risk-api:
-    url: ${AI_RISK_API_URL:http://127.0.0.1:8002}
-    timeout-seconds: 300
-    max-retry: 3
-    target-companies:
-      - 포스코홀딩스
-      - 현대제철
-      - 성광벤드
-      - 동국제강
-      - HD현대일렉트릭
   slots:
     # 슬롯 정의: docs/API_CONTRACT_SSOT.md §8.6 기준
     domains:
@@ -226,44 +166,127 @@ ai:
 
 ---
 # ========================================
-# 개발 서버 환경 (Azure)
+# 로컬 개발 환경
+# ========================================
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:postgresql://localhost:5432/smartchain
+    username: esg
+    password: esg1234
+    driver-class-name: org.postgresql.Driver
+  sql:
+    init:
+      mode: always
+  jpa:
+    defer-datasource-initialization: true
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    open-in-view: false
+
+# reCAPTCHA 비활성화 (로컬)
+recaptcha:
+  secret-key: ${RECAPTCHA_SECRET_KEY:6LcC-V8sAAAAAHpYoUj5q31vQh9hDduj-4m7hvGc}
+  score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
+  enabled: false
+
+# 파일 저장소 설정 (로컬)
+file:
+  storage:
+    local:
+      base-path: ./uploads
+
+# AI 서비스 (로컬)
+ai:
+  run-api:
+    url: http://127.0.0.1:8000
+    timeout-seconds: 180
+    max-retry: 3
+    preview-timeout-seconds: 30
+    preview-max-retry: 1
+  chat:
+    base-url: http://127.0.0.1:8001
+    admin-api-key: ${AI_CHAT_ADMIN_KEY:test-key}
+    timeout-seconds: 30
+  risk-api:
+    url: http://127.0.0.1:8002
+    timeout-seconds: 300
+    max-retry: 3
+    target-companies:
+      - 포스코홀딩스
+      - 현대제철
+      - 성광벤드
+      - 동국제강
+      - HD현대일렉트릭
+
+# 로깅 (로컬)
+logging:
+  level:
+    com.smartchain.platform: DEBUG
+    org.hibernate.SQL: DEBUG
+
+---
+# ========================================
+# 개발 서버 환경 (Azure Dev)
 # ========================================
 spring:
   config:
     activate:
       on-profile: dev
-
   datasource:
     url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
-
   sql:
     init:
       mode: always
-
   jpa:
     defer-datasource-initialization: true
     hibernate:
       ddl-auto: validate
     show-sql: false
 
-# Azure Blob Storage 설정
+# reCAPTCHA (dev)
+recaptcha:
+  secret-key: ${RECAPTCHA_SECRET_KEY}
+  score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
+  enabled: ${RECAPTCHA_ENABLED:false}
+
+# Azure Blob Storage
 azure:
   storage:
     connection-string: ${AZURE_STORAGE_CONNECTION_STRING}
     container-name: ${AZURE_STORAGE_CONTAINER:smartchain-files}
 
-logging:
-  level:
-    com.smartchain.platform: INFO
-
-# AI Chat API 설정 (dev)
+# AI 서비스 (dev)
 ai:
+  run-api:
+    url: ${AI_RUN_API_URL:http://127.0.0.1:8000}
+    timeout-seconds: 180
+    max-retry: 3
+    preview-timeout-seconds: 30
+    preview-max-retry: 1
   chat:
     base-url: ${AI_CHAT_URL:http://127.0.0.1:8001}
     admin-api-key: ${AI_CHAT_ADMIN_KEY}
     timeout-seconds: 30
+  risk-api:
+    url: ${AI_RISK_API_URL:http://127.0.0.1:8002}
+    timeout-seconds: 300
+    max-retry: 3
+    target-companies:
+      - 포스코홀딩스
+      - 현대제철
+      - 성광벤드
+      - 동국제강
+      - HD현대일렉트릭
 
 # 이메일 설정 (SMTP)
 spring.mail:
@@ -275,3 +298,86 @@ spring.mail:
     mail.smtp.auth: true
     mail.smtp.starttls.enable: true
     mail.smtp.starttls.required: true
+
+# 로깅 (dev)
+logging:
+  level:
+    com.smartchain.platform: INFO
+
+---
+# ========================================
+# 운영 환경 (Azure Prod)
+# ========================================
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  sql:
+    init:
+      mode: never
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+# reCAPTCHA (prod - 활성화)
+recaptcha:
+  secret-key: ${RECAPTCHA_SECRET_KEY}
+  score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
+  enabled: true
+
+# Swagger 비활성화 (prod)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+# Azure Blob Storage
+azure:
+  storage:
+    connection-string: ${AZURE_STORAGE_CONNECTION_STRING}
+    container-name: ${AZURE_STORAGE_CONTAINER:smartchain-files}
+
+# AI 서비스 (prod)
+ai:
+  run-api:
+    url: ${AI_RUN_API_URL}
+    timeout-seconds: 180
+    max-retry: 3
+    preview-timeout-seconds: 30
+    preview-max-retry: 1
+  chat:
+    base-url: ${AI_CHAT_URL}
+    admin-api-key: ${AI_CHAT_ADMIN_KEY}
+    timeout-seconds: 30
+  risk-api:
+    url: ${AI_RISK_API_URL}
+    timeout-seconds: 300
+    max-retry: 3
+    target-companies:
+      - 포스코홀딩스
+      - 현대제철
+      - 성광벤드
+      - 동국제강
+      - HD현대일렉트릭
+
+# 이메일 설정 (SMTP)
+spring.mail:
+  host: ${MAIL_HOST:smtp.gmail.com}
+  port: ${MAIL_PORT:587}
+  username: ${MAIL_USERNAME}
+  password: ${MAIL_PASSWORD}
+  properties:
+    mail.smtp.auth: true
+    mail.smtp.starttls.enable: true
+    mail.smtp.starttls.required: true
+
+# 로깅 (prod)
+logging:
+  level:
+    com.smartchain.platform: WARN
