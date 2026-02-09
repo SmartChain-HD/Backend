@@ -2,12 +2,14 @@ package com.smartchain.platform.domain.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service // 이 어노테이션이 있어야 AuthService에 주입될 수 있습니다.
+@Service
+@Profile({"dev", "prod"})
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
 
