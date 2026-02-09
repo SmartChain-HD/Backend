@@ -1,6 +1,8 @@
 spring:
   application:
     name: platform
+  profiles:
+    active: local  # 기본값: local (Azure에서는 환경변수 SPRING_PROFILES_ACTIVE=dev 로 오버라이드)
   servlet:
     multipart:
       max-file-size: 50MB
@@ -12,8 +14,6 @@ server:
 # 로컬 개발 환경
 # ========================================
 spring:
-  profiles:
-    active: local
   config:
     activate:
       on-profile: local
