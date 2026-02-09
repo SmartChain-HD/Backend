@@ -12,5 +12,6 @@ import lombok.NoArgsConstructor;
 public class RequesterDetailDto {
     private Long userId;
     private String name;
+    private String maskedName;
     private String email;
 }
