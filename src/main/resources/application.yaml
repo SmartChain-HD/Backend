@@ -1,174 +1,20 @@
-# ========================================
-# 공통 설정 (모든 프로필 적용)
-# ========================================
 spring:
   application:
     name: platform
-  profiles:
-    active: local
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
-
 server:
   port: 8080
-
-# Swagger 설정
-springdoc:
-  default-consumes-media-type: application/json
-  default-produces-media-type: application/json
-  swagger-ui:
-    path: /swagger-ui.html
-    tags-sorter: alpha
-    operations-sorter: alpha
-    display-request-duration: true
-  api-docs:
-    path: /v3/api-docs
-
-# JWT 설정 (공통)
-jwt:
-  secret: ${JWT_SECRET:smartchainPlatformSecretKeyForJwtTokenGenerationMustBe256BitsLongNiceDay}
-  access-token-validity: 3600000      # 1시간 (밀리초)
-  refresh-token-validity: 604800000   # 7일 (밀리초)
-
-# AI 슬롯 정의 (공통)
-ai:
-  slots:
-    # 슬롯 정의: docs/API_CONTRACT_SSOT.md §8.6 기준
-    domains:
-      # ESG 도메인 (15개 슬롯, 필수 4개)
-      esg:
-        - name: esg.energy.electricity.usage
-          display-name: 전기 사용량
-          keywords: [전기, electricity, 전력사용, 전기사용, 전력량, kwh]
-          required: true
-        - name: esg.energy.electricity.bill
-          display-name: 전기 고지서
-          keywords: [전기고지서, 전기요금, electricity bill, 전기청구]
-          required: false
-        - name: esg.energy.gas.usage
-          display-name: 가스 사용량
-          keywords: [가스, gas, 도시가스, 가스사용, 가스량]
-          required: true
-        - name: esg.energy.gas.bill
-          display-name: 가스 고지서
-          keywords: [가스고지서, 가스요금, gas bill, 가스청구]
-          required: false
-        - name: esg.energy.water.usage
-          display-name: 용수 사용량
-          keywords: [수도, water, 용수, 수도사용, 용수량]
-          required: false
-        - name: esg.energy.water.bill
-          display-name: 수도 고지서
-          keywords: [수도고지서, 수도요금, water bill, 수도청구]
-          required: false
-        - name: esg.energy.ghg.evidence
-          display-name: 온실가스 배출 증빙
-          keywords: [ghg, 온실가스, greenhouse, 탄소, carbon, 배출량]
-          required: false
-        - name: esg.hazmat.msds
-          display-name: MSDS (물질안전보건자료)
-          keywords: [msds, sds, 물질안전, 유해물질, 화학물질, hazmat]
-          required: true
-        - name: esg.hazmat.inventory
-          display-name: 유해물질 목록
-          keywords: [유해물질목록, 화학물질목록, hazmat inventory, 물질목록]
-          required: false
-        - name: esg.hazmat.disposal.list
-          display-name: 폐기물 처리 목록
-          keywords: [폐기목록, 처리목록, disposal list, 폐기물]
-          required: false
-        - name: esg.hazmat.disposal.evidence
-          display-name: 폐기물 처리 증빙
-          keywords: [폐기증빙, 처리증빙, disposal evidence, 폐기확인]
-          required: false
-        - name: esg.ethics.code
-          display-name: 윤리강령
-          keywords: [윤리강령, 행동강령, ethics, code of conduct, 윤리규정]
-          required: true
-        - name: esg.ethics.distribution.log
-          display-name: 윤리강령 배포 확인
-          keywords: [배포확인, 수신확인, distribution, 서명명단]
-          required: false
-        - name: esg.ethics.pledge
-          display-name: 윤리 서약서
-          keywords: [서약서, pledge, 서약, 윤리서약]
-          required: false
-        - name: esg.ethics.poster.image
-          display-name: 윤리 포스터
-          keywords: [포스터, poster, 윤리포스터, 게시물]
-          required: false
-      # Safety 도메인 (8개 슬롯, 필수 4개)
-      safety:
-        - name: safety.education.status
-          display-name: 안전교육 이수 현황
-          keywords: [교육이수, 안전교육, education status, 교육현황, 수료]
-          required: true
-        - name: safety.fire.inspection
-          display-name: 소방점검 결과
-          keywords: [소방점검, fire inspection, 소화기, 방화, 소방]
-          required: true
-        - name: safety.risk.assessment
-          display-name: 위험성 평가서
-          keywords: [위험성평가, risk assessment, 위험평가, 리스크]
-          required: true
-        - name: safety.management.system
-          display-name: 안전보건 관리체계
-          keywords: [안전보건관리, management system, 안전매뉴얼, 관리체계]
-          required: true
-        - name: safety.site.photos
-          display-name: 현장 사진
-          keywords: [현장사진, site photo, 현장, 사진, image]
-          required: false
-        - name: safety.education.attendance
-          display-name: 교육 출석부
-          keywords: [출석부, attendance, 교육출석, 참석명단]
-          required: false
-        - name: safety.education.photo
-          display-name: 교육 사진
-          keywords: [교육사진, education photo, 교육일사진]
-          required: false
-        - name: safety.tbm
-          display-name: TBM (작업전 안전회의)
-          keywords: [tbm, toolbox, 작업전회의, 안전회의, 작업전미팅]
-          required: false
-      # Compliance 도메인 (7개 슬롯, 필수 3개)
-      compliance:
-        - name: compliance.contract.sample
-          display-name: 표준 계약서
-          keywords: [표준계약, 하도급계약, contract sample, 근로계약, 계약서]
-          required: true
-        - name: compliance.education.privacy
-          display-name: 개인정보 보호교육
-          keywords: [개인정보교육, privacy education, 개인정보보호, 정보보호교육]
-          required: true
-        - name: compliance.fair.trade
-          display-name: 공정거래 자율점검
-          keywords: [공정거래, fair trade, 자율점검, 공정거래점검]
-          required: true
-        - name: compliance.ethics.report
-          display-name: 윤리신고 현황
-          keywords: [내부신고, ethics report, 윤리신고, 신고현황]
-          required: false
-        - name: compliance.education.plan
-          display-name: 법정교육 계획
-          keywords: [교육계획, education plan, 법정교육, 교육일정]
-          required: false
-        - name: compliance.education.attendance
-          display-name: 교육 출석부
-          keywords: [출석부, attendance, 교육출석, 참석명단]
-          required: false
-        - name: compliance.education.photo
-          display-name: 교육 사진
-          keywords: [교육사진, education photo, 교육일사진]
-          required: false
 
 ---
 # ========================================
 # 로컬 개발 환경
 # ========================================
 spring:
+  profiles:
+    active: local
   config:
     activate:
       on-profile: local
@@ -185,17 +31,37 @@ spring:
     hibernate:
       ddl-auto: create
     show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-    open-in-view: false
+  open-in-view: false
 
-# reCAPTCHA 비활성화 (로컬)
+# Swagger 설정
+springdoc:
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+  api-docs:
+    path: /v3/api-docs
+
+# JWT 설정
+jwt:
+  secret: smartchainPlatformSecretKeyForJwtTokenGenerationMustBe256BitsLongNiceDay
+  access-token-validity: 3600000
+  refresh-token-validity: 604800000
+
+# 로깅 설정
+logging:
+  level:
+    com.smartchain.platform: DEBUG
+    org.hibernate.SQL: DEBUG
+
+# reCAPTCHA v3 설정
 recaptcha:
   secret-key: ${RECAPTCHA_SECRET_KEY:6LcC-V8sAAAAAHpYoUj5q31vQh9hDduj-4m7hvGc}
   score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
-  enabled: false
+  enabled: ${RECAPTCHA_ENABLED:false}
 
 # 파일 저장소 설정 (로컬)
 file:
@@ -203,181 +69,51 @@ file:
     local:
       base-path: ./uploads
 
-# AI 서비스 (로컬)
+# AI 관련 설정들 (로컬 기준)
 ai:
   run-api:
     url: http://127.0.0.1:8000
     timeout-seconds: 180
     max-retry: 3
-    preview-timeout-seconds: 30
-    preview-max-retry: 1
   chat:
     base-url: http://127.0.0.1:8001
     admin-api-key: ${AI_CHAT_ADMIN_KEY:test-key}
     timeout-seconds: 30
-  risk-api:
-    url: http://127.0.0.1:8002
-    timeout-seconds: 300
-    max-retry: 3
-    target-companies:
-      - 포스코홀딩스
-      - 현대제철
-      - 성광벤드
-      - 동국제강
-      - HD현대일렉트릭
-
-# 로깅 (로컬)
-logging:
-  level:
-    com.smartchain.platform: DEBUG
-    org.hibernate.SQL: DEBUG
 
 ---
 # ========================================
-# 개발 서버 환경 (Azure Dev)
+# 운영/개발 서버 환경 (Azure 통합)
 # ========================================
 spring:
   config:
     activate:
-      on-profile: dev
+      on-profile: prod, dev
+
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
   sql:
     init:
-      mode: always
+      mode: ${SPRING_SQL_INIT_MODE:never}
+
   jpa:
-    defer-datasource-initialization: true
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     show-sql: false
 
-# reCAPTCHA (dev)
-recaptcha:
-  secret-key: ${RECAPTCHA_SECRET_KEY}
-  score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
-  enabled: ${RECAPTCHA_ENABLED:false}
-
-# Azure Blob Storage
 azure:
   storage:
     connection-string: ${AZURE_STORAGE_CONNECTION_STRING}
     container-name: ${AZURE_STORAGE_CONTAINER:smartchain-files}
 
-# AI 서비스 (dev)
-ai:
-  run-api:
-    url: ${AI_RUN_API_URL:http://127.0.0.1:8000}
-    timeout-seconds: 180
-    max-retry: 3
-    preview-timeout-seconds: 30
-    preview-max-retry: 1
-  chat:
-    base-url: ${AI_CHAT_URL:http://127.0.0.1:8001}
-    admin-api-key: ${AI_CHAT_ADMIN_KEY}
-    timeout-seconds: 30
-  risk-api:
-    url: ${AI_RISK_API_URL:http://127.0.0.1:8002}
-    timeout-seconds: 300
-    max-retry: 3
-    target-companies:
-      - 포스코홀딩스
-      - 현대제철
-      - 성광벤드
-      - 동국제강
-      - HD현대일렉트릭
-
-# 이메일 설정 (SMTP)
-spring.mail:
-  host: ${MAIL_HOST:smtp.gmail.com}
-  port: ${MAIL_PORT:587}
-  username: ${MAIL_USERNAME}
-  password: ${MAIL_PASSWORD}
-  properties:
-    mail.smtp.auth: true
-    mail.smtp.starttls.enable: true
-    mail.smtp.starttls.required: true
-
-# 로깅 (dev)
 logging:
   level:
     com.smartchain.platform: INFO
 
----
-# ========================================
-# 운영 환경 (Azure Prod)
-# ========================================
-spring:
-  config:
-    activate:
-      on-profile: prod
-  datasource:
-    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
-  sql:
-    init:
-      mode: never
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    show-sql: false
-
-# reCAPTCHA (prod - 활성화)
-recaptcha:
-  secret-key: ${RECAPTCHA_SECRET_KEY}
-  score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
-  enabled: true
-
-# Swagger 비활성화 (prod)
-springdoc:
-  api-docs:
-    enabled: false
-  swagger-ui:
-    enabled: false
-
-# Azure Blob Storage
-azure:
-  storage:
-    connection-string: ${AZURE_STORAGE_CONNECTION_STRING}
-    container-name: ${AZURE_STORAGE_CONTAINER:smartchain-files}
-
-# AI 서비스 (prod)
 ai:
-  run-api:
-    url: ${AI_RUN_API_URL}
-    timeout-seconds: 180
-    max-retry: 3
-    preview-timeout-seconds: 30
-    preview-max-retry: 1
   chat:
-    base-url: ${AI_CHAT_URL}
+    base-url: ${AI_CHAT_URL:http://127.0.0.1:8001}
     admin-api-key: ${AI_CHAT_ADMIN_KEY}
-    timeout-seconds: 30
-  risk-api:
-    url: ${AI_RISK_API_URL}
-    timeout-seconds: 300
-    max-retry: 3
-    target-companies:
-      - 포스코홀딩스
-      - 현대제철
-      - 성광벤드
-      - 동국제강
-      - HD현대일렉트릭
-
-# 이메일 설정 (SMTP)
-spring.mail:
-  host: ${MAIL_HOST:smtp.gmail.com}
-  port: ${MAIL_PORT:587}
-  username: ${MAIL_USERNAME}
-  password: ${MAIL_PASSWORD}
-  properties:
-    mail.smtp.auth: true
-    mail.smtp.starttls.enable: true
-    mail.smtp.starttls.required: true
-
-# 로깅 (prod)
-logging:
-  level:
-    com.smartchain.platform: WARN
