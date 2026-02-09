@@ -1,5 +1,26 @@
 # Claude Code Learnings
 
+## 2026-02-09: 결재 상세 API에서 기안자 maskedName 누락
+
+### 원인
+- 목록 조회(`RequesterDto`)에는 `maskedName` 필드가 있으나 상세 조회(`RequesterDetailDto`)에는 누락
+- 목록/상세가 서로 다른 DTO를 사용하면서 필드 불일치 발생
+- 서비스에서 `RequesterDetailDto` 빌드 시 `maskedName` 설정 코드 누락
+
+### 해결
+- `RequesterDetailDto`에 `maskedName` 필드 추가
+- `ApprovalService.getApprovalDetail()`에서 `NameMaskingUtil.mask()` 호출하여 값 설정
+
+### 재발방지
+- 목록/상세 DTO 간 공통 필드(userId, name, maskedName) 불일치 여부 점검
+- 새 DTO 필드 추가 시 프론트엔드가 사용하는 필드 목록과 대조
+
+### 검증방법
+- `./gradlew test --tests "ApprovalServiceTest"` 전체 통과
+- 상세 조회 테스트에서 `maskedName`, `email` 필드 검증 추가
+
+---
+
 ## 2026-02-08: AI Preview 다량 파일 시 무반응(타임아웃) 문제
 
 ### 원인

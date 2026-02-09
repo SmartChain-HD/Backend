@@ -205,6 +205,7 @@ public class ApprovalService {
         RequesterDetailDto requesterDto = RequesterDetailDto.builder()
                 .userId(approval.getRequester().getUserId())
                 .name(approval.getRequester().getName())
+                .maskedName(NameMaskingUtil.mask(approval.getRequester().getName()))
                 .email(approval.getRequester().getEmail())
                 .build();
 

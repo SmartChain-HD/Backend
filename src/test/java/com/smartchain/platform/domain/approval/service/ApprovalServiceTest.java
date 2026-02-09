@@ -299,6 +299,9 @@ class ApprovalServiceTest {
             assertThat(response.getDiagnostic().getDiagnosticId()).isEqualTo(100L);
             assertThat(response.getDiagnostic().getDiagnosticCode()).isEqualTo("DG-2026-00001");
             assertThat(response.getRequester().getUserId()).isEqualTo(2L);
+            assertThat(response.getRequester().getName()).isEqualTo("기안자");
+            assertThat(response.getRequester().getMaskedName()).isEqualTo("기*자");
+            assertThat(response.getRequester().getEmail()).isEqualTo("drafter@test.com");
             assertThat(response.getStatus()).isEqualTo("WAITING");
         }
 
