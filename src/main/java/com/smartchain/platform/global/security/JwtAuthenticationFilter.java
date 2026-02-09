@@ -27,6 +27,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = resolveToken(request);
 
+        // 토큰이 있고 유효하다면 인증 정보를 컨텍스트에 담음
         if (token != null && jwtTokenProvider.validateToken(token)) {
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
             String role = jwtTokenProvider.getRoleFromToken(token);
@@ -39,6 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
         }
 
+        // 핵심: 토큰이 없더라도 다음 필터(시큐리티 권한 체크)로 반드시 넘겨야 함
         filterChain.doFilter(request, response);
     }
 
