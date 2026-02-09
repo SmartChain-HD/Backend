@@ -60,6 +60,13 @@ public class SlotConfigProperties {
             .filter(s -> s.getName().equals(slotName))
             .findFirst()
             .map(SlotDefinition::getDisplayName)
-            .orElse(slotName);  // displayName이 없으면 slotName 반환
+            .filter(dn -> dn != null && !dn.isBlank())
+            .orElseGet(() -> {
+                // *.other 슬롯은 "기타 문서"로 표시
+                if (slotName != null && slotName.endsWith(".other")) {
+                    return "기타 문서";
+                }
+                return slotName;
+            });
     }
 }

@@ -228,32 +228,32 @@ class SlotConfigPropertiesTest {
         private SlotConfigProperties yamlProperties;
 
         @Test
-        @DisplayName("ESG 도메인은 15개 슬롯, 4개 필수로 정의되어야 한다")
+        @DisplayName("ESG 도메인은 16개 슬롯(기타 포함), 4개 필수로 정의되어야 한다")
         void yamlLoading_esgSlotCount() {
             List<SlotConfigProperties.SlotDefinition> esgSlots = yamlProperties.getSlotsForDomain("esg");
             List<SlotConfigProperties.SlotDefinition> esgRequired = yamlProperties.getRequiredSlots("esg");
 
-            assertThat(esgSlots).hasSize(15);
+            assertThat(esgSlots).hasSize(16);
             assertThat(esgRequired).hasSize(4);
         }
 
         @Test
-        @DisplayName("Safety 도메인은 8개 슬롯, 4개 필수로 정의되어야 한다")
+        @DisplayName("Safety 도메인은 9개 슬롯(기타 포함), 4개 필수로 정의되어야 한다")
         void yamlLoading_safetySlotCount() {
             List<SlotConfigProperties.SlotDefinition> safetySlots = yamlProperties.getSlotsForDomain("safety");
             List<SlotConfigProperties.SlotDefinition> safetyRequired = yamlProperties.getRequiredSlots("safety");
 
-            assertThat(safetySlots).hasSize(8);
+            assertThat(safetySlots).hasSize(9);
             assertThat(safetyRequired).hasSize(4);
         }
 
         @Test
-        @DisplayName("Compliance 도메인은 7개 슬롯, 3개 필수로 정의되어야 한다")
+        @DisplayName("Compliance 도메인은 8개 슬롯(기타 포함), 3개 필수로 정의되어야 한다")
         void yamlLoading_complianceSlotCount() {
             List<SlotConfigProperties.SlotDefinition> complianceSlots = yamlProperties.getSlotsForDomain("compliance");
             List<SlotConfigProperties.SlotDefinition> complianceRequired = yamlProperties.getRequiredSlots("compliance");
 
-            assertThat(complianceSlots).hasSize(7);
+            assertThat(complianceSlots).hasSize(8);
             assertThat(complianceRequired).hasSize(3);
         }
 
