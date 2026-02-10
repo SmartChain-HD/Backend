@@ -7,6 +7,7 @@ spring:
       max-request-size: 50MB
 server:
   port: 8080
+
 ---
 # ========================================
 # 로컬 개발 환경
@@ -30,11 +31,7 @@ spring:
     hibernate:
       ddl-auto: create
     show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-    open-in-view: false
+  open-in-view: false
 
 # Swagger 설정
 springdoc:
@@ -51,8 +48,8 @@ springdoc:
 # JWT 설정
 jwt:
   secret: smartchainPlatformSecretKeyForJwtTokenGenerationMustBe256BitsLongNiceDay
-  access-token-validity: 3600000      # 1시간 (밀리초)
-  refresh-token-validity: 604800000   # 7일 (밀리초)
+  access-token-validity: 3600000
+  refresh-token-validity: 604800000
 
 # 로깅 설정
 logging:
@@ -72,7 +69,7 @@ file:
     local:
       base-path: ./uploads
 
-# AI Run API 설정
+# AI 관련 설정들 (로컬 기준)
 ai:
   run-api:
     url: http://127.0.0.1:8000
@@ -82,20 +79,8 @@ ai:
     base-url: http://127.0.0.1:8001
     admin-api-key: ${AI_CHAT_ADMIN_KEY:test-key}
     timeout-seconds: 30
-  risk-api:
-    url: ${AI_RISK_API_URL:http://127.0.0.1:8002}
-    timeout-seconds: 300
-    max-retry: 3
-    target-companies:
-      - 포스코홀딩스
-      - 현대제철
-      - 성광벤드
-      - 동국제강
-      - HD현대일렉트릭
   slots:
-    # 슬롯 정의: docs/API_CONTRACT_SSOT.md §8.6 기준
     domains:
-      # ESG 도메인 (15개 슬롯, 필수 4개)
       esg:
         - name: esg.energy.electricity.usage
           display-name: 전기 사용량
@@ -157,7 +142,10 @@ ai:
           display-name: 윤리 포스터
           keywords: [포스터, poster, 윤리포스터, 게시물]
           required: false
-      # Safety 도메인 (8개 슬롯, 필수 4개)
+        - name: esg.other
+          display-name: 기타 문서
+          keywords: []
+          required: false
       safety:
         - name: safety.education.status
           display-name: 안전교육 이수 현황
@@ -168,7 +156,7 @@ ai:
           keywords: [소방점검, fire inspection, 소화기, 방화, 소방]
           required: true
         - name: safety.risk.assessment
-          display-name: 위험성 평가서
+          display-name: 위험성 평가
           keywords: [위험성평가, risk assessment, 위험평가, 리스크]
           required: true
         - name: safety.management.system
@@ -191,14 +179,17 @@ ai:
           display-name: TBM (작업전 안전회의)
           keywords: [tbm, toolbox, 작업전회의, 안전회의, 작업전미팅]
           required: false
-      # Compliance 도메인 (7개 슬롯, 필수 3개)
+        - name: safety.other
+          display-name: 기타 문서
+          keywords: []
+          required: false
       compliance:
         - name: compliance.contract.sample
           display-name: 표준 계약서
           keywords: [표준계약, 하도급계약, contract sample, 근로계약, 계약서]
           required: true
         - name: compliance.education.privacy
-          display-name: 개인정보 보호교육
+          display-name: 개인정보보호 교육
           keywords: [개인정보교육, privacy education, 개인정보보호, 정보보호교육]
           required: true
         - name: compliance.fair.trade
@@ -206,11 +197,11 @@ ai:
           keywords: [공정거래, fair trade, 자율점검, 공정거래점검]
           required: true
         - name: compliance.ethics.report
-          display-name: 윤리신고 현황
+          display-name: 윤리 신고 현황
           keywords: [내부신고, ethics report, 윤리신고, 신고현황]
           required: false
         - name: compliance.education.plan
-          display-name: 법정교육 계획
+          display-name: 교육 계획
           keywords: [교육계획, education plan, 법정교육, 교육일정]
           required: false
         - name: compliance.education.attendance
@@ -221,32 +212,35 @@ ai:
           display-name: 교육 사진
           keywords: [교육사진, education photo, 교육일사진]
           required: false
+        - name: compliance.other
+          display-name: 기타 문서
+          keywords: []
+          required: false
 
 ---
 # ========================================
-# 개발 서버 환경 (Azure)
+# 운영/개발 서버 환경 (Azure 통합)
 # ========================================
 spring:
   config:
     activate:
-      on-profile: dev
+      on-profile: prod, dev
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
 
   sql:
     init:
-      mode: always
+      mode: ${SPRING_SQL_INIT_MODE:never}
 
   jpa:
-    defer-datasource-initialization: true
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:validate}
     show-sql: false
 
-# Azure Blob Storage 설정
 azure:
   storage:
     connection-string: ${AZURE_STORAGE_CONNECTION_STRING}
@@ -256,20 +250,7 @@ logging:
   level:
     com.smartchain.platform: INFO
 
-# AI Chat API 설정 (dev)
 ai:
   chat:
     base-url: ${AI_CHAT_URL:http://127.0.0.1:8001}
     admin-api-key: ${AI_CHAT_ADMIN_KEY}
-    timeout-seconds: 30
-
-# 이메일 설정 (SMTP)
-spring.mail:
-  host: ${MAIL_HOST:smtp.gmail.com}
-  port: ${MAIL_PORT:587}
-  username: ${MAIL_USERNAME}
-  password: ${MAIL_PASSWORD}
-  properties:
-    mail.smtp.auth: true
-    mail.smtp.starttls.enable: true
-    mail.smtp.starttls.required: true

@@ -1,5 +1,77 @@
 # Claude Code Learnings
 
+## 2026-02-09: 결재 상세 API에서 기안자 maskedName 누락
+
+### 원인
+- 목록 조회(`RequesterDto`)에는 `maskedName` 필드가 있으나 상세 조회(`RequesterDetailDto`)에는 누락
+- 목록/상세가 서로 다른 DTO를 사용하면서 필드 불일치 발생
+- 서비스에서 `RequesterDetailDto` 빌드 시 `maskedName` 설정 코드 누락
+
+### 해결
+- `RequesterDetailDto`에 `maskedName` 필드 추가
+- `ApprovalService.getApprovalDetail()`에서 `NameMaskingUtil.mask()` 호출하여 값 설정
+
+### 재발방지
+- 목록/상세 DTO 간 공통 필드(userId, name, maskedName) 불일치 여부 점검
+- 새 DTO 필드 추가 시 프론트엔드가 사용하는 필드 목록과 대조
+
+### 검증방법
+- `./gradlew test --tests "ApprovalServiceTest"` 전체 통과
+- 상세 조회 테스트에서 `maskedName`, `email` 필드 검증 추가
+
+---
+
+## 2026-02-08: AI Preview 다량 파일 시 무반응(타임아웃) 문제
+
+### 원인
+- `AiRunApiClient.previewSync()`가 `.block()`으로 서블릿 스레드를 블로킹
+- preview와 submit이 동일한 타임아웃(180초) × 재시도(3회) 설정을 공유
+- 최악의 경우 ~727초(12분) 동안 서블릿 스레드가 점유되어 프론트에서 "아무 반응 없음"
+
+### 해결
+- `AiRunApiConfig`에 preview 전용 설정 분리: `previewTimeoutSeconds(30)`, `previewMaxRetry(1)`
+- `AiRunApiClient.preview()`에 `Mono.timeout(Duration.ofSeconds(30))` 추가
+- 최악의 경우 ~62초로 단축, 타임아웃 시 AI001 에러 코드로 명확한 응답 반환
+
+### 재발방지
+- 동기 블로킹(`.block()`) 사용 시 반드시 용도별 타임아웃 분리
+- preview(경량 조회)와 submit(중량 처리)은 성격이 다르므로 설정을 분리할 것
+
+### 검증방법
+- `./gradlew test --tests "AiAnalysisServiceTest"` 전체 통과
+- preview 요청 시 30초 내 응답 또는 타임아웃 에러 반환 확인
+
+### 관련커밋
+- (커밋 전)
+
+---
+
+## 2026-02-08: AI Preview 간헐적 500 에러 및 파싱 미완료 파일 처리
+
+### 원인
+- `AiAnalysisService.preview()`에서 `diagnostic.getPeriodStartDate().format()`를 호출하는데, `periodStartDate`/`periodEndDate`가 nullable 컬럼이라 NPE 발생 → catch-all handler가 500 + `S001` 반환
+- `toFileInfo()`에서 `EvidenceFile.parsingStatus`를 검증하지 않아 파싱 미완료(WAITING/PROCESSING) 파일도 AI 서비스로 전달
+- 프론트에서 AI001~AI006만 처리하므로 `S001`, `S003` 등 코드가 "알 수 없는 오류"로 표시
+
+### 해결
+- `ErrorCode`에 `AI_FILE_NOT_READY(AI009)`, `AI_MISSING_PERIOD_DATES(AI010)` 추가
+- `preview()`/`submit()`에 `periodStartDate`/`periodEndDate` null 체크 추가
+- `toFileInfo()`에 `parsingStatus != SUCCESS` 검증 추가
+- `submit()`에도 동일한 파싱 상태 일괄 검증 추가
+
+### 재발방지
+- nullable 필드를 참조할 때는 반드시 null 체크 후 접근
+- 비동기 처리(파일 파싱) 결과에 의존하는 API는 상태 검증 필수
+
+### 검증방법
+- `./gradlew test --tests "AiAnalysisServiceTest"` — 파싱 미완료 테스트 케이스 포함 전체 통과
+- 프론트에서 파일 업로드 직후 Add 클릭 시 AI009 에러 코드 반환 확인
+
+### 관련커밋
+- (커밋 전)
+
+---
+
 ## 2026-02-06: 반려 후 재제출 시 Review 중복 생성 버그 수정
 
 ### 원인

@@ -105,6 +105,8 @@ public enum ErrorCode {
     AI_INVALID_RISK_LEVEL(HttpStatus.BAD_GATEWAY, "AI006", "AI 서비스의 riskLevel 값이 유효하지 않습니다"),
     AI_BAD_REQUEST(HttpStatus.BAD_REQUEST, "AI007", "AI 서비스 요청 파라미터가 올바르지 않습니다"),
     AI_MISSING_REQUIRED_SLOTS(HttpStatus.UNPROCESSABLE_ENTITY, "AI008", "필수 슬롯에 해당하는 파일이 제출되지 않았습니다"),
+    AI_FILE_NOT_READY(HttpStatus.CONFLICT, "AI009", "파일 파싱이 완료되지 않았습니다. 잠시 후 다시 시도해주세요"),
+    AI_MISSING_PERIOD_DATES(HttpStatus.UNPROCESSABLE_ENTITY, "AI010", "진단 기간(시작일/종료일)이 설정되지 않았습니다"),
 
     // AI Chat Service
     AI_CHAT_SERVICE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "CHAT001", "AI 채팅 서비스 오류가 발생했습니다"),

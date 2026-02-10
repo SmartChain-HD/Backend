@@ -12,6 +12,7 @@ import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.dto.ai.run.*;
+import com.smartchain.platform.global.enums.ParsingStatus;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -267,6 +268,28 @@ class AiAnalysisServiceTest {
         }
 
         @Test
+        @DisplayName("파일 파싱이 완료되지 않으면 AI_FILE_NOT_READY 에러를 발생시킨다")
+        void preview_fileNotReady_throwsException() {
+            // given
+            Long diagnosticId = 1L;
+            Diagnostic diagnostic = createTestDiagnostic(diagnosticId);
+            EvidenceFile evidenceFile = createTestEvidenceFileWithStatus(1L, "전기사용량.xlsx", ParsingStatus.PROCESSING);
+
+            when(diagnosticRepository.findById(diagnosticId)).thenReturn(Optional.of(diagnostic));
+            when(evidenceFileRepository.findById(1L)).thenReturn(Optional.of(evidenceFile));
+
+            // when & then
+            assertThatThrownBy(() -> aiAnalysisService.preview(diagnosticId, List.of(1L)))
+                .isInstanceOf(CustomException.class)
+                .satisfies(ex -> {
+                    CustomException customEx = (CustomException) ex;
+                    assertThat(customEx.getErrorCode()).isEqualTo(ErrorCode.AI_FILE_NOT_READY);
+                });
+
+            verify(aiRunApiClient, never()).previewSync(any());
+        }
+
+        @Test
         @DisplayName("정상적인 preview 호출 시 AI 응답을 반환한다")
         void preview_success_returnsResponse() {
             // given
@@ -424,6 +447,18 @@ class AiAnalysisServiceTest {
             .originalFileName(fileName)
             .build();
         ReflectionTestUtils.setField(evidenceFile, "resultFileId", id);
+        // 파싱 완료 상태로 설정 (preview/submit 시 파싱 상태 검증 통과)
+        evidenceFile.completeParsing(null, null, null);
+        return evidenceFile;
+    }
+
+    private EvidenceFile createTestEvidenceFileWithStatus(Long id, String fileName, ParsingStatus status) {
+        EvidenceFile evidenceFile = EvidenceFile.builder()
+            .filePath("/path/to/" + fileName)
+            .originalFileName(fileName)
+            .build();
+        ReflectionTestUtils.setField(evidenceFile, "resultFileId", id);
+        ReflectionTestUtils.setField(evidenceFile, "parsingStatus", status);
         return evidenceFile;
     }
 
