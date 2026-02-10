@@ -75,6 +75,16 @@ ai:
     url: http://127.0.0.1:8000
     timeout-seconds: 180
     max-retry: 3
+  risk-api:
+    url: http://127.0.0.1:8002
+    timeout-seconds: 60
+    max-retry: 3
+    target-companies:
+      - 포스코홀딩스
+      - 현대제철
+      - 성광벤드
+      - 동국제강
+      - HD현대일렉트릭
   chat:
     base-url: http://127.0.0.1:8001
     admin-api-key: ${AI_CHAT_ADMIN_KEY:test-key}
@@ -251,6 +261,16 @@ logging:
     com.smartchain.platform: INFO
 
 ai:
+  risk-api:
+    url: ${AI_RISK_API_URL:http://127.0.0.1:8000}
+    timeout-seconds: 60
+    max-retry: 3
+    target-companies:
+      - 포스코홀딩스
+      - 현대제철
+      - 성광벤드
+      - 동국제강
+      - HD현대일렉트릭
   chat:
     base-url: ${AI_CHAT_URL:http://127.0.0.1:8001}
     admin-api-key: ${AI_CHAT_ADMIN_KEY}
