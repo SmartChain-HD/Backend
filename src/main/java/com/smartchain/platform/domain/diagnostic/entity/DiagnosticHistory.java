@@ -30,6 +30,8 @@ public class DiagnosticHistory {
     private String action;  // CREATED, SUBMITTED, APPROVED, REJECTED, etc.
     private String previousStatus;
     private String newStatus;
+
+    @Column(length = 2000)
     private String comment;
 
     @CreationTimestamp
