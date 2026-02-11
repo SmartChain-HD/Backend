@@ -660,6 +660,34 @@ class ReviewServiceTest {
         }
 
         @Test
+        @DisplayName("긴 코멘트(2000자)로 보완 요청 성공")
+        void processReview_RevisionRequired_LongComment_Success() {
+            // given
+            when(testReview.isReviewing()).thenReturn(true);
+            when(testReview.getStatus()).thenReturn(ReviewStatus.REVISION_REQUIRED);
+            when(testReview.getProcessedAt()).thenReturn(LocalDateTime.now());
+
+            String longComment = "A".repeat(2000);
+            ReviewDecisionRequest request = ReviewDecisionRequest.builder()
+                    .decision("REVISION_REQUIRED")
+                    .comment(longComment)
+                    .build();
+
+            given(userRepository.findById(1L)).willReturn(Optional.of(reviewerUser));
+            given(reviewRepository.findById(1L)).willReturn(Optional.of(testReview));
+
+            // when
+            ReviewDecisionResponse response = reviewService.processReview(1L, 1L, request);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getStatus()).isEqualTo("REVISION_REQUIRED");
+            assertThat(response.getMessage()).isEqualTo("보완 요청이 완료되었습니다");
+            verify(testReview).requestRevision(reviewerUser, longComment);
+            verify(diagnosticHistoryRepository).save(any());
+        }
+
+        @Test
         @DisplayName("유효하지 않은 결정으로 처리 시 실패")
         void processReview_InvalidDecision_ThrowsException() {
             // given
