@@ -14,6 +14,7 @@ import com.smartchain.platform.domain.user.repository.CompanyRepository;
 import com.smartchain.platform.domain.user.repository.DomainRepository;
 import com.smartchain.platform.domain.user.repository.UserRepository;
 import com.smartchain.platform.dto.ai.AiAnalysisResultDetailResponse;
+import com.smartchain.platform.dto.approval.detail.RequesterDetailDto;
 import com.smartchain.platform.dto.review.common.*;
 import com.smartchain.platform.dto.review.dashboard.*;
 import com.smartchain.platform.dto.review.decision.ReviewDecisionRequest;
@@ -245,8 +246,12 @@ public class ReviewService {
 
         validateDomainReviewerAccess(currentUser, review);
 
+        // 기안자 정보 조회
+        Diagnostic diagnostic = review.getDiagnostic();
+        Long diagnosticId = diagnostic.getDiagnosticId();
+        RequesterDetailDto drafterDto = buildDrafterDto(diagnostic.getDrafterId());
+
         // AI 분석 결과 조회 (있는 경우에만)
-        Long diagnosticId = review.getDiagnostic().getDiagnosticId();
         Object aiAnalysisData = fetchAiAnalysisResult(diagnosticId);
 
         // Diagnostic Info
@@ -283,6 +288,7 @@ public class ReviewService {
         return ReviewDetailResponse.builder()
                 .reviewId(review.getReviewId())
                 .reviewIdLabel("심사 ID: REVIEW-" + String.format("%04d", review.getReviewId()))
+                .drafter(drafterDto)
                 .diagnostic(diagnosticDto)
                 .company(companyDto)
                 .domainCode(domainCode)
@@ -293,6 +299,7 @@ public class ReviewService {
                 .riskLevelLabel(riskLevelStr != null ? RISK_LEVEL_LABEL_MAP.get(riskLevelStr) : null)
                 .riskColorClass(riskLevelStr != null ? RISK_COLOR_MAP.get(riskLevelStr) : null)
                 .status(review.getStatus().name())
+                .statusLabel(STATUS_LABEL_MAP.get(review.getStatus().name()))
                 .submittedAt(review.getSubmittedAt())
                 .files(new ArrayList<>())
                 .tabs(new ArrayList<>())
@@ -490,6 +497,20 @@ public class ReviewService {
                 throw new CustomException(ErrorCode.INVALID_CATEGORY_FOR_DOMAIN);
             }
         }
+    }
+
+    private RequesterDetailDto buildDrafterDto(Long drafterId) {
+        if (drafterId == null) {
+            return null;
+        }
+        return userRepository.findById(drafterId)
+                .map(drafter -> RequesterDetailDto.builder()
+                        .userId(drafter.getUserId())
+                        .name(drafter.getName())
+                        .maskedName(NameMaskingUtil.mask(drafter.getName()))
+                        .email(drafter.getEmail())
+                        .build())
+                .orElse(null);
     }
 
     private void validateDomainReviewerAccess(User user, Review review) {

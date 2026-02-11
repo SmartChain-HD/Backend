@@ -1,5 +1,6 @@
 package com.smartchain.platform.dto.review.detail;
 
+import com.smartchain.platform.dto.approval.detail.RequesterDetailDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,6 +16,7 @@ import java.util.List;
 public class ReviewDetailResponse {
     private Long reviewId;
     private String reviewIdLabel;        // "심사 ID: REVIEW-2026-0001"
+    private RequesterDetailDto drafter;          // 기안자 정보
     private DiagnosticDetailInfoDto diagnostic;  // v3.0: 진단 정보 구조화
     private CompanyDetailInfoDto company;        // v3.0: 회사 정보 구조화
     private String domainCode;           // 도메인 코드 (ESG, SAFETY, COMPLIANCE)
@@ -25,6 +27,7 @@ public class ReviewDetailResponse {
     private String riskLevelLabel;
     private String riskColorClass;
     private String status;
+    private String statusLabel;          // 한글 상태 라벨 (검수중, 승인, 보완요청)
     private LocalDateTime submittedAt;
     
     // 파일 정보
