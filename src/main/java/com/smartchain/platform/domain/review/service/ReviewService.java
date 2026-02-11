@@ -630,7 +630,17 @@ public class ReviewService {
                 .companyType(review.getCompany().getScale())
                 .build();
 
-        String riskLevelStr = review.getRiskLevel() != null ? review.getRiskLevel().name() : null;
+        // Review에 riskLevel이 없으면 ai_analysis_result에서 fallback 조회
+        String riskLevelStr;
+        if (review.getRiskLevel() != null) {
+            riskLevelStr = review.getRiskLevel().name();
+        } else {
+            riskLevelStr = aiAnalysisResultRepository
+                    .findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(
+                            review.getDiagnostic().getDiagnosticId())
+                    .map(AiAnalysisResult::getRiskLevel)
+                    .orElse(null);
+        }
 
         AssignedToDto assignedToDto = null;
         if (review.getAssignedReviewer() != null) {

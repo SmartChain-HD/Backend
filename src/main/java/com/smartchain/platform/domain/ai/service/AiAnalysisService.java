@@ -10,8 +10,11 @@ import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.evidence.entity.EvidenceFile;
 import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
+import com.smartchain.platform.domain.review.entity.Review;
+import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.dto.ai.run.*;
 import com.smartchain.platform.global.enums.ParsingStatus;
+import com.smartchain.platform.global.enums.RiskLevel;
 import com.smartchain.platform.global.error.CustomException;
 import com.smartchain.platform.global.error.ErrorCode;
 import org.slf4j.Logger;
@@ -45,6 +48,7 @@ public class AiAnalysisService {
     private final AiAnalysisResultRepository resultRepository;
     private final DiagnosticRepository diagnosticRepository;
     private final EvidenceFileRepository evidenceFileRepository;
+    private final ReviewRepository reviewRepository;
     private final ObjectMapper objectMapper;
     private final SlotConfigProperties slotConfigProperties;
 
@@ -56,6 +60,7 @@ public class AiAnalysisService {
         AiAnalysisResultRepository resultRepository,
         DiagnosticRepository diagnosticRepository,
         EvidenceFileRepository evidenceFileRepository,
+        ReviewRepository reviewRepository,
         ObjectMapper objectMapper,
         SlotConfigProperties slotConfigProperties
     ) {
@@ -63,6 +68,7 @@ public class AiAnalysisService {
         this.resultRepository = resultRepository;
         this.diagnosticRepository = diagnosticRepository;
         this.evidenceFileRepository = evidenceFileRepository;
+        this.reviewRepository = reviewRepository;
         this.objectMapper = objectMapper;
         this.slotConfigProperties = slotConfigProperties;
     }
@@ -360,6 +366,20 @@ public class AiAnalysisService {
             .analyzedAt(LocalDateTime.now())
             .build();
 
-        return resultRepository.save(result);
+        AiAnalysisResult saved = resultRepository.save(result);
+
+        // Review가 존재하면 riskLevel 업데이트
+        RiskLevel riskLevel = RiskLevel.fromString(response.riskLevel());
+        reviewRepository.findByDiagnostic(diagnostic).ifPresentOrElse(
+            review -> {
+                review.updateRiskLevel(riskLevel);
+                log.info("Review riskLevel 업데이트 - diagnosticId: {}, riskLevel: {}",
+                    diagnostic.getDiagnosticId(), riskLevel);
+            },
+            () -> log.info("Review 미존재 (결재 전) - diagnosticId: {}, riskLevel은 심사 생성 시 반영 예정",
+                diagnostic.getDiagnosticId())
+        );
+
+        return saved;
     }
 }

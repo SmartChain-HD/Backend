@@ -138,4 +138,8 @@ public class Review extends BaseTimeEntity {
         this.score = score;
         this.riskLevel = RiskLevel.fromScore(score);
     }
+
+    public void updateRiskLevel(RiskLevel riskLevel) {
+        this.riskLevel = riskLevel;
+    }
 }

@@ -9,6 +9,7 @@ import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.evidence.entity.EvidenceFile;
 import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
+import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.domain.user.entity.Company;
 import com.smartchain.platform.domain.user.entity.Domain;
 import com.smartchain.platform.dto.ai.run.*;
@@ -47,6 +48,8 @@ class AiAnalysisServiceTest {
     @Mock
     private EvidenceFileRepository evidenceFileRepository;
     @Mock
+    private ReviewRepository reviewRepository;
+    @Mock
     private SlotConfigProperties slotConfigProperties;
 
     private ObjectMapper objectMapper;
@@ -60,6 +63,7 @@ class AiAnalysisServiceTest {
             resultRepository,
             diagnosticRepository,
             evidenceFileRepository,
+            reviewRepository,
             objectMapper,
             slotConfigProperties
         );
