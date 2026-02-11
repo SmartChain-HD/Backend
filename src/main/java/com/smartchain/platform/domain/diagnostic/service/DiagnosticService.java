@@ -519,9 +519,19 @@ public class DiagnosticService {
 
         List<DiagnosticHistory> histories = diagnosticHistoryRepository.findByDiagnosticOrderByCreatedAtDesc(diagnostic);
 
-        List<DiagnosticHistoryItemDto> historyItems = histories.stream()
+        List<DiagnosticHistoryItemDto> historyItems = new ArrayList<>(histories.stream()
                 .map(this::mapToHistoryItemDto)
-                .toList();
+                .toList());
+
+        // 첫 번째/마지막 항목 제외하고 이름 마스킹
+        if (historyItems.size() > 2) {
+            for (int i = 1; i < historyItems.size() - 1; i++) {
+                PerformedByDto performer = historyItems.get(i).getPerformedBy();
+                if (performer != null && performer.getName() != null) {
+                    performer.setName(NameMaskingUtil.mask(performer.getName()));
+                }
+            }
+        }
 
         return DiagnosticHistoryResponse.builder()
                 .diagnosticId(diagnosticId)
