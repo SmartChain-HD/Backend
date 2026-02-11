@@ -234,6 +234,7 @@ public class DiagnosticService {
                     .userId(drafter.getUserId())
                     .name(drafter.getName())
                     .maskedName(NameMaskingUtil.mask(drafter.getName()))
+                    .email(drafter.getEmail())
                     .build();
         }
 
