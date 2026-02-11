@@ -174,7 +174,7 @@ CREATE TABLE diagnostic_history (
     action VARCHAR(50),
     previous_status VARCHAR(20),
     new_status VARCHAR(20),
-    comment VARCHAR(500),
+    comment VARCHAR(2000),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

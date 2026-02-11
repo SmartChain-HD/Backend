@@ -1,5 +1,26 @@
 # Claude Code Learnings
 
+## 2026-02-11: REVISION_REQUIRED 처리 시 간헐적 500 에러 (DiagnosticHistory comment 길이 불일치)
+
+### 원인
+- `DiagnosticHistory.comment` 엔티티는 `@Column(length = 2000)`이나, DB DDL 스키마(`ERD_DDL.sql`)는 `VARCHAR(500)`으로 불일치
+- AI 분석 결과(clarifications)를 보완 사유 초안으로 자동 채우는 기능으로 인해 500자 초과 comment 발생 가능
+- 500자 초과 comment가 `diagnosticHistoryRepository.save()` 시 `DataIntegrityViolationException` 발생 → `GlobalExceptionHandler`의 범용 핸들러가 HTTP 500 / S001 반환
+
+### 해결
+- `ERD_DDL.sql`의 `diagnostic_history.comment`를 `VARCHAR(500)` → `VARCHAR(2000)`으로 변경하여 엔티티와 일치시킴
+- `ReviewDecisionRequest.comment`에 `@Size(max = 2000)` 유효성 검증 추가 → 초과 시 400 에러 반환
+- 긴 코멘트(2000자) 보완 요청 테스트 케이스 추가
+
+### 재발방지
+- 엔티티 `@Column(length)` 값과 DDL 스키마의 `VARCHAR(N)` 값을 항상 동기화할 것
+- DTO에 `@Size` 검증을 추가하여 DB 제약 위반 전에 사용자 친화적 에러 반환
+
+### 검증방법
+- `./gradlew test --tests "ReviewServiceTest"` 전체 통과 (긴 코멘트 테스트 포함)
+
+---
+
 ## 2026-02-09: 결재 상세 API에서 기안자 maskedName 누락
 
 ### 원인
