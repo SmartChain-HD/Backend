@@ -1,5 +1,27 @@
 # Claude Code Learnings
 
+## 2026-02-12: AI 교차 검증 슬롯(`__x__`) displayName 빈 문자열 문제
+
+### 원인
+- AI Run API submit 응답에 `safety.education.attendance__x__safety.education.photo` 같은 교차 검증 슬롯이 포함됨
+- `SlotConfigProperties.getDisplayName()`이 `__x__` 전체를 하나의 슬롯명으로 조회하므로 매칭 실패 → 슬롯명 그대로 반환
+- 프론트에서 이를 일반 슬롯과 동일하게 표시하면 의미 없는 항목으로 노출
+
+### 해결
+- `AiAnalysisResultDetailResponse`에 `crossValidations` 필드 추가, `__x__` 슬롯을 `slotResults`에서 분리
+- `CrossValidation` DTO 신규 생성 (slots, displayNames, verdict, reasons, extras)
+- `AiAnalysisService.enrichWithDisplayNames()`에서 `__x__` 슬롯에 대해 구성 슬롯들의 displayName을 " ↔ "로 조합
+
+### 재발방지
+- `__x__` 패턴은 AI 서버 교차 검증 표준 포맷 — 새 교차 검증 슬롯 추가 시 자동 처리됨
+- `isCrossValidationSlot()` 유틸 메서드로 판별 로직 중앙 집중
+
+### 검증방법
+- `./gradlew test --tests "AiAnalysisResultDetailResponseTest"` — 교차 검증 분리 테스트 2개 포함
+
+### 관련커밋
+- (미커밋) feat(ai): __x__ 교차 검증 슬롯 분리 처리
+
 ## 2026-02-11: REVISION_REQUIRED 처리 시 간헐적 500 에러 (DiagnosticHistory comment 길이 불일치)
 
 ### 원인

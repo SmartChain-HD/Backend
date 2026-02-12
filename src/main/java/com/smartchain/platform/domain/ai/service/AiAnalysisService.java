@@ -180,6 +180,7 @@ public class AiAnalysisService {
     /**
      * AI 응답의 slotResults에 displayName 추가
      * 프론트에서 보낸 slotHints의 displayName 우선, 없으면 설정에서 조회
+     * __x__ 교차 검증 슬롯은 구성 슬롯들의 displayName을 "A ↔ B" 형태로 조합
      */
     private RunSubmitResponse enrichWithDisplayNames(RunSubmitResponse response,
                                                       List<SlotHint> slotHints,
@@ -200,10 +201,16 @@ public class AiAnalysisService {
         // slotResults에 displayName 추가
         List<SlotResult> enrichedResults = response.slotResults().stream()
             .map(result -> {
-                String displayName = frontendDisplayNames.getOrDefault(
-                    result.slotName(),
-                    slotConfigProperties.getDisplayName(result.slotName(), domainCode)
-                );
+                String displayName;
+                if (result.slotName() != null && result.slotName().contains("__x__")) {
+                    // 교차 검증 슬롯: 구성 슬롯들의 displayName을 "A ↔ B" 형태로 조합
+                    displayName = buildCrossValidationDisplayName(result.slotName(), frontendDisplayNames, domainCode);
+                } else {
+                    displayName = frontendDisplayNames.getOrDefault(
+                        result.slotName(),
+                        slotConfigProperties.getDisplayName(result.slotName(), domainCode)
+                    );
+                }
                 return result.withDisplayName(displayName);
             })
             .toList();
@@ -217,6 +224,22 @@ public class AiAnalysisService {
             response.clarifications(),
             response.extras()
         );
+    }
+
+    /**
+     * __x__ 교차 검증 슬롯의 displayName 생성
+     * 구성 슬롯들의 displayName을 " ↔ " 구분자로 조합
+     */
+    private String buildCrossValidationDisplayName(String crossSlotName,
+                                                     Map<String, String> frontendDisplayNames,
+                                                     String domainCode) {
+        String[] parts = crossSlotName.split("__x__");
+        return java.util.Arrays.stream(parts)
+            .map(part -> frontendDisplayNames.getOrDefault(
+                part,
+                slotConfigProperties.getDisplayName(part, domainCode)
+            ))
+            .collect(Collectors.joining(" ↔ "));
     }
 
     /**
