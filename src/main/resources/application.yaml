@@ -63,6 +63,11 @@ recaptcha:
   score-threshold: ${RECAPTCHA_SCORE_THRESHOLD:0.5}
   enabled: ${RECAPTCHA_ENABLED:false}
 
+# DataInitializer 설정
+app:
+  data-initializer:
+    enabled: true
+
 # 파일 저장소 설정 (로컬)
 file:
   storage:
@@ -256,13 +261,17 @@ azure:
     connection-string: ${AZURE_STORAGE_CONNECTION_STRING}
     container-name: ${AZURE_STORAGE_CONTAINER:smartchain-files}
 
+app:
+  data-initializer:
+    enabled: ${DATA_INIT_ENABLED:false}
+
 logging:
   level:
     com.smartchain.platform: INFO
 
 ai:
   risk-api:
-    url: ${AI_RISK_API_URL:http://127.0.0.1:8000}
+    url: ${AI_RISK_API_URL:http://127.0.0.1:8002}
     timeout-seconds: 60
     max-retry: 3
     target-companies:
