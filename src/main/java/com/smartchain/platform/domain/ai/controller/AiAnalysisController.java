@@ -46,7 +46,7 @@ public class AiAnalysisController {
         log.info("AI 분석 미리보기 요청 - diagnosticId: {}, fileIds: {}",
             diagnosticId, request.fileIds());
 
-        RunPreviewResponse response = aiAnalysisService.preview(diagnosticId, request.fileIds());
+        RunPreviewResponse response = aiAnalysisService.preview(diagnosticId, request.fileIds(), request.removedFileIds());
 
         return ResponseEntity.ok(BaseResponse.success("슬롯 추정 완료", response));
     }

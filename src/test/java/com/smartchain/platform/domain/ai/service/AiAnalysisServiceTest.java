@@ -244,7 +244,7 @@ class AiAnalysisServiceTest {
             when(diagnosticRepository.findById(diagnosticId)).thenReturn(Optional.empty());
 
             // when & then
-            assertThatThrownBy(() -> aiAnalysisService.preview(diagnosticId, List.of(1L)))
+            assertThatThrownBy(() -> aiAnalysisService.preview(diagnosticId, List.of(1L), null))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException customEx = (CustomException) ex;
@@ -263,7 +263,7 @@ class AiAnalysisServiceTest {
             when(evidenceFileRepository.findById(999L)).thenReturn(Optional.empty());
 
             // when & then
-            assertThatThrownBy(() -> aiAnalysisService.preview(diagnosticId, List.of(999L)))
+            assertThatThrownBy(() -> aiAnalysisService.preview(diagnosticId, List.of(999L), null))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException customEx = (CustomException) ex;
@@ -283,7 +283,7 @@ class AiAnalysisServiceTest {
             when(evidenceFileRepository.findById(1L)).thenReturn(Optional.of(evidenceFile));
 
             // when & then
-            assertThatThrownBy(() -> aiAnalysisService.preview(diagnosticId, List.of(1L)))
+            assertThatThrownBy(() -> aiAnalysisService.preview(diagnosticId, List.of(1L), null))
                 .isInstanceOf(CustomException.class)
                 .satisfies(ex -> {
                     CustomException customEx = (CustomException) ex;
@@ -315,7 +315,7 @@ class AiAnalysisServiceTest {
             when(aiRunApiClient.previewSync(any(RunPreviewRequest.class))).thenReturn(aiResponse);
 
             // when
-            RunPreviewResponse result = aiAnalysisService.preview(diagnosticId, List.of(1L));
+            RunPreviewResponse result = aiAnalysisService.preview(diagnosticId, List.of(1L), null);
 
             // then
             assertThat(result).isNotNull();

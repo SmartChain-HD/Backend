@@ -20,5 +20,8 @@ public record RunPreviewRequest(
     String packageId,  // 첫 호출 시 null
 
     @JsonProperty("added_files")
-    List<FileInfo> addedFiles
+    List<FileInfo> addedFiles,
+
+    @JsonProperty("removed_file_ids")
+    List<String> removedFileIds
 ) {}
