@@ -4,6 +4,7 @@ import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
 import com.smartchain.platform.domain.ai.service.AiAnalysisAsyncService;
 import com.smartchain.platform.domain.ai.service.AiAnalysisService;
 import com.smartchain.platform.dto.ai.AiAnalysisRequest;
+import com.smartchain.platform.domain.ai.config.SlotConfigProperties;
 import com.smartchain.platform.dto.ai.AiAnalysisResultDetailResponse;
 import com.smartchain.platform.dto.ai.AiAnalysisResultResponse;
 import com.smartchain.platform.dto.ai.AiPreviewRequest;
@@ -31,10 +32,12 @@ public class AiAnalysisController {
 
     private final AiAnalysisService aiAnalysisService;
     private final AiAnalysisAsyncService aiAnalysisAsyncService;
+    private final SlotConfigProperties slotConfigProperties;
 
-    public AiAnalysisController(AiAnalysisService aiAnalysisService, AiAnalysisAsyncService aiAnalysisAsyncService) {
+    public AiAnalysisController(AiAnalysisService aiAnalysisService, AiAnalysisAsyncService aiAnalysisAsyncService, SlotConfigProperties slotConfigProperties) {
         this.aiAnalysisService = aiAnalysisService;
         this.aiAnalysisAsyncService = aiAnalysisAsyncService;
+        this.slotConfigProperties = slotConfigProperties;
     }
 
     @Operation(summary = "AI Run Preview", description = "파일 추가 시 슬롯 추정 및 필수 항목 현황 확인")
@@ -95,7 +98,7 @@ public class AiAnalysisController {
         log.info("AI 분석 결과 상세 조회 - diagnosticId: {}", diagnosticId);
 
         AiAnalysisResult result = aiAnalysisService.getLatestResult(diagnosticId);
-        AiAnalysisResultDetailResponse response = AiAnalysisResultDetailResponse.from(result);
+        AiAnalysisResultDetailResponse response = AiAnalysisResultDetailResponse.from(result, slotConfigProperties);
 
         return ResponseEntity.ok(BaseResponse.success("분석 결과 상세 조회 완료", response));
     }

@@ -1,5 +1,6 @@
 package com.smartchain.platform.domain.review.service;
 
+import com.smartchain.platform.domain.ai.config.SlotConfigProperties;
 import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
 import com.smartchain.platform.domain.ai.repository.AiAnalysisResultRepository;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
@@ -52,6 +53,7 @@ public class ReviewService {
     private final DomainRepository domainRepository;
     private final AiAnalysisResultRepository aiAnalysisResultRepository;
     private final DiagnosticHistoryRepository diagnosticHistoryRepository;
+    private final SlotConfigProperties slotConfigProperties;
 
     private static final Map<String, String> RISK_LEVEL_LABEL_MAP = Map.of(
             "HIGH", "고위험군",
@@ -431,7 +433,7 @@ public class ReviewService {
         }
 
         AiAnalysisResult result = latestResult.get();
-        AiAnalysisResultDetailResponse detailResponse = AiAnalysisResultDetailResponse.from(result);
+        AiAnalysisResultDetailResponse detailResponse = AiAnalysisResultDetailResponse.from(result, slotConfigProperties);
 
         // clarifications를 RevisionDraftItemDto로 변환
         List<RevisionDraftResponse.RevisionDraftItemDto> draftItems = detailResponse.clarifications() != null

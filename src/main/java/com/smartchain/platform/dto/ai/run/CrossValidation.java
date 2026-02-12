@@ -12,5 +12,5 @@ public record CrossValidation(
     List<String> displayNames,    // 비교 대상 한글 표시명 (예: ["교육 출석부", "교육일 사진"])
     String verdict,               // PASS, NEED_FIX 등
     List<String> reasons,
-    Map<String, String> extras    // 교차 검증 추가 데이터 (예: {"attendance_count": "9", "photo_count": "10"})
+    Map<String, Object> extras    // 교차 검증 추가 데이터 (예: {"attendance_count": "9", "photo_count": "10"})
 ) {}
