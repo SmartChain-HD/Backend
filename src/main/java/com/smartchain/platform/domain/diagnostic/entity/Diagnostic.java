@@ -56,6 +56,8 @@ public class Diagnostic extends BaseTimeEntity {
 
     private LocalDateTime submittedAt;
 
+    private String previewPackageId;
+
     @Builder
     public Diagnostic(String diagnosticCode, String title, Campaign campaign, Company company,
                       Domain domain, Long drafterId, LocalDate periodStartDate, LocalDate periodEndDate, LocalDate deadline) {
@@ -120,5 +122,9 @@ public class Diagnostic extends BaseTimeEntity {
 
     public boolean isApproved() {
         return this.status == DiagnosticStatus.APPROVED;
+    }
+
+    public void updatePreviewPackageId(String previewPackageId) {
+        this.previewPackageId = previewPackageId;
     }
 }

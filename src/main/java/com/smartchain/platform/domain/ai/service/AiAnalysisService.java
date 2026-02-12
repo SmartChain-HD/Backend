@@ -74,9 +74,11 @@ public class AiAnalysisService {
     }
 
     /**
-     * Preview 호출 - 파일 추가 시 슬롯 추정
+     * Preview 호출 - 파일 추가/제거 시 슬롯 추정
+     * preview 응답의 package_id를 Diagnostic에 저장하여 다음 호출에서 재사용
      */
-    public RunPreviewResponse preview(Long diagnosticId, List<Long> fileIds) {
+    @Transactional
+    public RunPreviewResponse preview(Long diagnosticId, List<Long> fileIds, List<String> removedFileIds) {
         Diagnostic diagnostic = getDiagnostic(diagnosticId);
         String domainCode = getDomainCode(diagnostic);
 
@@ -84,11 +86,14 @@ public class AiAnalysisService {
             .map(this::toFileInfo)
             .toList();
 
-        // 기존 package_id 조회 (있으면 사용)
-        String existingPackageId = resultRepository
-            .findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(diagnosticId)
-            .map(AiAnalysisResult::getPackageId)
-            .orElse(null);
+        // package_id 조회: preview 저장분 → submit 저장분 → null (신규)
+        String existingPackageId = diagnostic.getPreviewPackageId();
+        if (existingPackageId == null) {
+            existingPackageId = resultRepository
+                .findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(diagnosticId)
+                .map(AiAnalysisResult::getPackageId)
+                .orElse(null);
+        }
 
         if (diagnostic.getPeriodStartDate() == null || diagnostic.getPeriodEndDate() == null) {
             throw new CustomException(ErrorCode.AI_MISSING_PERIOD_DATES);
@@ -99,10 +104,23 @@ public class AiAnalysisService {
             diagnostic.getPeriodStartDate().format(DATE_FORMATTER),
             diagnostic.getPeriodEndDate().format(DATE_FORMATTER),
             existingPackageId,
-            addedFiles
+            addedFiles,
+            removedFileIds
         );
 
-        return aiRunApiClient.previewSync(request);
+        log.info("Preview 요청 - diagnosticId: {}, packageId: {}, addedFiles: {}, removedFileIds: {}",
+            diagnosticId, existingPackageId,
+            addedFiles.stream().map(FileInfo::fileId).toList(),
+            removedFileIds);
+
+        RunPreviewResponse response = aiRunApiClient.previewSync(request);
+
+        // 응답의 package_id를 Diagnostic에 저장 (다음 preview에서 재사용)
+        if (response.packageId() != null) {
+            diagnostic.updatePreviewPackageId(response.packageId());
+        }
+
+        return response;
     }
 
     /**
@@ -152,11 +170,14 @@ public class AiAnalysisService {
                 diagnosticId, missingRequiredSlots);
         }
 
-        // 기존 package_id 조회
-        String packageId = resultRepository
-            .findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(diagnosticId)
-            .map(AiAnalysisResult::getPackageId)
-            .orElse(generatePackageId(diagnostic));
+        // package_id 조회: preview 저장분 → submit 저장분 → 신규 생성
+        String packageId = diagnostic.getPreviewPackageId();
+        if (packageId == null) {
+            packageId = resultRepository
+                .findTopByDiagnostic_DiagnosticIdOrderByAnalyzedAtDesc(diagnosticId)
+                .map(AiAnalysisResult::getPackageId)
+                .orElse(generatePackageId(diagnostic));
+        }
 
         RunSubmitRequest request = new RunSubmitRequest(
             packageId,

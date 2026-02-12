@@ -54,9 +54,10 @@ public class AiRunApiClient {
      * 파일 추가 시 슬롯 추정 및 필수 항목 현황 반환
      */
     public Mono<RunPreviewResponse> preview(RunPreviewRequest request) {
-        log.info("AI Run API preview 호출 - domain: {}, packageId: {}, files: {}",
+        log.info("AI Run API preview 호출 - domain: {}, packageId: {}, addedFiles: {}, removedFileIds: {}",
             request.domain(), request.packageId(),
-            request.addedFiles() != null ? request.addedFiles().size() : 0);
+            request.addedFiles() != null ? request.addedFiles().size() : 0,
+            request.removedFileIds());
 
         return webClient.post()
             .uri("/run/preview")
