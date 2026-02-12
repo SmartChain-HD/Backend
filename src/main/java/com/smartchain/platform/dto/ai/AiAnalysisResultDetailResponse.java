@@ -4,9 +4,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
 import com.smartchain.platform.dto.ai.run.Clarification;
+import com.smartchain.platform.dto.ai.run.CrossValidation;
 import com.smartchain.platform.dto.ai.run.SlotResult;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +16,7 @@ import java.util.Map;
 /**
  * AI 분석 결과 상세 응답 DTO
  * resultJson을 파싱하여 슬롯별 결과와 보완요청 메시지를 구조화하여 제공
+ * __x__ 교차 검증 슬롯은 slotResults에서 분리하여 crossValidations로 제공
  */
 public record AiAnalysisResultDetailResponse(
     Long id,
@@ -24,11 +27,13 @@ public record AiAnalysisResultDetailResponse(
     String verdict,
     String whySummary,
     List<SlotResult> slotResults,
+    List<CrossValidation> crossValidations,
     List<Clarification> clarifications,
     Map<String, Object> extras,
     LocalDateTime analyzedAt
 ) {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String CROSS_VALIDATION_SEPARATOR = "__x__";
 
     /**
      * AiAnalysisResult 엔티티를 상세 응답 DTO로 변환
@@ -50,10 +55,18 @@ public record AiAnalysisResultDetailResponse(
             result.getVerdict(),
             result.getWhySummary(),
             parsed.slotResults(),
+            parsed.crossValidations(),
             parsed.clarifications(),
             parsed.extras(),
             result.getAnalyzedAt()
         );
+    }
+
+    /**
+     * 슬롯명이 교차 검증 슬롯인지 판별
+     */
+    static boolean isCrossValidationSlot(String slotName) {
+        return slotName != null && slotName.contains(CROSS_VALIDATION_SEPARATOR);
     }
 
     /**
@@ -62,6 +75,7 @@ public record AiAnalysisResultDetailResponse(
     private static ParsedResult parseResultJson(String resultJson) {
         if (resultJson == null || resultJson.isBlank()) {
             return new ParsedResult(
+                Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyMap()
@@ -74,18 +88,53 @@ public record AiAnalysisResultDetailResponse(
                 new TypeReference<Map<String, Object>>() {}
             );
 
-            List<SlotResult> slotResults = parseSlotResults(jsonMap);
+            List<SlotResult> allSlotResults = parseSlotResults(jsonMap);
+
+            // __x__ 슬롯 분리
+            List<SlotResult> normalSlots = allSlotResults.stream()
+                .filter(sr -> !isCrossValidationSlot(sr.slotName()))
+                .toList();
+
+            List<CrossValidation> crossValidations = allSlotResults.stream()
+                .filter(sr -> isCrossValidationSlot(sr.slotName()))
+                .map(AiAnalysisResultDetailResponse::toCrossValidation)
+                .toList();
+
             List<Clarification> clarifications = parseClarifications(jsonMap);
             Map<String, Object> extras = parseExtras(jsonMap);
 
-            return new ParsedResult(slotResults, clarifications, extras);
+            return new ParsedResult(normalSlots, crossValidations, clarifications, extras);
         } catch (Exception e) {
             return new ParsedResult(
+                Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyMap()
             );
         }
+    }
+
+    /**
+     * __x__ 슬롯의 SlotResult를 CrossValidation으로 변환
+     */
+    private static CrossValidation toCrossValidation(SlotResult slotResult) {
+        List<String> slots = Arrays.asList(slotResult.slotName().split(CROSS_VALIDATION_SEPARATOR));
+
+        // displayName이 "A ↔ B" 형식이면 분리, 아니면 슬롯명을 그대로 사용
+        List<String> displayNames;
+        if (slotResult.displayName() != null && slotResult.displayName().contains(" ↔ ")) {
+            displayNames = Arrays.asList(slotResult.displayName().split(" ↔ "));
+        } else {
+            displayNames = slots;
+        }
+
+        return new CrossValidation(
+            slots,
+            displayNames,
+            slotResult.verdict(),
+            slotResult.reasons(),
+            slotResult.extras()
+        );
     }
 
     @SuppressWarnings("unchecked")
@@ -102,6 +151,7 @@ public record AiAnalysisResultDetailResponse(
                     Map<String, Object> map = (Map<String, Object>) item;
                     return new SlotResult(
                         getStringValue(map, "slot_name", "slotName"),
+                        getStringValue(map, "display_name", "displayName"),
                         (String) map.get("verdict"),
                         getListValue(map, "reasons"),
                         getListValue(map, "file_ids", "fileIds"),
@@ -187,6 +237,7 @@ public record AiAnalysisResultDetailResponse(
      */
     private record ParsedResult(
         List<SlotResult> slotResults,
+        List<CrossValidation> crossValidations,
         List<Clarification> clarifications,
         Map<String, Object> extras
     ) {}
