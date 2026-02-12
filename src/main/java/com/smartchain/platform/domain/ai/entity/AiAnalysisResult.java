@@ -39,7 +39,7 @@ public class AiAnalysisResult extends BaseTimeEntity {
     @Column(nullable = false)
     private String verdict;  // PASS, WARN, NEED_CLARIFY, NEED_FIX
 
-    @Column(name = "why_summary", length = 500)
+    @Column(name = "why_summary", columnDefinition = "TEXT")
     private String whySummary;
 
     @Column(name = "result_json", columnDefinition = "TEXT")
