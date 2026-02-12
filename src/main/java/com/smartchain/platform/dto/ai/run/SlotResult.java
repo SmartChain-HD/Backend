@@ -24,13 +24,13 @@ public record SlotResult(
     @JsonProperty("file_names")
     List<String> fileNames,
 
-    Map<String, String> extras
+    Map<String, Object> extras
 ) {
     /**
      * displayName 없이 생성하는 생성자 (AI 서버 응답 역직렬화용)
      */
     public SlotResult(String slotName, String verdict, List<String> reasons,
-                      List<String> fileIds, List<String> fileNames, Map<String, String> extras) {
+                      List<String> fileIds, List<String> fileNames, Map<String, Object> extras) {
         this(slotName, null, verdict, reasons, fileIds, fileNames, extras);
     }
 
