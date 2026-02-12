@@ -58,16 +58,16 @@ public class Review extends BaseTimeEntity {
     @JoinColumn(name = "processed_by_id")
     private User processedBy;
 
-    @Column(length = 1000)
+    @Column(length = 2000)
     private String comment;
 
-    @Column(length = 500)
+    @Column(length = 2000)
     private String categoryCommentE;
 
-    @Column(length = 500)
+    @Column(length = 2000)
     private String categoryCommentS;
 
-    @Column(length = 500)
+    @Column(length = 2000)
     private String categoryCommentG;
 
     @Builder
