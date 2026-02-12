@@ -265,7 +265,7 @@ public class DataInitializer implements CommandLineRunner {
         Campaign safetyCampaignCurrent = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-SAFETY-2025-H2").ownerCompanyId(ownerCompany.getCompanyId()).domain(safetyDomain)
                 .title("2025년 하반기 안전보건 점검").content("2025년 하반기 협력사 안전보건 관리 현황 점검")
-                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .periodStartDate(LocalDate.of(2025, 9, 30)).periodEndDate(LocalDate.of(2026, 6, 30))
                 .deadline(LocalDate.of(2026, 8, 31)).isActive(true).build());
 
         Campaign safetyCampaignPast = campaignRepository.save(Campaign.builder()
@@ -277,7 +277,7 @@ public class DataInitializer implements CommandLineRunner {
         Campaign complianceCampaignCurrent = campaignRepository.save(Campaign.builder()
                 .campaignCode("CAMP-COMPL-2025-H2").ownerCompanyId(ownerCompany.getCompanyId()).domain(complianceDomain)
                 .title("2025년 하반기 하도급 컴플라이언스 점검").content("2025년 하반기 협력사 하도급 계약 법규 준수 점검")
-                .periodStartDate(LocalDate.of(2025, 7, 1)).periodEndDate(LocalDate.of(2026, 6, 30))
+                .periodStartDate(LocalDate.of(2025, 9, 30)).periodEndDate(LocalDate.of(2026, 2, 13))
                 .deadline(LocalDate.of(2026, 8, 31)).isActive(true).build());
 
         Campaign complianceCampaignPast = campaignRepository.save(Campaign.builder()
