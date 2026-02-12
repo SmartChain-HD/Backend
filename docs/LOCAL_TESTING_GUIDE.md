@@ -34,8 +34,8 @@ SmartChain 플랫폼 로컬 환경 테스트 가이드입니다.
 
 ```bash
 # 백엔드
-git clone https://github.com/SmartChain-HD/smartchain.git
-cd smartchain
+git clone https://github.com/SmartChain-HD/Backend.git
+cd Backend
 
 # 프론트엔드 (별도 디렉토리)
 git clone https://github.com/SmartChain-HD/Frontend.git
@@ -211,37 +211,45 @@ streamlit run apps/ai_run_api/app/ui/streamlit_app.py
 
 ### 공통 비밀번호: `Test1234!`
 
+### 마스터 계정 (통합 테스트용)
+
+| 역할 | 이메일 | 회사 | 담당 도메인 |
+|------|--------|------|------------|
+| REVIEWER | `master.reviewer@hdhhi.co.kr` | HD현대중공업 | ESG, SAFETY, COMPLIANCE (전체) |
+| DRAFTER | `master.drafter@posco.com` | 포스코홀딩스 | ESG, SAFETY, COMPLIANCE (전체) |
+| APPROVER | `master.approver@posco.com` | 포스코홀딩스 | ESG |
+
 ### 원청 심사자 (REVIEWER) - HD현대중공업
 
-| 담당 도메인 | 이메일 | 역할 |
-|------------|--------|------|
-| ESG | `reviewer.esg@hdhhi.co.kr` | ESG 심사 담당 |
-| 안전보건 | `reviewer.safety@hdhhi.co.kr` | Safety 심사 담당 |
-| 컴플라이언스 | `reviewer.compliance@hdhhi.co.kr` | Compliance 심사 담당 |
+| 담당 도메인 | 이메일 |
+|------------|--------|
+| ESG | `reviewer.esg@hdhhi.co.kr` |
+| 안전보건 | `reviewer.safety@hdhhi.co.kr` |
+| 컴플라이언스 | `reviewer.compliance@hdhhi.co.kr` |
 
 ### 협력사 결재자 (APPROVER)
 
 | 회사 | 이메일 | 담당 도메인 |
 |------|--------|------------|
-| (주)테크파트너 | `approver@techpartner.co.kr` | ESG |
-| (주)그린매뉴팩처링 | `approver@greenmanu.co.kr` | ESG |
-| (주)안전건설 | `approver@safebuild.co.kr` | ESG |
+| 포스코홀딩스 | `approver@posco.com` | ESG |
+| 현대제철 | `approver@hyundai-steel.com` | ESG |
+| 성광벤드 | `approver@skbend.com` | ESG |
 
 ### 협력사 기안자 (DRAFTER)
 
 | 회사 | 이메일 | 담당 도메인 |
 |------|--------|------------|
-| (주)테크파트너 | `drafter1@techpartner.co.kr` | ESG, COMPLIANCE |
-| (주)테크파트너 | `drafter2@techpartner.co.kr` | ESG |
-| (주)그린매뉴팩처링 | `drafter@greenmanu.co.kr` | ESG, SAFETY |
-| (주)안전건설 | `drafter@safebuild.co.kr` | SAFETY |
+| 포스코홀딩스 | `drafter1@posco.com` | ESG, COMPLIANCE, SAFETY |
+| 포스코홀딩스 | `drafter2@posco.com` | ESG |
+| 현대제철 | `drafter@hyundai-steel.com` | ESG, SAFETY |
+| 성광벤드 | `drafter@skbend.com` | SAFETY |
 
 ### 게스트 (GUEST) - 권한 요청 테스트용
 
 | 회사 | 이메일 |
 |------|--------|
-| (주)정밀부품 | `newbie1@precision.co.kr` |
-| (주)정밀부품 | `newbie2@precision.co.kr` |
+| 동국제강 | `newbie@dongkuk.com` |
+| HD현대일렉트릭 | `newbie@hd-hyundai-electric.com` |
 
 ---
 
@@ -262,7 +270,7 @@ streamlit run apps/ai_run_api/app/ui/streamlit_app.py
 curl -X POST http://localhost:8080/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
-    "email": "drafter1@techpartner.co.kr",
+    "email": "master.drafter@posco.com",
     "password": "Test1234!"
   }'
 ```
@@ -272,6 +280,7 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 | 기능 | Method | Endpoint |
 |------|--------|----------|
 | 로그인 | POST | `/api/v1/auth/login` |
+| 캠페인 목록 | GET | `/api/v1/campaigns` |
 | 진단 목록 | GET | `/api/v1/diagnostics` |
 | 결재 목록 | GET | `/api/v1/approvals` |
 | 심사 목록 | GET | `/api/v1/reviews` |
@@ -281,52 +290,73 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 
 ## 7. 테스트 데이터
 
-서버 시작 시 자동으로 테스트 데이터가 생성됩니다.
+서버 시작 시 `DataInitializer`가 자동으로 테스트 데이터를 생성합니다.
+(`userRepository.count() > 0`이면 스킵 - 데이터 재생성 시 DB 초기화 필요)
 
-### 회사 (5개)
+### 회사 (6개)
 
 | 회사명 | 타입 | 업종 |
 |--------|------|------|
 | HD현대중공업 | TIER1 (원청) | 제조업 |
-| (주)테크파트너 | TIER2 (협력사) | IT/소프트웨어 |
-| (주)그린매뉴팩처링 | TIER2 (협력사) | 제조업 |
-| (주)안전건설 | TIER2 (협력사) | 건설업 |
-| (주)정밀부품 | TIER2 (협력사) | 제조업 |
+| 포스코홀딩스 | TIER1 (협력사) | 제조업 |
+| 현대제철 | TIER1 (협력사) | 제조업 |
+| 성광벤드 | TIER1 (협력사) | 제조업 |
+| 동국제강 | TIER1 (협력사) | 제조업 |
+| HD현대일렉트릭 | TIER1 (협력사) | 제조업 |
 
 ### 캠페인 (6개)
 
-| 도메인 | 캠페인 | 상태 |
-|--------|--------|------|
-| ESG | 2026년 1분기 ESG 공급망 진단 | 활성 |
-| ESG | 2025년 3분기 ESG 공급망 진단 | 완료 |
-| SAFETY | 2026년 1분기 안전보건 점검 | 활성 |
-| SAFETY | 2025년 3분기 안전보건 점검 | 완료 |
-| COMPLIANCE | 2026년 1분기 하도급 컴플라이언스 점검 | 활성 |
-| COMPLIANCE | 2025년 1분기 하도급 컴플라이언스 점검 | 완료 |
+| 도메인 | 캠페인 코드 | 제목 | 기간 | 마감 | 상태 |
+|--------|------------|------|------|------|------|
+| ESG | CAMP-ESG-2025-H2 | 2025년 하반기 ESG 공급망 진단 | 2025.07~2026.06 | 2026.08.31 | 활성 |
+| ESG | CAMP-ESG-2025-H1 | 2025년 상반기 ESG 공급망 진단 (완료) | 2025.01~2025.06 | 2025.08.31 | 종료 |
+| SAFETY | CAMP-SAFETY-2025-H2 | 2025년 하반기 안전보건 점검 | 2025.07~2026.06 | 2026.08.31 | 활성 |
+| SAFETY | CAMP-SAFETY-2025-H1 | 2025년 상반기 안전보건 점검 (완료) | 2025.01~2025.06 | 2025.08.31 | 종료 |
+| COMPLIANCE | CAMP-COMPL-2025-H2 | 2025년 하반기 하도급 컴플라이언스 점검 | 2025.07~2026.06 | 2026.08.31 | 활성 |
+| COMPLIANCE | CAMP-COMPL-2025-H1 | 2025년 상반기 하도급 컴플라이언스 점검 (완료) | 2025.01~2025.06 | 2025.08.31 | 종료 |
 
-### 진단 상태별 테스트 데이터 (17건)
+### 진단 상태별 테스트 데이터
 
-| 상태 | 설명 | 건수 |
-|------|------|------|
-| WRITING | 작성 중 | 4건 |
-| SUBMITTED | 제출됨 (결재 대기) | 3건 |
-| RETURNED | 반려됨 | 1건 |
-| APPROVED | 승인됨 (심사 대기) | 2건 |
-| REVIEWING | 심사 중 | 2건 |
-| COMPLETED | 완료 | 5건 |
+| 상태 | 설명 | 건수 | 도메인 |
+|------|------|------|--------|
+| WRITING | 작성 중 | 4건 | ESG(2), SAFETY(1), COMPLIANCE(1) |
+| SUBMITTED | 제출됨 (결재 대기) | 3건 | ESG(2), SAFETY(1) |
+| RETURNED | 반려됨 | 1건 | ESG(1) |
+| APPROVED | 승인됨 (심사 대기) | 2건 | ESG(2) |
+| REVIEWING | 심사 중 | 4건 | ESG(3), COMPLIANCE(1) |
+| COMPLETED | 완료 | 2건 | ESG(1), SAFETY(1) |
+
+### 결재 데이터 (5건)
+
+| 상태 | 건수 |
+|------|------|
+| WAITING (대기중) | 2건 |
+| APPROVED (승인) | 2건 |
+| REJECTED (반려) | 1건 |
+
+### 심사 데이터 (6건)
+
+| 상태 | 건수 |
+|------|------|
+| REVIEWING (심사중) | 2건 |
+| APPROVED (심사완료) | 2건 |
+| REVISION_REQUIRED (보완요청) | 2건 |
 
 ### 역할별 테스트 시나리오
 
 **기안자 (DRAFTER) 테스트:**
-- `drafter1@techpartner.co.kr` 로그인
+- `master.drafter@posco.com` 로그인 (전체 도메인)
+- 또는 `drafter1@posco.com` 로그인 (ESG, COMPLIANCE, SAFETY)
 - 진단 작성 → 제출 → 결재 요청 플로우 테스트
 
 **결재자 (APPROVER) 테스트:**
-- `approver@techpartner.co.kr` 로그인
+- `master.approver@posco.com` 로그인 (ESG)
+- 또는 `approver@posco.com` 로그인
 - 결재 목록 조회 → 승인/반려 플로우 테스트
 
 **심사자 (REVIEWER) 테스트:**
-- `reviewer.esg@hdhhi.co.kr` 로그인
+- `master.reviewer@hdhhi.co.kr` 로그인 (전체 도메인)
+- 또는 `reviewer.esg@hdhhi.co.kr` 로그인 (ESG만)
 - 심사 목록 조회 → 심사 완료/보완요청 플로우 테스트
 
 ---
@@ -358,10 +388,11 @@ netstat -ano | findstr :5432
 
 ### 데이터 초기화
 
-DB를 완전히 초기화하려면:
+`DataInitializer`는 `userRepository.count() > 0`이면 스킵합니다.
+시드 데이터를 재생성하려면 DB를 초기화해야 합니다.
 
 ```bash
-# 컨테이너 및 볼륨 삭제
+# 컨테이너 및 볼륨 삭제 (DB 데이터 완전 삭제)
 docker-compose down -v
 
 # 다시 시작
@@ -386,13 +417,13 @@ docker-compose up -d
 
 ### 터미널 1: PostgreSQL DB
 ```bash
-cd smartchain
+cd Backend
 docker-compose up -d
 ```
 
 ### 터미널 2: 백엔드 (Spring Boot)
 ```bash
-cd smartchain
+cd Backend
 ./gradlew bootRun
 # Windows: gradlew.bat bootRun
 ```
@@ -440,6 +471,6 @@ npm run dev
 
 테스트 중 문제가 발생하면 개발팀에 문의해주세요.
 
-- Backend: https://github.com/SmartChain-HD/smartchain
+- Backend: https://github.com/SmartChain-HD/Backend
 - Frontend: https://github.com/SmartChain-HD/Frontend
 - AI: https://github.com/SmartChain-HD/AI
