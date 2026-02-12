@@ -231,6 +231,22 @@ ai:
           display-name: 기타 문서
           keywords: []
           required: false
+    cross-validations:
+      - name: esg.energy.electricity.month_match
+        display-name: 전기 월별 대사(사용량 vs 고지서)
+        slots: [esg.energy.electricity.usage, esg.energy.electricity.bill]
+      - name: esg.energy.gas.month_match
+        display-name: 가스 월별 대사(사용량 vs 고지서)
+        slots: [esg.energy.gas.usage, esg.energy.gas.bill]
+      - name: esg.energy.water.month_match
+        display-name: 용수 월별 대사(사용량 vs 고지서)
+        slots: [esg.energy.water.usage, esg.energy.water.bill]
+      - name: esg.energy.electricity.peak_2024_vs_2025
+        display-name: 전기 사용량 피크 비교(2024 vs 2025)
+        slots: [esg.energy.electricity.usage]
+      - name: esg.hazmat.msds.coverage
+        display-name: 유해물질 MSDS 커버리지
+        slots: [esg.hazmat.msds, esg.hazmat.inventory]
 
 ---
 # ========================================

@@ -17,6 +17,7 @@ import java.util.Map;
 public class SlotConfigProperties {
 
     private Map<String, List<SlotDefinition>> domains = new HashMap<>();
+    private List<CrossValidationDefinition> crossValidations = new ArrayList<>();
 
     @Getter
     @Setter
@@ -25,6 +26,14 @@ public class SlotConfigProperties {
         private String displayName;  // 한글 표시명
         private List<String> keywords = new ArrayList<>();
         private boolean required;
+    }
+
+    @Getter
+    @Setter
+    public static class CrossValidationDefinition {
+        private String name;          // 가상 슬롯명 (예: esg.energy.electricity.month_match)
+        private String displayName;   // 한글 표시명
+        private List<String> slots = new ArrayList<>();  // 비교 대상 슬롯명
     }
 
     public List<SlotDefinition> getSlotsForDomain(String domainCode) {
@@ -68,5 +77,22 @@ public class SlotConfigProperties {
                 }
                 return slotName;
             });
+    }
+
+    /**
+     * 교차 검증 슬롯인지 판별
+     */
+    public boolean isCrossValidation(String slotName) {
+        return crossValidations.stream().anyMatch(cv -> cv.getName().equals(slotName));
+    }
+
+    /**
+     * 교차 검증 정의 조회
+     */
+    public CrossValidationDefinition getCrossValidationDefinition(String slotName) {
+        return crossValidations.stream()
+            .filter(cv -> cv.getName().equals(slotName))
+            .findFirst()
+            .orElse(null);
     }
 }

@@ -1,11 +1,14 @@
 package com.smartchain.platform.dto.ai;
 
+import com.smartchain.platform.domain.ai.config.SlotConfigProperties;
+import com.smartchain.platform.domain.ai.config.SlotConfigProperties.CrossValidationDefinition;
 import com.smartchain.platform.domain.ai.entity.AiAnalysisResult;
 import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -372,5 +375,179 @@ class AiAnalysisResultDetailResponseTest {
         assertThat(response.crossValidations().get(0).displayNames())
             .containsExactly("safety.tbm.checklist", "safety.tbm.video");
         assertThat(response.crossValidations().get(0).verdict()).isEqualTo("PASS");
+    }
+
+    @Test
+    @DisplayName("설정 기반 교차 검증 슬롯이 crossValidations로 분리")
+    void from_withConfigBasedCrossValidation_separatesIntoCrossValidations() {
+        // given
+        SlotConfigProperties slotConfig = new SlotConfigProperties();
+        CrossValidationDefinition cvDef = new CrossValidationDefinition();
+        cvDef.setName("esg.energy.electricity.month_match");
+        cvDef.setDisplayName("전기 월별 대사(사용량 vs 고지서)");
+        cvDef.setSlots(List.of("esg.energy.electricity.usage", "esg.energy.electricity.bill"));
+
+        CrossValidationDefinition cvDef2 = new CrossValidationDefinition();
+        cvDef2.setName("esg.hazmat.msds.coverage");
+        cvDef2.setDisplayName("유해물질 MSDS 커버리지");
+        cvDef2.setSlots(List.of("esg.hazmat.msds", "esg.hazmat.inventory"));
+
+        slotConfig.setCrossValidations(List.of(cvDef, cvDef2));
+
+        String resultJson = """
+            {
+                "package_id": "PKG_1",
+                "risk_level": "HIGH",
+                "verdict": "NEED_FIX",
+                "why": "테스트",
+                "slot_results": [
+                    {
+                        "slot_name": "esg.energy.electricity.usage",
+                        "display_name": "전기 사용량",
+                        "verdict": "PASS",
+                        "reasons": [],
+                        "file_ids": ["1"],
+                        "file_names": ["전기사용량.xlsx"]
+                    },
+                    {
+                        "slot_name": "esg.energy.electricity.month_match",
+                        "display_name": "esg.energy.electricity.month_match",
+                        "verdict": "NEED_FIX",
+                        "reasons": ["E3_BILL_FIELDS_MISSING"],
+                        "file_ids": [],
+                        "file_names": [],
+                        "extras": {"month": "2025-10"}
+                    },
+                    {
+                        "slot_name": "esg.hazmat.msds.coverage",
+                        "display_name": "esg.hazmat.msds.coverage",
+                        "verdict": "NEED_FIX",
+                        "reasons": ["E_MSDS_MISSING_REQUIRED"],
+                        "file_ids": [],
+                        "file_names": [],
+                        "extras": {"missing_required": "아세톤 / 톨루엔"}
+                    }
+                ],
+                "clarifications": [],
+                "extras": {}
+            }
+            """;
+
+        Diagnostic diagnostic = mock(Diagnostic.class);
+        when(diagnostic.getDiagnosticId()).thenReturn(400L);
+
+        AiAnalysisResult result = AiAnalysisResult.builder()
+            .diagnostic(diagnostic)
+            .domainCode("ESG")
+            .packageId("PKG_1")
+            .riskLevel("HIGH")
+            .verdict("NEED_FIX")
+            .whySummary("테스트")
+            .resultJson(resultJson)
+            .analyzedAt(LocalDateTime.now())
+            .build();
+
+        // when
+        AiAnalysisResultDetailResponse response = AiAnalysisResultDetailResponse.from(result, slotConfig);
+
+        // then - 일반 슬롯만 slotResults에 포함
+        assertThat(response.slotResults()).hasSize(1);
+        assertThat(response.slotResults().get(0).slotName()).isEqualTo("esg.energy.electricity.usage");
+
+        // 설정 기반 교차 검증 슬롯은 crossValidations로 분리
+        assertThat(response.crossValidations()).hasSize(2);
+
+        // electricity.month_match
+        assertThat(response.crossValidations().get(0).slots())
+            .containsExactly("esg.energy.electricity.usage", "esg.energy.electricity.bill");
+        assertThat(response.crossValidations().get(0).displayNames())
+            .containsExactly("전기 월별 대사(사용량 vs 고지서)");
+        assertThat(response.crossValidations().get(0).verdict()).isEqualTo("NEED_FIX");
+        assertThat(response.crossValidations().get(0).extras())
+            .containsEntry("month", "2025-10");
+
+        // hazmat.msds.coverage
+        assertThat(response.crossValidations().get(1).slots())
+            .containsExactly("esg.hazmat.msds", "esg.hazmat.inventory");
+        assertThat(response.crossValidations().get(1).displayNames())
+            .containsExactly("유해물질 MSDS 커버리지");
+        assertThat(response.crossValidations().get(1).reasons())
+            .containsExactly("E_MSDS_MISSING_REQUIRED");
+    }
+
+    @Test
+    @DisplayName("__x__ 교차 검증과 설정 기반 교차 검증이 혼합된 경우 모두 crossValidations로 분리")
+    void from_withMixedCrossValidations_separatesBothTypes() {
+        // given
+        SlotConfigProperties slotConfig = new SlotConfigProperties();
+        CrossValidationDefinition cvDef = new CrossValidationDefinition();
+        cvDef.setName("esg.energy.water.month_match");
+        cvDef.setDisplayName("용수 월별 대사(사용량 vs 고지서)");
+        cvDef.setSlots(List.of("esg.energy.water.usage", "esg.energy.water.bill"));
+        slotConfig.setCrossValidations(List.of(cvDef));
+
+        String resultJson = """
+            {
+                "package_id": "PKG_1",
+                "risk_level": "LOW",
+                "verdict": "PASS",
+                "why": "테스트",
+                "slot_results": [
+                    {
+                        "slot_name": "safety.education.attendance__x__safety.education.photo",
+                        "display_name": "교육 출석부 ↔ 교육일 사진",
+                        "verdict": "PASS",
+                        "reasons": ["일치"],
+                        "file_ids": [],
+                        "file_names": []
+                    },
+                    {
+                        "slot_name": "esg.energy.water.month_match",
+                        "display_name": "esg.energy.water.month_match",
+                        "verdict": "NEED_FIX",
+                        "reasons": ["PARSE_FAILED"],
+                        "file_ids": [],
+                        "file_names": []
+                    }
+                ],
+                "clarifications": [],
+                "extras": {}
+            }
+            """;
+
+        Diagnostic diagnostic = mock(Diagnostic.class);
+        when(diagnostic.getDiagnosticId()).thenReturn(500L);
+
+        AiAnalysisResult result = AiAnalysisResult.builder()
+            .diagnostic(diagnostic)
+            .domainCode("ESG")
+            .packageId("PKG_1")
+            .riskLevel("LOW")
+            .verdict("PASS")
+            .whySummary("테스트")
+            .resultJson(resultJson)
+            .analyzedAt(LocalDateTime.now())
+            .build();
+
+        // when
+        AiAnalysisResultDetailResponse response = AiAnalysisResultDetailResponse.from(result, slotConfig);
+
+        // then - 일반 슬롯 없음
+        assertThat(response.slotResults()).isEmpty();
+
+        // 두 종류 교차 검증 모두 crossValidations에 포함
+        assertThat(response.crossValidations()).hasSize(2);
+
+        // __x__ 타입
+        assertThat(response.crossValidations().get(0).slots())
+            .containsExactly("safety.education.attendance", "safety.education.photo");
+        assertThat(response.crossValidations().get(0).displayNames())
+            .containsExactly("교육 출석부", "교육일 사진");
+
+        // 설정 기반 타입
+        assertThat(response.crossValidations().get(1).slots())
+            .containsExactly("esg.energy.water.usage", "esg.energy.water.bill");
+        assertThat(response.crossValidations().get(1).displayNames())
+            .containsExactly("용수 월별 대사(사용량 vs 고지서)");
     }
 }
