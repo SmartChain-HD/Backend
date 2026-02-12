@@ -218,13 +218,13 @@ public record AiAnalysisResultDetailResponse(
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, String> getMapValue(Map<String, Object> map, String key) {
+    private static Map<String, Object> getMapValue(Map<String, Object> map, String key) {
         Object value = map.get(key);
         if (value instanceof Map<?, ?> rawMap) {
-            Map<String, String> result = new java.util.HashMap<>();
+            Map<String, Object> result = new java.util.HashMap<>();
             rawMap.forEach((k, v) -> {
-                if (k instanceof String && v instanceof String) {
-                    result.put((String) k, (String) v);
+                if (k instanceof String) {
+                    result.put((String) k, v);
                 }
             });
             return result;
