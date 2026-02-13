@@ -201,12 +201,12 @@ public class DataInitializer implements CommandLineRunner {
                 .company(ownerCompany).role(reviewerRole).emailVerified(true).build());
 
         User masterDrafter = userRepository.save(User.builder()
-                .name("마스터기안").email("master.drafter@posco.com").userPassword(encodedPassword)
-                .company(posco).role(drafterRole).emailVerified(true).build());
+                .name("마스터기안").email("master.drafter@skbend.com").userPassword(encodedPassword)
+                .company(skBend).role(drafterRole).emailVerified(true).build());
 
         User masterApprover = userRepository.save(User.builder()
-                .name("마스터결재").email("master.approver@posco.com").userPassword(encodedPassword)
-                .company(posco).role(approverRole).emailVerified(true).build());
+                .name("마스터결재").email("master.approver@skbend.com").userPassword(encodedPassword)
+                .company(skBend).role(approverRole).emailVerified(true).build());
 
         log.info("Users created: 15 users (including 3 masters)");
 
@@ -689,8 +689,8 @@ public class DataInitializer implements CommandLineRunner {
         log.info("");
         log.info("[MASTER ACCOUNTS]");
         log.info("  REVIEWER:   master.reviewer@hdhhi.co.kr (ALL DOMAINS)");
-        log.info("  DRAFTER:    master.drafter@posco.com (ALL DOMAINS)");
-        log.info("  APPROVER:   master.approver@posco.com (ESG Only)");
+        log.info("  DRAFTER:    master.drafter@skbend.com (ALL DOMAINS)");
+        log.info("  APPROVER:   master.approver@skbend.com (ESG Only)");
         log.info("");
         log.info("[원청 수신자 - REVIEWER]");
         log.info("  ESG:        reviewer.esg@hdhhi.co.kr");
