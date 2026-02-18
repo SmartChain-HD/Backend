@@ -29,7 +29,7 @@ public class LocalFileStorageService implements FileStorageService {
             Files.createDirectories(targetPath.getParent());
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
             log.info("File uploaded to local storage: path={}, size={}", path, file.getSize());
-            return targetPath.toAbsolutePath().toString();
+            return path;
         } catch (IOException e) {
             log.error("Failed to upload file to local storage: path={}", path, e);
             throw new RuntimeException("파일 업로드에 실패했습니다", e);
@@ -39,7 +39,7 @@ public class LocalFileStorageService implements FileStorageService {
     @Override
     public InputStream download(String path) {
         try {
-            Path filePath = Paths.get(basePath, path);
+            Path filePath = resolvePath(path);
             return Files.newInputStream(filePath);
         } catch (IOException e) {
             log.error("Failed to download file from local storage: path={}", path, e);
@@ -56,11 +56,19 @@ public class LocalFileStorageService implements FileStorageService {
     @Override
     public void delete(String path) {
         try {
-            Path filePath = Paths.get(basePath, path);
+            Path filePath = resolvePath(path);
             Files.deleteIfExists(filePath);
             log.info("File deleted from local storage: path={}", path);
         } catch (IOException e) {
             log.error("Failed to delete file from local storage: path={}", path, e);
         }
+    }
+
+    private Path resolvePath(String path) {
+        Path resolved = Paths.get(path);
+        if (resolved.isAbsolute()) {
+            return resolved;
+        }
+        return Paths.get(basePath, path);
     }
 }

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
-@Profile({"dev", "prod"})
+@Profile({"dev"})
 @RequiredArgsConstructor
 public class EmailServiceImpl implements EmailService {
 

@@ -22,7 +22,8 @@ WORKDIR /app
 # 빌드 결과물 복사
 COPY --from=builder /app/build/libs/*.jar app.jar
 
+
 EXPOSE 8080
 
 # 메모리 설정 추가 (컨테이너 환경에서 안정적 구동)
-ENTRYPOINT ["java", "-jar", "-Xmx512M", "-Dspring.profiles.active=prod", "app.jar"]
+ENTRYPOINT ["java", "-jar", "-Xmx512M", "app.jar"]

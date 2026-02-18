@@ -1,5 +1,7 @@
 package com.smartchain.platform.domain.risk.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartchain.platform.domain.risk.config.ExternalRiskApiConfig;
 import com.smartchain.platform.dto.risk.ExternalRiskDetectRequest;
 import com.smartchain.platform.dto.risk.ExternalRiskDetectResponse;
@@ -21,24 +23,34 @@ import java.time.Duration;
 public class ExternalRiskApiClient {
 
     private static final Logger log = LoggerFactory.getLogger(ExternalRiskApiClient.class);
+    private static final String DETECT_PATH = "/risk/external/detect";
+    private static final int ERROR_BODY_LOG_LIMIT = 300;
 
     private final WebClient webClient;
+    private final ObjectMapper objectMapper;
+    private final String baseUrl;
     private final int maxRetry;
 
     public ExternalRiskApiClient(
         @Qualifier("externalRiskApiWebClient") WebClient webClient,
+        ObjectMapper objectMapper,
         ExternalRiskApiConfig config
     ) {
         this.webClient = webClient;
+        this.objectMapper = objectMapper;
+        this.baseUrl = config.getUrl();
         this.maxRetry = config.getMaxRetry();
     }
 
     public ExternalRiskDetectResponse detect(ExternalRiskDetectRequest request) {
-        log.info("외부 위험 감지 API 호출 - vendors: {}", request.vendors());
+        String detectUrl = buildDetectUrl();
+        log.info("External risk detect API call - url: {}, vendors: {}", detectUrl, request.vendors());
+        log.debug("External risk detect request payload: {}", toJsonSafely(request));
 
         return webClient.post()
-            .uri("/risk/external/detect")
+            .uri(DETECT_PATH)
             .contentType(MediaType.APPLICATION_JSON)
+            .accept(MediaType.APPLICATION_JSON)
             .bodyValue(request)
             .retrieve()
             .bodyToMono(ExternalRiskDetectResponse.class)
@@ -46,13 +58,13 @@ public class ExternalRiskApiClient {
                 .filter(this::isRetryableError)
                 .onRetryExhaustedThrow((spec, signal) ->
                     new CustomException(ErrorCode.RISK_DETECT_FAILED)))
-            .onErrorMap(this::mapToCustomException)
+            .onErrorMap(error -> mapToCustomException(error, detectUrl))
             .doOnSuccess(response ->
-                log.info("외부 위험 감지 API 성공 - results: {}",
+                log.info("External risk detect API success - results: {}",
                     response.results() != null ? response.results().size() : 0))
             .doOnError(error -> {
                 if (!(error instanceof CustomException)) {
-                    log.error("외부 위험 감지 API 실패", error);
+                    log.error("External risk detect API unexpected failure", error);
                 }
             })
             .block();
@@ -65,16 +77,42 @@ public class ExternalRiskApiClient {
         return throwable instanceof WebClientRequestException;
     }
 
-    private Throwable mapToCustomException(Throwable throwable) {
+    private Throwable mapToCustomException(Throwable throwable, String detectUrl) {
         if (throwable instanceof CustomException) {
             return throwable;
         }
 
         if (throwable instanceof WebClientResponseException ex) {
-            log.error("외부 위험 감지 API 에러 응답 - status: {}, body: {}",
-                ex.getStatusCode(), ex.getResponseBodyAsString());
+            log.error("External risk detect API response error - url: {}, status: {}, body: {}",
+                detectUrl, ex.getStatusCode(), truncate(ex.getResponseBodyAsString()));
+        } else if (throwable instanceof WebClientRequestException ex) {
+            log.error("External risk detect API request error - url: {}, message: {}",
+                detectUrl, ex.getMessage());
         }
 
         return new CustomException(ErrorCode.RISK_DETECT_FAILED);
+    }
+
+    private String toJsonSafely(ExternalRiskDetectRequest request) {
+        try {
+            return objectMapper.writeValueAsString(request);
+        } catch (JsonProcessingException e) {
+            return "<json-serialize-failed>";
+        }
+    }
+
+    private String buildDetectUrl() {
+        String trimmedBaseUrl = baseUrl != null ? baseUrl.replaceAll("/+$", "") : "";
+        return trimmedBaseUrl + DETECT_PATH;
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return "";
+        }
+        if (value.length() <= ERROR_BODY_LOG_LIMIT) {
+            return value;
+        }
+        return value.substring(0, ERROR_BODY_LOG_LIMIT) + "...";
     }
 }

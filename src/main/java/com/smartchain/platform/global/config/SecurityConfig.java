@@ -32,7 +32,7 @@ public class SecurityConfig {
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring()
-                .requestMatchers("/health", "/actuator/**", "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**");
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**");
     }
 
     @Bean
@@ -45,12 +45,24 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(CorsUtils::isPreFlightRequest).permitAll()
-                        
-                        // 비로그인 사용자도 접근 가능한 API 경로
-                        .requestMatchers("/api/v1/auth/**", "/api/v1/roles/**").permitAll()
+
+                        // Public endpoints
+                        .requestMatchers(
+                                "/health",
+                                "/actuator/health",
+                                "/actuator/health/**",
+                                "/actuator/info",
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/check-email",
+                                "/api/v1/auth/send-verification",
+                                "/api/v1/auth/verify-email",
+                                "/api/v1/auth/refresh"
+                        ).permitAll()
 
                         // 로그인 및 공통 역할이 필요한 경로
                         .requestMatchers(
+                                "/api/v1/roles/**",
                                 "/api/v1/diagnostics/**",
                                 "/api/v1/approvals/**",
                                 "/api/v1/reviews/**",
@@ -62,7 +74,7 @@ public class SecurityConfig {
                                 "/api/v1/management/**",
                                 "/api/v1/jobs/**",
                                 "/api/v1/chat/**"
-                        ).hasAnyRole("DRAFTER", "APPROVER", "REVIEWER")
+                        ).hasAnyRole("GUEST", "DRAFTER", "APPROVER", "REVIEWER")
 
                         // REVIEWER 전용 API (충돌 지점 해결)
                         .requestMatchers("/api/v1/risk/**").hasRole("REVIEWER")

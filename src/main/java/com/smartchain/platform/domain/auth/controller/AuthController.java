@@ -11,6 +11,8 @@ import com.smartchain.platform.dto.auth.register.RegisterRequest;
 import com.smartchain.platform.dto.auth.register.RegisterResponse;
 import com.smartchain.platform.dto.auth.token.TokenRefreshRequest;
 import com.smartchain.platform.dto.auth.token.TokenRefreshResponse;
+import com.smartchain.platform.global.error.CustomException;
+import com.smartchain.platform.global.error.ErrorCode;
 import com.smartchain.platform.global.response.BaseResponse;
 import com.smartchain.platform.global.security.JwtTokenProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,6 +22,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -93,7 +97,7 @@ public class AuthController {
     @Operation(summary = "내 정보 조회", description = "현재 로그인된 사용자의 정보를 조회합니다.")
     @GetMapping("/me")
     public ResponseEntity<BaseResponse<MyInfoResponse>> getMyInfo(HttpServletRequest request) {
-        Long userId = extractUserIdFromRequest(request);
+        Long userId = extractUserIdFromSecurityContext();
         MyInfoResponse response = authService.getMyInfo(userId);
         return ResponseEntity.ok(BaseResponse.success(response));
     }
@@ -101,9 +105,17 @@ public class AuthController {
     @Operation(summary = "내 도메인 역할 조회", description = "현재 로그인된 사용자의 도메인별 역할 목록을 조회합니다. 게스트인 경우 권한요청 상태를 포함합니다.")
     @GetMapping("/me/domains")
     public ResponseEntity<BaseResponse<MyDomainResponse>> getMyDomains(HttpServletRequest request) {
-        Long userId = extractUserIdFromRequest(request);
+        Long userId = extractUserIdFromSecurityContext();
         MyDomainResponse response = authService.getMyDomains(userId);
         return ResponseEntity.ok(BaseResponse.success(response));
+    }
+
+    private Long extractUserIdFromSecurityContext() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Long userId) {
+            return userId;
+        }
+        throw new CustomException(ErrorCode.INVALID_TOKEN);
     }
 
     private Long extractUserIdFromRequest(HttpServletRequest request) {

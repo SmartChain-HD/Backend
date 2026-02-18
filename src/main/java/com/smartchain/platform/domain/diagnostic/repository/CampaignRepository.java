@@ -24,14 +24,14 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     List<Campaign> findByIsActiveTrue();
 
     /**
-     * 사용자 권한 도메인에 해당하고, 종료되지 않은(ACTIVE/DRAFT) 캠페인 목록 조회
+     * 사용자 권한 도메인에 해당하는 활성 캠페인 목록 조회
      */
-    @Query("SELECT c FROM Campaign c WHERE c.domain IN :domains AND c.periodEndDate >= :today ORDER BY c.createdAt DESC")
-    List<Campaign> findByDomainsAndNotClosed(@Param("domains") List<Domain> domains, @Param("today") LocalDate today);
+    @Query("SELECT c FROM Campaign c WHERE c.domain IN :domains AND c.isActive = true ORDER BY c.createdAt DESC")
+    List<Campaign> findByDomainsAndActive(@Param("domains") List<Domain> domains);
 
     /**
-     * 모든 도메인의 종료되지 않은 캠페인 목록 조회 (REVIEWER용)
+     * 모든 도메인의 활성 캠페인 목록 조회 (REVIEWER용)
      */
-    @Query("SELECT c FROM Campaign c WHERE c.periodEndDate >= :today ORDER BY c.createdAt DESC")
-    List<Campaign> findAllNotClosed(@Param("today") LocalDate today);
+    @Query("SELECT c FROM Campaign c WHERE c.isActive = true ORDER BY c.createdAt DESC")
+    List<Campaign> findAllActive();
 }

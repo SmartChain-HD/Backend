@@ -25,22 +25,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String token = resolveToken(request);
+        try {
+            String token = resolveToken(request);
 
-        // 토큰이 있고 유효하다면 인증 정보를 컨텍스트에 담음
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            Long userId = jwtTokenProvider.getUserIdFromToken(token);
-            String role = jwtTokenProvider.getRoleFromToken(token);
+            if (StringUtils.hasText(token)) {
+                JwtTokenProvider.TokenValidationResult validationResult =
+                        jwtTokenProvider.validateTokenWithResult(token);
+                if (validationResult == JwtTokenProvider.TokenValidationResult.VALID) {
+                    Long userId = jwtTokenProvider.getUserIdFromToken(token);
+                    String role = jwtTokenProvider.getRoleFromToken(token);
 
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            userId, null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                    );
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                    if (userId != null && StringUtils.hasText(role)) {
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        userId,
+                                        null,
+                                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                                );
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                } else {
+                    log.warn("JWT rejected: uri={}, reason={}", request.getRequestURI(), validationResult);
+                }
+            }
+        } catch (Exception e) {
+            // Keep request flow even when token parsing/claims extraction fails.
+            log.error("Could not set user authentication in security context", e);
         }
 
-        // 핵심: 토큰이 없더라도 다음 필터(시큐리티 권한 체크)로 반드시 넘겨야 함
         filterChain.doFilter(request, response);
     }
 

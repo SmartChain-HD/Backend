@@ -40,7 +40,7 @@ public class CampaignService {
         User currentUser = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
-        LocalDate today = LocalDate.now();
+        
         List<Campaign> campaigns;
 
         // 사용자의 도메인별 역할 확인
@@ -61,7 +61,7 @@ public class CampaignService {
 
         if (isReviewer) {
             // REVIEWER는 종료되지 않은 모든 캠페인 조회
-            campaigns = campaignRepository.findAllNotClosed(today);
+            campaigns = campaignRepository.findAllActive();
             log.info("Reviewer {} fetching all active campaigns, count={}", userId, campaigns.size());
         } else {
             // DRAFTER/APPROVER는 자신의 도메인 권한에 해당하는 캠페인만 조회
@@ -70,7 +70,7 @@ public class CampaignService {
                     .distinct()
                     .toList();
 
-            campaigns = campaignRepository.findByDomainsAndNotClosed(userDomains, today);
+            campaigns = campaignRepository.findByDomainsAndActive(userDomains);
             log.info("User {} fetching campaigns for domains {}, count={}",
                     userId, userDomains.stream().map(Domain::getCode).toList(), campaigns.size());
         }

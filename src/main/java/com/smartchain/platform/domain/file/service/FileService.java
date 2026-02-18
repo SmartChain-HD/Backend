@@ -78,11 +78,11 @@ public class FileService {
 
         // 파일 저장소에 업로드
         String filePath = generateFilePath(diagnosticId, file.getOriginalFilename());
-        fileStorageService.upload(file, filePath);
+        String storedPath = fileStorageService.upload(file, filePath);
 
         EvidenceFile evidenceFile = EvidenceFile.builder()
                 .diagnostic(diagnostic)
-                .filePath(filePath)
+                .filePath(storedPath)
                 .originalFileName(file.getOriginalFilename())
                 .fileSize(file.getSize())
                 .mimeType(file.getContentType())
@@ -390,7 +390,14 @@ public class FileService {
 
     private String generateFilePath(Long diagnosticId, String originalFileName) {
         String uuid = UUID.randomUUID().toString().substring(0, 8);
-        return "diagnostics/" + diagnosticId + "/" + uuid + "_" + originalFileName;
+        String extension = "";
+        if (originalFileName != null) {
+            int dotIndex = originalFileName.lastIndexOf('.');
+            if (dotIndex > -1 && dotIndex < originalFileName.length() - 1) {
+                extension = "." + originalFileName.substring(dotIndex + 1).toLowerCase();
+            }
+        }
+        return "diagnostics/" + diagnosticId + "/" + uuid + extension;
     }
 
     private String getFileType(String fileName) {

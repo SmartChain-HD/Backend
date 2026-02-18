@@ -16,6 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 
@@ -68,7 +71,8 @@ public class AzureBlobStorageService implements FileStorageService {
 
     @Override
     public String getPresignedUrl(String path, Duration expiry) {
-        BlobClient blobClient = containerClient.getBlobClient(path);
+        String blobPath = normalizeBlobPath(path);
+        BlobClient blobClient = containerClient.getBlobClient(blobPath);
         BlobSasPermission permission = new BlobSasPermission().setReadPermission(true);
         BlobServiceSasSignatureValues values = new BlobServiceSasSignatureValues(
                 OffsetDateTime.now().plus(expiry), permission);
@@ -83,5 +87,24 @@ public class AzureBlobStorageService implements FileStorageService {
             blobClient.delete();
             log.info("File deleted from Azure Blob: path={}", path);
         }
+    }
+
+    private String normalizeBlobPath(String pathOrUrl) {
+        if (pathOrUrl == null || pathOrUrl.isBlank()) {
+            return pathOrUrl;
+        }
+
+        if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
+            URI uri = URI.create(pathOrUrl);
+            String rawPath = uri.getPath();
+            String decodedPath = rawPath == null ? null : URLDecoder.decode(rawPath, StandardCharsets.UTF_8);
+            String containerPrefix = "/" + containerName + "/";
+            if (decodedPath != null && decodedPath.startsWith(containerPrefix)) {
+                return decodedPath.substring(containerPrefix.length());
+            }
+            return decodedPath != null && decodedPath.startsWith("/") ? decodedPath.substring(1) : decodedPath;
+        }
+
+        return pathOrUrl;
     }
 }

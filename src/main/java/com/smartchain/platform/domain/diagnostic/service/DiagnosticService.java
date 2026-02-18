@@ -283,7 +283,7 @@ public class DiagnosticService {
                 .orElseThrow(() -> new CustomException(ErrorCode.CAMPAIGN_NOT_FOUND));
 
         // 캠페인 종료 여부 확인 (종료된 캠페인에는 진단 생성 불가)
-        if (campaign.getPeriodEndDate().isBefore(LocalDate.now())) {
+        if (!Boolean.TRUE.equals(campaign.getIsActive())) {
             throw new CustomException(ErrorCode.CAMPAIGN_CLOSED);
         }
 

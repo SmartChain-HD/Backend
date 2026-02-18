@@ -20,6 +20,6 @@ public record ExternalRiskDetectRequest(
         List<String> vendorNames = companies.stream()
             .map(Company::getName)
             .toList();
-        return new ExternalRiskDetectRequest(vendorNames, new RagConfig(true));
+        return new ExternalRiskDetectRequest(vendorNames, new RagConfig(false));
     }
 }

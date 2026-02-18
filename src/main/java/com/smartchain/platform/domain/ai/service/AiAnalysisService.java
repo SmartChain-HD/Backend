@@ -10,6 +10,7 @@ import com.smartchain.platform.domain.diagnostic.entity.Diagnostic;
 import com.smartchain.platform.domain.diagnostic.repository.DiagnosticRepository;
 import com.smartchain.platform.domain.evidence.entity.EvidenceFile;
 import com.smartchain.platform.domain.evidence.repository.EvidenceFileRepository;
+import com.smartchain.platform.domain.file.storage.FileStorageService;
 import com.smartchain.platform.domain.review.entity.Review;
 import com.smartchain.platform.domain.review.repository.ReviewRepository;
 import com.smartchain.platform.dto.ai.run.*;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
@@ -43,11 +45,13 @@ public class AiAnalysisService {
 
     private static final Logger log = LoggerFactory.getLogger(AiAnalysisService.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final Duration FILE_URL_EXPIRY = Duration.ofMinutes(30);
 
     private final AiRunApiClient aiRunApiClient;
     private final AiAnalysisResultRepository resultRepository;
     private final DiagnosticRepository diagnosticRepository;
     private final EvidenceFileRepository evidenceFileRepository;
+    private final FileStorageService fileStorageService;
     private final ReviewRepository reviewRepository;
     private final ObjectMapper objectMapper;
     private final SlotConfigProperties slotConfigProperties;
@@ -60,6 +64,7 @@ public class AiAnalysisService {
         AiAnalysisResultRepository resultRepository,
         DiagnosticRepository diagnosticRepository,
         EvidenceFileRepository evidenceFileRepository,
+        FileStorageService fileStorageService,
         ReviewRepository reviewRepository,
         ObjectMapper objectMapper,
         SlotConfigProperties slotConfigProperties
@@ -68,6 +73,7 @@ public class AiAnalysisService {
         this.resultRepository = resultRepository;
         this.diagnosticRepository = diagnosticRepository;
         this.evidenceFileRepository = evidenceFileRepository;
+        this.fileStorageService = fileStorageService;
         this.reviewRepository = reviewRepository;
         this.objectMapper = objectMapper;
         this.slotConfigProperties = slotConfigProperties;
@@ -155,7 +161,7 @@ public class AiAnalysisService {
         List<FileInfo> files = evidenceFiles.stream()
             .map(ef -> new FileInfo(
                 ef.getResultFileId().toString(),
-                Paths.get(fileBasePath, ef.getFilePath()).toAbsolutePath().toString(),
+                resolveStorageUri(ef),
                 ef.getOriginalFileName()
             ))
             .toList();
@@ -375,6 +381,24 @@ public class AiAnalysisService {
 
     private String guessSlotName(String fileName, String domainCode) {
         return slotConfigProperties.matchSlotName(fileName, domainCode);
+    }
+
+    /**
+     * AI Run API가 접근 가능한 storage URI를 생성한다.
+     * - Azure Blob URL이면 SAS URL로 변환
+     * - 로컬 경로면 기존 절대경로로 전달
+     */
+    private String resolveStorageUri(EvidenceFile evidenceFile) {
+        String filePath = evidenceFile.getFilePath();
+        if (filePath == null || filePath.isBlank()) {
+            throw new CustomException(ErrorCode.FILE_NOT_FOUND);
+        }
+
+        if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+            return fileStorageService.getPresignedUrl(filePath, FILE_URL_EXPIRY);
+        }
+
+        return Paths.get(fileBasePath, filePath).toAbsolutePath().toString();
     }
 
     private String generatePackageId(Diagnostic diagnostic) {

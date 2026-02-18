@@ -80,13 +80,15 @@ public class ChatService {
             log.debug("새 세션 ID 생성: {}", sessionId);
         }
 
+        String normalizedDomain = request.domain() == null ? null : request.domain().toLowerCase();
+
         // 요청 재구성 (fileUrl, sessionId 포함)
         ChatRequest enrichedRequest = new ChatRequest(
             request.message(),
             null,
             fileUrl,
             request.history() != null ? request.history() : List.of(),
-            request.domain(),
+            normalizedDomain,
             request.docName(),
             request.topK(),
             sessionId

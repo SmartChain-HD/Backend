@@ -58,4 +58,15 @@ public class Campaign extends BaseTimeEntity {
     public void activate() {
         this.isActive = true;
     }
+
+    public void updateBasicInfo(String title, String content) {
+        this.title = title;
+        this.content = content;
+    }
+
+    public void updateSchedule(LocalDate periodStartDate, LocalDate periodEndDate, LocalDate deadline) {
+        this.periodStartDate = periodStartDate;
+        this.periodEndDate = periodEndDate;
+        this.deadline = deadline;
+    }
 }

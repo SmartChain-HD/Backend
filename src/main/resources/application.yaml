@@ -8,6 +8,16 @@ spring:
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
 ---
 # ========================================
 # 로컬 개발 환경
@@ -93,7 +103,7 @@ ai:
   chat:
     base-url: http://127.0.0.1:8001
     admin-api-key: ${AI_CHAT_ADMIN_KEY:test-key}
-    timeout-seconds: 30
+    timeout-seconds: 90
   slots:
     domains:
       esg:
@@ -286,6 +296,10 @@ logging:
     com.smartchain.platform: INFO
 
 ai:
+  run-api:
+    url: ${AI_RUN_API_URL:http://127.0.0.1:8000}
+    timeout-seconds: 180
+    max-retry: 3
   risk-api:
     url: ${AI_RISK_API_URL:http://127.0.0.1:8002}
     timeout-seconds: 60
@@ -297,5 +311,6 @@ ai:
       - 동국제강
       - HD현대일렉트릭
   chat:
-    base-url: ${AI_CHAT_URL:http://127.0.0.1:8001}
+    base-url: ${AI_CHAT_URL:${AI_CHATBOT_API_URL:http://127.0.0.1:8001}}
     admin-api-key: ${AI_CHAT_ADMIN_KEY}
+    timeout-seconds: ${AI_CHAT_TIMEOUT_SECONDS:90}

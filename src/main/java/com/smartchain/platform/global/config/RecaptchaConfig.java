@@ -12,6 +12,6 @@ import org.springframework.context.annotation.Configuration;
 public class RecaptchaConfig {
 
     private String secretKey;
-    private double scoreThreshold = 0.5;
+    private double scoreThreshold = 0.1;
     private boolean enabled = true;
 }
