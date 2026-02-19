@@ -3,6 +3,8 @@ package com.smartchain.platform.dto.risk;
 import com.smartchain.platform.domain.risk.entity.ExternalRiskResult;
 
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 /**
  * Backend -> Frontend 응답 DTO
@@ -14,9 +16,12 @@ public record ExternalRiskResultResponse(
     String riskLevel,
     String summary,
     String evidenceJson,
-    LocalDateTime detectedAt
+    OffsetDateTime detectedAt
 ) {
+    private static final ZoneOffset KST_OFFSET = ZoneOffset.ofHours(9);
+
     public static ExternalRiskResultResponse from(ExternalRiskResult entity) {
+        LocalDateTime detectedAt = entity.getDetectedAt();
         return new ExternalRiskResultResponse(
             entity.getId(),
             entity.getCompanyId(),
@@ -24,7 +29,7 @@ public record ExternalRiskResultResponse(
             entity.getRiskLevel().name(),
             entity.getSummary(),
             entity.getEvidenceJson(),
-            entity.getDetectedAt()
+            detectedAt != null ? detectedAt.atOffset(KST_OFFSET) : null
         );
     }
 }

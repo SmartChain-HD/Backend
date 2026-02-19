@@ -94,7 +94,20 @@ public class ChatService {
             sessionId
         );
 
-        return aiChatApiClient.chatSync(enrichedRequest);
+        try {
+            return aiChatApiClient.chatSync(enrichedRequest);
+        } catch (CustomException e) {
+            if (e.getErrorCode() == ErrorCode.AI_CHAT_SERVICE_ERROR || e.getErrorCode() == ErrorCode.AI_CHAT_TIMEOUT) {
+                log.warn("AI Chat fallback response - userId: {}, code: {}", userId, e.getErrorCode().getCode());
+                return new ChatResponse(
+                    "현재 AI 어시스턴트 연결이 일시적으로 불안정합니다. 잠시 후 다시 시도해 주세요.",
+                    "low",
+                    "챗봇 API 연결 오류로 기본 응답을 반환했습니다.",
+                    List.of()
+                );
+            }
+            throw e;
+        }
     }
 
     /**

@@ -2,7 +2,7 @@ name: Build and Deploy Backend
 
 on:
   push:
-    branches: [ "main" ] # main 브랜치에 코드가 올라오면 실행
+    branches: [ "main", "Infra" ] # main 브랜치에 코드가 올라오면 실행
 
 jobs:
   build-and-deploy:

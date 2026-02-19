@@ -9,12 +9,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "external_risk_result")
 public class ExternalRiskResult extends BaseTimeEntity {
+    private static final ZoneId KST_ZONE = ZoneId.of("Asia/Seoul");
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,6 +53,6 @@ public class ExternalRiskResult extends BaseTimeEntity {
         this.summary = summary;
         this.evidenceJson = evidenceJson;
         this.requestedBy = requestedBy;
-        this.detectedAt = LocalDateTime.now();
+        this.detectedAt = LocalDateTime.now(KST_ZONE);
     }
 }

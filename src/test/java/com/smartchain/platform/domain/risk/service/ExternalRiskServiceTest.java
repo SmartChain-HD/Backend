@@ -22,6 +22,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
@@ -152,7 +153,13 @@ class ExternalRiskServiceTest {
             assertThat(results.get(0).companyName()).isEqualTo("테스트협력사");
             assertThat(results.get(0).riskLevel()).isEqualTo("HIGH");
 
-            verify(externalRiskApiClient).detect(any(ExternalRiskDetectRequest.class));
+            assertThat(results.get(0).detectedAt()).isNotNull();
+            ArgumentCaptor<ExternalRiskDetectRequest> requestCaptor = ArgumentCaptor.forClass(ExternalRiskDetectRequest.class);
+            verify(externalRiskApiClient).detect(requestCaptor.capture());
+            ExternalRiskDetectRequest sentRequest = requestCaptor.getValue();
+            assertThat(sentRequest.search()).isNotNull();
+            assertThat(sentRequest.search().timeWindowDays()).isEqualTo(365);
+            assertThat(sentRequest.search().maxResults()).isEqualTo(30);
             verify(riskResultRepository).save(any(ExternalRiskResult.class));
         }
 
