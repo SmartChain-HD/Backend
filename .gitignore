@@ -34,3 +34,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local uploads & test data ###
+uploads/
+file/
+test_*.json

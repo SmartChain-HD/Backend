@@ -20,7 +20,10 @@
       "Bash(find:*)",
       "Bash(git log:*)",
       "Bash(grep:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(gh issue list:*)",
+      "Bash(curl:*)",
+      "Bash(git clone:*)"
     ]
   }
 }
