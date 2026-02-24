@@ -19,8 +19,8 @@ public class AiRunApiConfig {
     private String url = "http://localhost:8000";
     private int timeoutSeconds = 180;
     private int maxRetry = 3;
-    private int previewTimeoutSeconds = 30;
-    private int previewMaxRetry = 1;
+    private int previewTimeoutSeconds = 120;
+    private int previewMaxRetry = 0;
 
     @Bean
     public WebClient aiRunApiWebClient() {

@@ -300,6 +300,8 @@ ai:
     url: ${AI_RUN_API_URL:http://127.0.0.1:8000}
     timeout-seconds: 180
     max-retry: 3
+    preview-timeout-seconds: ${AI_RUN_PREVIEW_TIMEOUT_SECONDS:120}
+    preview-max-retry: ${AI_RUN_PREVIEW_MAX_RETRY:0}
   risk-api:
     url: ${AI_RISK_API_URL:http://127.0.0.1:8002}
     timeout-seconds: 60
